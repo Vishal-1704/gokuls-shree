@@ -18,6 +18,9 @@ services:
       - key: NODE_ENV
         value: production
 
+      - key: NODE_VERSION
+        value: "20"
+
       - key: PORT
         value: 3000
 
