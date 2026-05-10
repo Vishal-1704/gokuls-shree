@@ -125,6 +125,8 @@ class WebUrls {
   static const String baseUrl = 'https://gokulshreeschool.com';
 
   static const String home = '$baseUrl/index.php';
+  static const String studentLogin = '$baseUrl/login.php';
+  static const String examPortal = '$baseUrl/login.php';
   static const String results = '$baseUrl/result.php';
   static const String admitCard = '$baseUrl/admit-card.php';
   static const String marksheetVerification =
@@ -138,6 +140,7 @@ class WebUrls {
   static const String franchise = '$baseUrl/franchise.php';
   static const String contactUs = '$baseUrl/contact-us.php';
   static const String downloads = '$baseUrl/downloads.php';
+  static const String studyMaterial = '$baseUrl/downloads.php';
 
   // Course pages
   static const String diplomaCourses = '$baseUrl/diploma-courses.php';

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_notices_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_profile_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_staff_directory_screen.dart';
 
 class AdminDashboardHome extends ConsumerStatefulWidget {
@@ -31,322 +34,445 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(userRoleProvider) ?? 'branch_admin';
+    final isSuperAdmin = role == 'super_admin';
+    final roleLabel = isSuperAdmin ? 'Super Admin' : 'Branch Admin';
+    final roleAccent = isSuperAdmin ? AppColors.info : AppColors.goldCta;
+    final roleCode = isSuperAdmin ? 'HQ' : 'BR-012';
+    final roleAvatarText = isSuperAdmin ? 'S' : 'A';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F8), // background-light
-      body: CustomScrollView(
-        slivers: [
-          // Header with Welcome Message
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getFormattedDate(),
-                        style: const TextStyle(
-                          color: Color(0xFF64748B), // slate-500
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Welcome, Admin',
-                        style: TextStyle(
-                          color: Color(0xFF0F172A), // slate-900
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppTheme.primaryColor.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.domain,
-                              size: 16,
-                              color: AppTheme.primaryColor,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'BR-012',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AdminProfileScreen(),
-                            ),
-                          );
-                        },
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppTheme.primaryColor,
-                          child: const Text(
-                            'A',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Stats Section
-          SliverToBoxAdapter(
-            child: FutureBuilder<Map<String, dynamic>>(
-              future: _statsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final stats = snapshot.data ?? {};
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      // Primary Card: Fee Collection
-                      _buildPrimaryCard(stats),
-                      const SizedBox(height: 16),
-                      // Secondary Cards Grid
-                      Row(
+      backgroundColor: AppColors.inkNavy900,
+      body: RefreshIndicator(
+        color: AppColors.goldCta,
+        backgroundColor: AppColors.inkNavy800,
+        onRefresh: () async {
+          setState(() => _refreshData());
+        },
+        child: CustomScrollView(
+          slivers: [
+            // ─── Header ───
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: _buildSecondaryCard(
-                              icon: Icons.groups,
-                              iconColor: Colors.purple,
-                              iconBg: Colors.purple.shade50,
-                              label: 'Present Students',
-                              value: '${stats['present_students']}',
-                              subValue: '/${stats['total_students']}',
-                              footerText: '${stats['attendance_rate']}% Rate',
-                              footerColor: Colors.green,
-                            ),
+                          Text(
+                            _getFormattedDate(),
+                            style: AppTypography.labelMd,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildSecondaryCard(
-                              icon: Icons.assignment_late,
-                              iconColor: Colors.orange,
-                              iconBg: Colors.orange.shade50,
-                              label: 'Pending Enquiries',
-                              value: '${stats['pending_enquiries']} New',
-                              subValue: '',
-                              footerText: 'Action Req.',
-                              footerColor: Colors.orange,
-                              showBadge: true,
-                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Welcome, $roleLabel',
+                            style: AppTypography.headingLg,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Quick Actions
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminNoticesScreen(),
+                    ),
+                    const SizedBox(width: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.campaign),
-                      label: const Text('Notices'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminStaffDirectoryScreen(),
+                          decoration: BoxDecoration(
+                            color: roleAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: roleAccent.withOpacity(0.25),
+                            ),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.badge),
-                      label: const Text('Staff'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.indigo,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSuperAdmin ? Icons.shield : Icons.domain,
+                                size: 16,
+                                color: roleAccent,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                roleCode,
+                                style: AppTypography.labelLg.copyWith(
+                                  color: roleAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminProfileScreen(),
+                              ),
+                            );
+                          },
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: roleAccent,
+                            child: Text(
+                              roleAvatarText,
+                              style: TextStyle(
+                                color: AppColors.inkNavy900,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-          // Recent Activity Header
-          SliverToBoxAdapter(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    offset: Offset(0, -2),
-                    blurRadius: 12,
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Recent Transactions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    TextButton(onPressed: () {}, child: const Text('View All')),
                   ],
                 ),
-              ),
             ),
-          ),
 
-          // Recent Activity List
-          SliverFillRemaining(
-            hasScrollBody: false, // Don't scroll inside scroll
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _activitiesFuture,
+            // ─── Franchise Setup Banner (If missing branch_id) ───
+            SliverToBoxAdapter(
+              child: FutureBuilder<Map<String, dynamic>?>(
+                future: ref.read(adminRepositoryProvider).getMyBranch(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(),
+                  if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox.shrink();
+                  
+                  final hasBranch = snapshot.data != null;
+                  if (hasBranch) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
                       ),
-                    );
-                  }
-
-                  final activities = snapshot.data ?? [];
-                  if (activities.isEmpty) {
-                    return const Center(child: Text("No recent activity"));
-                  }
-
-                  return Column(
-                    children: activities
-                        .map((activity) => _buildActivityItem(activity))
-                        .toList(),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.orange),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Setup Required',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'Please complete your franchise details to start.',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push('/admin/franchise-setup'),
+                            child: const Text('SETUP NOW', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
             ),
-          ),
-          // Padding for bottom nav
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
+
+            // ─── Stats Section ───
+            SliverToBoxAdapter(
+              child: FutureBuilder<Map<String, dynamic>>(
+                future: _statsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.goldCta,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final stats = snapshot.data ?? {};
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        _buildPrimaryCard(stats),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildSecondaryCard(
+                                icon: Icons.groups,
+                                iconColor: AppColors.info,
+                                label: 'Present Students',
+                                value: '${stats['present_students']}',
+                                subValue: '/${stats['total_students']}',
+                                footerText: '${stats['attendance_rate']}% Rate',
+                                footerColor: AppColors.success,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildSecondaryCard(
+                                icon: Icons.assignment_late,
+                                iconColor: AppColors.warning,
+                                label: 'Pending Enquiries',
+                                value: '${stats['pending_enquiries']} New',
+                                subValue: '',
+                                footerText: 'Action Req.',
+                                footerColor: AppColors.warning,
+                                showBadge: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ─── Quick Actions ───
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Quick Actions', style: AppTypography.headingSm),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.campaign,
+                            label: 'Notices',
+                            color: AppColors.goldCta,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AdminNoticesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.badge,
+                            label: 'Staff',
+                            color: AppColors.info,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const AdminStaffDirectoryScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _buildQuickAction(
+                        icon: Icons.fact_check_outlined,
+                        label: 'Results Entry',
+                        color: const Color(0xFF7C3AED),
+                        onTap: () => context.push('/admin/results-entry'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.person_add_alt_1_outlined,
+                            label: 'Add Student',
+                            color: AppColors.success,
+                            onTap: () => context.push('/admin/add-student'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.request_quote_outlined,
+                            label: 'Dues Report',
+                            color: AppColors.warning,
+                            onTap: () => context.push('/admin/dues-report'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _buildQuickAction(
+                        icon: Icons.event_note_outlined,
+                        label: 'Exam Scheduler',
+                        color: const Color(0xFF2563EB),
+                        onTap: () => context.push('/admin/exam-scheduler'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.picture_as_pdf_outlined,
+                            label: 'Marksheet',
+                            color: AppColors.info,
+                            onTap: () =>
+                                context.push('/admin/marksheet-generator'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildQuickAction(
+                            icon: Icons.upload_file_outlined,
+                            label: 'Materials',
+                            color: const Color(0xFF0F766E),
+                            onTap: () => context.push('/admin/study-material'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // ─── Recent Transactions Header ───
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.inkNavy800,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Transactions',
+                        style: AppTypography.headingSm,
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: Text(
+                          'View All',
+                          style: AppTypography.bodyMd.copyWith(
+                            color: AppColors.goldCta,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ─── Recent Activity List ───
+            SliverToBoxAdapter(
+              child: Container(
+                color: AppColors.inkNavy800,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _activitiesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(
+                            color: AppColors.goldCta,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final activities = snapshot.data ?? [];
+                    if (activities.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No recent activity",
+                          style: AppTypography.bodyMd,
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: activities.length,
+                      separatorBuilder: (_, __) => Divider(
+                        color: AppColors.divider.withOpacity(0.35),
+                        height: 1,
+                      ),
+                      itemBuilder: (context, index) =>
+                          _buildActivityItem(activities[index]),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ],
+        ),
       ),
     );
   }
 
+  // ─── Primary Card: Fee Collection ───
   Widget _buildPrimaryCard(Map<String, dynamic> stats) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
         borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.goldCta, Color(0xFFA67B00)],
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
-            blurRadius: 15,
+            color: AppColors.goldCta.withOpacity(0.25),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor,
-            Color(0xFF2563EB), // slightly lighter blue
-          ],
-        ),
       ),
       child: Stack(
         children: [
-          // Decorative Circle (fake "Sparkle")
+          // Decorative Circle
           Positioned(
             right: -30,
             top: -30,
@@ -354,7 +480,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
             ),
@@ -369,10 +495,13 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppColors.inkNavy900.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.payments, color: Colors.white),
+                    child: const Icon(
+                      Icons.payments,
+                      color: AppColors.inkNavy900,
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -380,22 +509,21 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppColors.inkNavy900.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.trending_up,
-                          color: Colors.white,
+                          color: AppColors.inkNavy900,
                           size: 14,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${stats['collection_growth']}%',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+                          style: AppTypography.labelLg.copyWith(
+                            color: AppColors.inkNavy900,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -407,37 +535,35 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               const SizedBox(height: 20),
               Text(
                 "Today's Collection",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                style: AppTypography.bodyMd.copyWith(
+                  color: AppColors.inkNavy900.withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 '₹ ${stats['todays_collection']}',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: AppTypography.displayLg.copyWith(
+                  color: AppColors.inkNavy900,
                   fontSize: 32,
+                  fontStyle: FontStyle.normal,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -1,
                 ),
               ),
               const SizedBox(height: 16),
-              // Simulated Progress Bar
+              // Progress Bar
               Container(
                 height: 4,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: AppColors.inkNavy900.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(2),
                 ),
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
-                  widthFactor: 0.65, // Mocked 65%
+                  widthFactor: 0.65,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.inkNavy900,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -450,10 +576,10 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
     );
   }
 
+  // ─── Secondary Card ───
   Widget _buildSecondaryCard({
     required IconData icon,
     required Color iconColor,
-    required Color iconBg,
     required String label,
     required String value,
     required String subValue,
@@ -464,16 +590,9 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.inkNavy800,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)), // slate-200
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.divider.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,7 +605,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconBg,
+                  color: iconColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
@@ -496,7 +615,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Colors.red,
+                    color: AppColors.danger,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -506,33 +625,29 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF64748B), // slate-500
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(label, style: AppTypography.labelMd),
               const SizedBox(height: 4),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      value,
+                      style: AppTypography.headingMd.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (subValue.isNotEmpty)
-                    Text(
-                      subValue,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        subValue,
+                        style: AppTypography.bodyMd,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                 ],
@@ -540,9 +655,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               const SizedBox(height: 8),
               Text(
                 footerText,
-                style: TextStyle(
+                style: AppTypography.labelMd.copyWith(
                   color: footerColor,
-                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -553,6 +667,48 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
     );
   }
 
+  // ─── Quick Action Button ───
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppColors.inkNavy800,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider.withOpacity(0.3)),
+          ),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: AppTypography.labelLg.copyWith(color: color),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Activity Item ───
   Widget _buildActivityItem(Map<String, dynamic> activity) {
     return InkWell(
       onTap: () {},
@@ -562,7 +718,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: AppColors.inkNavy700,
               backgroundImage: NetworkImage(activity['photo_url']),
               onBackgroundImageError: (_, __) => const Icon(Icons.person),
             ),
@@ -573,19 +729,12 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                 children: [
                   Text(
                     activity['name'],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Color(0xFF0F172A),
-                    ),
+                    style: AppTypography.headingSm.copyWith(fontSize: 15),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${activity['class']} • ${activity['type']}',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
-                    ),
+                    style: AppTypography.bodySm,
                   ),
                 ],
               ),
@@ -595,19 +744,12 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               children: [
                 Text(
                   '+ ₹ ${activity['amount']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFF0F172A),
+                  style: AppTypography.headingSm.copyWith(
+                    color: AppColors.success,
+                    fontSize: 15,
                   ),
                 ),
-                Text(
-                  activity['time'],
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12,
-                  ),
-                ),
+                Text(activity['time'], style: AppTypography.labelMd),
               ],
             ),
           ],
@@ -617,7 +759,6 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
   }
 
   String _getFormattedDate() {
-    // Simple mock date formatter
     final now = DateTime.now();
     final months = [
       'Jan',
@@ -642,6 +783,6 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
       'Friday',
       'Saturday',
     ];
-    return '${weekdays[now.weekday == 7 ? 0 : now.weekday]}, ${now.day} ${months[now.month - 1]}';
+    return '${weekdays[now.weekday % 7]}, ${now.day} ${months[now.month - 1]}';
   }
 }

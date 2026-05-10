@@ -17,98 +17,83 @@ class AdminStudentDirectoryScreen extends ConsumerStatefulWidget {
 class _AdminStudentDirectoryScreenState
     extends ConsumerState<AdminStudentDirectoryScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _allStudents = [];
-  List<Map<String, dynamic>> _filteredStudents = [];
+  final ScrollController _scrollController = ScrollController();
+  List<Map<String, dynamic>> _students = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
+  static const int _pageSize = 20;
+  String _statusFilter = 'all';
 
   @override
   void initState() {
     super.initState();
-    _loadStudents();
+    _loadStudents(reset: true);
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _loadStudents() async {
-    // In a real app, this would use pagination or search-as-you-type API
-    // For now, we'll fetch 'all' (mocked limited list) and filter locally
-    // or use the repository to fetch mock data
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    // We'll create a mock list here if repo doesn't return enough for demo
-    // But let's try to use the repo first if it had a getStudents method
-    // checking repo... yes request said 'Student Directory List'
+  Future<void> _loadStudents({bool reset = false}) async {
+    if (_isLoadingMore) return;
 
-    setState(() => _isLoading = true);
-
-    // Simulating a fetch of a larger directory
-    await Future.delayed(const Duration(milliseconds: 800));
-    final mockStudents = [
-      {
-        'name': 'Aarav Patel',
-        'reg_no': 'REG2023001',
-        'class': 'Class 5B',
-        'phone': '9876543210',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuCWSHhaZ8O90DgfOHsoFGzrX-t82eyc7IsSYBnqzAh4bPyFls3e-a2uTz_LDK-Wu1Quv0XONkR8mwemYReXNYLlOdi7Lak2pM-ySIxoPknF39kk-U319dmDtlZWYyyfWkSWJ_GWgsGWVebOqtbw32q2CiL056gEziBCwTUu2HVwBBxaYt2wUDcYj_gAWAyWC4Tm5B_0cgaIrvTARcgIEbDCP4Yq25YYDrQ7TFfILqiNkznnnQ0fRxycR0mxSJL6cVQvQdVibR3IGPY',
-        'status': 'Active',
-      },
-      {
-        'name': 'Sneha Gupta',
-        'reg_no': 'REG2023045',
-        'class': 'Class 10A',
-        'phone': '9876543211',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAa-_STepkMgxKOk8C1Kck9qLnvH49pk-lZL8lvTQmgLXFjQbhxs5U9jMmqxCLmzy_kT-C1TLlc66apqhCZEbn9K244cm_FuvWavydcsj1VwwPewU2-vMxHbHs9E0T5Ja2aY8VAvqdKFcZ3SnKb3UUGP6DkKSlebBCzO-D_FRFziCKtxiPk6jhdLaMC5ORkNfxs_BYC4M9-mp2GI7QAohf0GJU_541fPpaS6f9sj2MTX-P443hJ6phW02IBTCUHECHalZdhx9r6YHM',
-        'status': 'Fees Due',
-      },
-      {
-        'name': 'Rohan Mehta',
-        'reg_no': 'REG2023102',
-        'class': 'Class 8C',
-        'phone': '9876543212',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuDc0u7vdY0MIxsFHuXCYq2-EX8vfQVLhzXEFNKMtTnhACktdNada33DXOeg5AxOkMIWHwyj-ReN9jdgowDV7fdDF3SNfyo1bP3Wns94uiEWlMb8iD5-oFg2MVK4iVLsTKtpUQetFV1i29l0Ko8stOLrtggBXg0CgMqNsAWAlY1drAV49xDZMYdUfCzisDJVMGVWHCWfDL7w4CxwnUnhoAjlKHJkJXnY_mNnVNdId0Mwk0zz-2TT3G--0iTz6g0WcB0KuJa-MFL1I-8',
-        'status': 'Active',
-      },
-      {
-        'name': 'Ananya Singh',
-        'reg_no': 'REG2023088',
-        'class': 'Class 6A',
-        'phone': '9876543213',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAIk1G3rT8x5eH0RtpP4SWG0qaRSOMwyiKPoafwxJVguElkFy-ucp5Yy0U_9-mTPLolGPRmKBDzwIY-6R6rBMjtHsGvOVHW0dCJh9h5CDcH6HaGvzkG65tgfi7oGPyA5TFmYKvuba4nbKkD_r5LEaVhdQR30TgD89RGz6oXxrM6_T-Jzadfo1qv-4XYmdtOL9loXI24TxL8nBhIpC9iRpDOR4Qlaia4tdyRoEjwoFPc4nf18Ax5eyF1geaJInKfNQW8Lhz7167tRPk',
-        'status': 'Active',
-      },
-      {
-        'name': 'Vikram Malhotra',
-        'reg_no': 'REG2023201',
-        'class': 'Class 12B',
-        'phone': '9876543214',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAkC_uS5QGjfCInDEUnpVBlmd5xltG7STYtEk1_QJod5Enq6IIrL5cu9IzEFPFYuLqTWsquXV_yETWA25rLQqf8c-ZjkFlM2fZCgTeY7Qdxsp6ITEXxRAVeAa-P0hz5DqIR7hru5hgHPa05dHEBwjSC-xrvEjrmIFU7pd7mBTSKrdmuNfumretW03zNw_k1FH7nuBZzmMOuUNO1WD9zD3GgyRCnUO-DQ_-nJzs2FznjylBRd8-K1WVjZYslqno9UNyV8QLiJypQdC4',
-        'status': 'Active',
-      },
-    ];
-
-    if (mounted) {
+    if (reset) {
       setState(() {
-        _allStudents = mockStudents;
-        _filteredStudents = mockStudents;
-        _isLoading = false;
+        _isLoading = true;
+        _page = 1;
+        _hasMore = true;
       });
+    } else {
+      if (!_hasMore) return;
+      setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      final rows = await ref
+          .read(adminRepositoryProvider)
+          .getStudentsPaged(
+            page: _page,
+            pageSize: _pageSize,
+            query: _searchController.text,
+            statusFilter: _statusFilter,
+          );
+
+      if (!mounted) return;
+      setState(() {
+        _students = reset ? rows : [..._students, ...rows];
+        _hasMore = rows.length == _pageSize;
+        if (_hasMore) _page += 1;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load students: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
-  void _filterStudents(String query) {
-    if (query.isEmpty) {
-      setState(() => _filteredStudents = _allStudents);
-    } else {
-      setState(() {
-        _filteredStudents = _allStudents.where((student) {
-          final name = student['name'].toString().toLowerCase();
-          final regNo = student['reg_no'].toString().toLowerCase();
-          final q = query.toLowerCase();
-          return name.contains(q) || regNo.contains(q);
-        }).toList();
-      });
+  void _onSearchChanged(String _) {
+    _loadStudents(reset: true);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    final threshold = _scrollController.position.maxScrollExtent - 200;
+    if (_scrollController.position.pixels >= threshold) {
+      _loadStudents();
     }
   }
 
@@ -138,11 +123,17 @@ class _AdminStudentDirectoryScreenState
         elevation: 0,
         centerTitle: false,
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list, color: Colors.black),
-            onPressed: () {
-              // TODO: Advanced Filters
+            onSelected: (value) {
+              setState(() => _statusFilter = value);
+              _loadStudents(reset: true);
             },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'all', child: Text('All Students')),
+              PopupMenuItem(value: 'active', child: Text('Active only')),
+              PopupMenuItem(value: 'inactive', child: Text('Inactive only')),
+            ],
           ),
         ],
       ),
@@ -153,7 +144,7 @@ class _AdminStudentDirectoryScreenState
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onChanged: _filterStudents,
+              onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 hintText: 'Search by Name or Reg No...',
                 prefixIcon: const Icon(Icons.search),
@@ -176,7 +167,7 @@ class _AdminStudentDirectoryScreenState
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _filteredStudents.isEmpty
+                : _students.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -195,13 +186,25 @@ class _AdminStudentDirectoryScreenState
                     ),
                   )
                 : ListView.separated(
+                    controller: _scrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _filteredStudents.length,
+                    itemCount: _students.length + (_isLoadingMore ? 1 : 0),
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final student = _filteredStudents[index];
-                      final isFeesDue = student['status'] == 'Fees Due';
+                      if (index >= _students.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
+                      final student = _students[index];
+                      final isInactive =
+                          (student['status']?.toString().toLowerCase() ==
+                          'inactive');
+                      final photoUrl = student['photo_url']?.toString();
+                      final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
                       return Container(
                         decoration: BoxDecoration(
@@ -221,7 +224,12 @@ class _AdminStudentDirectoryScreenState
                           contentPadding: const EdgeInsets.all(12),
                           leading: CircleAvatar(
                             radius: 28,
-                            backgroundImage: NetworkImage(student['photo_url']),
+                            backgroundImage: hasPhoto
+                                ? NetworkImage(photoUrl)
+                                : null,
+                            child: hasPhoto
+                                ? null
+                                : const Icon(Icons.person, color: Colors.grey),
                             onBackgroundImageError: (_, __) =>
                                 const Icon(Icons.person),
                           ),
@@ -229,14 +237,14 @@ class _AdminStudentDirectoryScreenState
                             children: [
                               Expanded(
                                 child: Text(
-                                  student['name'],
+                                  student['name']?.toString() ?? 'Unknown',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
                               ),
-                              if (isFeesDue)
+                              if (isInactive)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -250,7 +258,7 @@ class _AdminStudentDirectoryScreenState
                                     ),
                                   ),
                                   child: const Text(
-                                    'Fees Due',
+                                    'Inactive',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.red,
@@ -265,7 +273,7 @@ class _AdminStudentDirectoryScreenState
                             children: [
                               const SizedBox(height: 4),
                               Text(
-                                '${student['reg_no']} • ${student['class']}',
+                                '${student['reg_no'] ?? '-'} • ${student['class'] ?? 'N/A'}',
                                 style: TextStyle(color: Colors.grey[600]),
                               ),
                             ],
@@ -283,7 +291,8 @@ class _AdminStudentDirectoryScreenState
                                 size: 20,
                               ),
                             ),
-                            onPressed: () => _makeCall(student['phone']),
+                            onPressed: () =>
+                                _makeCall(student['phone']?.toString() ?? ''),
                           ),
                         ),
                       );
@@ -329,7 +338,7 @@ class _AdminStudentDirectoryScreenState
               title: const Text('Call Parent'),
               onTap: () {
                 Navigator.pop(context);
-                _makeCall(student['phone']);
+                _makeCall(student['phone']?.toString() ?? '');
               },
             ),
             ListTile(

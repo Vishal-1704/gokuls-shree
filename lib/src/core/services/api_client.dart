@@ -60,6 +60,28 @@ class ApiClient {
     return _dio.post('', data: data);
   }
 
+  Future<Response> getBinary(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    return _dio.get(
+      path,
+      queryParameters: queryParameters,
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
+
+  Future<Response> postBinary(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    final requestOptions = options ?? Options();
+    requestOptions.responseType = ResponseType.bytes;
+
+    return _dio.post(path, data: data, options: requestOptions);
+  }
+
   // --- MOCK LOGIC ---
 
   Future<Response> _handleMockGet(String path) async {

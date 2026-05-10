@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
-import 'package:gokul_shree_app/src/features/auth/data/supabase_auth_service.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
 /// Admin Panel screen for managing courses, notices, students, and downloads
 /// Only accessible by admin users
@@ -94,14 +95,18 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         }
 
         return Scaffold(
+          backgroundColor: AppColors.inkNavy900,
           appBar: AppBar(
+            backgroundColor: AppColors.inkNavy800,
+            foregroundColor: AppColors.textPrimary,
+            elevation: 0,
             title: const Text('Admin Panel'),
             bottom: TabBar(
               controller: _tabController,
               isScrollable: true,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
+              labelColor: AppColors.goldCta,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.goldCta,
               tabs: [
                 Tab(text: 'Courses (${_courses.length})'),
                 Tab(text: 'Notices (${_notices.length})'),
@@ -114,25 +119,57 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
             ],
           ),
           body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildCoursesTab(),
-                    _buildNoticesTab(),
-                    _buildStudentsTab(),
-                    _buildDownloadsTab(),
-                  ],
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.goldCta),
+                )
+              : Theme(
+                  data: Theme.of(context).copyWith(
+                    scaffoldBackgroundColor: AppColors.inkNavy900,
+                    canvasColor: AppColors.inkNavy900,
+                    cardColor: AppColors.inkNavy800,
+                    dividerColor: AppColors.divider,
+                    listTileTheme: const ListTileThemeData(
+                      iconColor: AppColors.textSecondary,
+                      textColor: AppColors.textPrimary,
+                    ),
+                    textTheme: Theme.of(context).textTheme.apply(
+                      bodyColor: AppColors.textPrimary,
+                      displayColor: AppColors.textPrimary,
+                    ),
+                  ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildCoursesTab(),
+                      _buildNoticesTab(),
+                      _buildStudentsTab(),
+                      _buildDownloadsTab(),
+                    ],
+                  ),
                 ),
           floatingActionButton: FloatingActionButton(
+            backgroundColor: AppColors.goldCta,
+            foregroundColor: AppColors.inkNavy900,
             onPressed: () => _showAddDialog(),
             child: const Icon(Icons.add),
           ),
         );
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.inkNavy900,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.goldCta),
+        ),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: AppColors.inkNavy900,
+        body: Center(
+          child: Text(
+            'Error: $e',
+            style: const TextStyle(color: AppColors.textPrimary),
+          ),
+        ),
+      ),
     );
   }
 

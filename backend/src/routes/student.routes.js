@@ -1,124 +1,205 @@
-const express = require('express');
-const db = require('../config/database');
-const { authMiddleware } = require('../middleware/auth.middleware');
+/**
+ * STUDENT ROUTES — Bulletproof Role Isolation
+ *
+ * Security layers on every route:
+ *   requireAuth          → valid JWT + active account
+ *   requirePermission()  → role in permission whitelist
+ *   strictBranchGuard    → branch_id locked to caller's profile (not body)
+ *   studentSelfGuard     → students can ONLY read their own record
+ *   DB query always uses req.queryBranchId (never req.body.branch_id)
+ */
+const router = require('express').Router();
+const { supabase }                          = require('../config/supabase');
+const { requireAuth, getBranchFilter }      = require('../middleware/auth.middleware');
+const { requirePermission, strictBranchGuard, studentSelfGuard, ROLES } = require('../middleware/role.guard');
+const { apiLimiter }                        = require('../middleware/rate.limiter');
+const { auditLog }                          = require('../middleware/audit.logger');
 
-const router = express.Router();
+// Apply API rate limit to all student routes
+router.use(apiLimiter);
 
-// Get student profile (protected)
-router.get('/profile', authMiddleware, async (req, res) => {
+// ══════════════════════════════════════════════════════════════
+// STUDENT: read own record  (STUDENT ONLY — no admin here)
+// GET /api/v1/students/me
+// ══════════════════════════════════════════════════════════════
+router.get(
+  '/me',
+  requireAuth,
+  requirePermission('READ_OWN_PROFILE'),  // student + all admins can call
+  studentSelfGuard,                        // but attaches req.studentId securely
+  async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT s.*, c.title as course_name 
-       FROM students s 
-       LEFT JOIN courses c ON s.course_id = c.id 
-       WHERE s.id = $1`,
-            [req.user.id]
-        );
+      // studentSelfGuard has already resolved req.studentId
+      const { data, error } = await supabase
+        .from('students')
+        .select(`
+          id, name, reg_no, roll_no, adm_no, gender, dob,
+          contact, email, father_name, mother_name,
+          qualification, session, doj, course_fee,
+          reg_fee, admin_fee, discount,
+          photo_url, signature_url, id_card_issued, status,
+          courses(id, name, short_name, duration),
+          branches(id, name, address)
+        `)
+        .eq('id', req.studentId)  // ← always use req.studentId, never a param
+        .single();
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Student not found' });
-        }
-
-        const student = result.rows[0];
-        res.json({
-            id: student.id.toString(),
-            registrationNumber: student.registration_number,
-            name: student.name,
-            email: student.email,
-            phone: student.phone,
-            courseName: student.course_name,
-            sessionYear: student.session_year,
-            photoUrl: student.photo_url,
-        });
-    } catch (error) {
-        console.error('Get profile error:', error);
-        res.status(500).json({ error: 'Failed to fetch profile' });
+      if (error || !data) return res.status(404).json({ error: 'Student record not found' });
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-});
+  }
+);
 
-// Get student results (protected)
-router.get('/results', authMiddleware, async (req, res) => {
+// ══════════════════════════════════════════════════════════════
+// ADMIN/TEACHER: list students in their branch
+// GET /api/v1/students?page=1&limit=20&search=name&course_id=X
+// ══════════════════════════════════════════════════════════════
+router.get(
+  '/',
+  requireAuth,
+  requirePermission('READ_BRANCH_STUDENTS'),
+  strictBranchGuard,
+  async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT * FROM results WHERE student_id = $1 ORDER BY exam_date DESC`,
-            [req.user.id]
-        );
+      const { page = 1, limit = 20, search, course_id, status = 1 } = req.query;
+      const from = (parseInt(page) - 1) * parseInt(limit);
 
-        res.json({
-            count: result.rows.length,
-            results: result.rows.map(row => ({
-                id: row.id.toString(),
-                examName: row.exam_name,
-                examDate: row.exam_date,
-                totalMarks: row.total_marks,
-                obtainedMarks: row.obtained_marks,
-                percentage: row.percentage,
-                grade: row.grade,
-                status: row.status,
-            })),
-        });
-    } catch (error) {
-        console.error('Get results error:', error);
-        res.status(500).json({ error: 'Failed to fetch results' });
+      let query = supabase
+        .from('students')
+        .select(`
+          id, name, reg_no, roll_no, gender, contact, email,
+          doj, status, photo_url, id_card_issued,
+          courses(id, name, short_name),
+          branches(id, name)
+        `, { count: 'exact' })
+        .eq('status', parseInt(status))
+        .range(from, from + parseInt(limit) - 1)
+        .order('name');
+
+      // ← CRITICAL: always use req.queryBranchId from strictBranchGuard
+      if (req.queryBranchId) query = query.eq('branch_id', req.queryBranchId);
+      if (course_id)          query = query.eq('course_id', parseInt(course_id));
+      if (search)             query = query.ilike('name', `%${search}%`);
+
+      const { data, count, error } = await query;
+      if (error) throw error;
+      res.json({ success: true, total: count, page: +page, limit: +limit, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-});
+  }
+);
 
-// Get admit cards (protected)
-router.get('/admit-cards', authMiddleware, async (req, res) => {
+// ══════════════════════════════════════════════════════════════
+// ADMIN/TEACHER: get single student by ID (branch scoped)
+// GET /api/v1/students/:id
+// Students CANNOT call this — use /me
+// ══════════════════════════════════════════════════════════════
+router.get(
+  '/:id',
+  requireAuth,
+  requirePermission('READ_BRANCH_STUDENTS'),
+  strictBranchGuard,
+  async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT * FROM admit_cards WHERE student_id = $1 ORDER BY exam_date DESC`,
-            [req.user.id]
-        );
+      const studentId = parseInt(req.params.id);
+      if (isNaN(studentId)) return res.status(400).json({ error: 'Invalid student ID' });
 
-        res.json({
-            count: result.rows.length,
-            admitCards: result.rows.map(row => ({
-                id: row.id.toString(),
-                examName: row.exam_name,
-                examDate: row.exam_date,
-                examVenue: row.exam_venue,
-                reportingTime: row.reporting_time,
-                isDownloaded: row.is_downloaded,
-            })),
-        });
-    } catch (error) {
-        console.error('Get admit cards error:', error);
-        res.status(500).json({ error: 'Failed to fetch admit cards' });
+      let query = supabase
+        .from('students')
+        .select(`*, courses(id, name, short_name, duration, fee), branches(id, name, address, contact)`)
+        .eq('id', studentId);
+
+      // Branch-scope: non-super-admins can only fetch their branch's students
+      if (req.queryBranchId) query = query.eq('branch_id', req.queryBranchId);
+
+      const { data, error } = await query.single();
+      if (error || !data) return res.status(404).json({ error: 'Student not found in your branch' });
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-});
+  }
+);
 
-// Verify student (public - for certificate verification)
-router.post('/verify', async (req, res) => {
+// ══════════════════════════════════════════════════════════════
+// BRANCH ADMIN / SUPER ADMIN: enroll new student
+// POST /api/v1/students
+// ══════════════════════════════════════════════════════════════
+router.post(
+  '/',
+  requireAuth,
+  requirePermission('ENROLL_STUDENT'),
+  strictBranchGuard,    // strips + re-injects branch_id from profile
+  auditLog('ENROLL_STUDENT'),
+  async (req, res) => {
     try {
-        const { registrationNumber, name } = req.body;
+      const body = { ...req.body };
 
-        const result = await db.query(
-            `SELECT s.registration_number, s.name, c.title as course_name, s.session_year
-       FROM students s
-       LEFT JOIN courses c ON s.course_id = c.id
-       WHERE s.registration_number = $1 AND LOWER(s.name) LIKE LOWER($2)`,
-            [registrationNumber, `%${name}%`]
-        );
+      // strictBranchGuard already set body.branch_id from server-side profile
+      // Double-enforce: never allow client to override
+      if (req.role !== ROLES.SUPER_ADMIN) {
+        body.branch_id = req.queryBranchId;
+      }
 
-        if (result.rows.length === 0) {
-            return res.json({ verified: false, message: 'Student not found' });
-        }
+      // Required fields check
+      if (!body.name || !body.course_id) {
+        return res.status(400).json({ error: 'name and course_id are required' });
+      }
 
-        const student = result.rows[0];
-        res.json({
-            verified: true,
-            student: {
-                registrationNumber: student.registration_number,
-                name: student.name,
-                courseName: student.course_name,
-                sessionYear: student.session_year,
-            },
-        });
-    } catch (error) {
-        console.error('Verify student error:', error);
-        res.status(500).json({ error: 'Verification failed' });
+      const { data, error } = await supabase
+        .from('students')
+        .insert(body)
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.status(201).json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-});
+  }
+);
+
+// ══════════════════════════════════════════════════════════════
+// BRANCH ADMIN / SUPER ADMIN: update student
+// PUT /api/v1/students/:id
+// ══════════════════════════════════════════════════════════════
+router.put(
+  '/:id',
+  requireAuth,
+  requirePermission('ENROLL_STUDENT'),
+  strictBranchGuard,
+  auditLog('UPDATE_STUDENT'),
+  async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      if (isNaN(studentId)) return res.status(400).json({ error: 'Invalid student ID' });
+
+      const body = { ...req.body, updated_at: new Date().toISOString() };
+      // Prevent clients from changing branch_id or profile_id via update
+      delete body.profile_id;
+      if (req.role !== ROLES.SUPER_ADMIN) {
+        body.branch_id = req.queryBranchId; // lock to their branch
+      }
+
+      let query = supabase
+        .from('students')
+        .update(body)
+        .eq('id', studentId);
+
+      // Branch-scope the update too — cannot update another branch's student
+      if (req.queryBranchId) query = query.eq('branch_id', req.queryBranchId);
+
+      const { data, error } = await query.select().single();
+      if (error || !data) return res.status(404).json({ error: 'Student not found or access denied' });
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 module.exports = router;

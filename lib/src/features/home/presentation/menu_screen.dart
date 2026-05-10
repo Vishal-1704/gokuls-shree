@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';
-import 'package:gokul_shree_app/src/features/auth/data/supabase_auth_service.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
@@ -163,7 +163,7 @@ class MenuScreen extends ConsumerWidget {
                   context,
                   'Diploma Courses',
                   icon: Icons.computer,
-                  onTap: () => context.go('/courses'),
+                  onTap: () => context.go('/exams'),
                 ),
                 _buildSubItem(
                   context,
@@ -220,6 +220,13 @@ class MenuScreen extends ConsumerWidget {
             subtitle: 'Start your own center',
             onTap: () => _openWebView(context, 'Franchise', WebUrls.franchise),
           ),
+          _buildMenuItem(
+            context,
+            icon: Icons.place_outlined,
+            title: 'Find Centres',
+            subtitle: 'Search by district or centre code',
+            onTap: () => context.push('/centre-finder'),
+          ),
 
           _buildSectionHeader(context, 'Support'),
           _buildMenuItem(
@@ -227,7 +234,7 @@ class MenuScreen extends ConsumerWidget {
             icon: Icons.contact_phone,
             title: 'Contact Us',
             subtitle: 'Get in touch',
-            onTap: () => _openWebView(context, 'Contact Us', WebUrls.contactUs),
+            onTap: () => context.push('/contact'),
           ),
           _buildMenuItem(
             context,

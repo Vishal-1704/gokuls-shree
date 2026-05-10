@@ -1,129 +1,261 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
-const db = require('../config/database');
+/**
+ * Auth Routes — Login, logout, profile
+ * POST /api/v1/auth/login
+ * GET  /api/v1/auth/me
+ * POST /api/v1/auth/logout
+ */
+const router = require('express').Router();
+const { supabase } = require('../config/supabase');
+const { requireAuth } = require('../middleware/auth.middleware');
+const { requirePermission, ROLES } = require('../middleware/role.guard');
 
-const router = express.Router();
-
-// Login
-router.post('/login', [
-    body('registrationNumber').notEmpty().withMessage('Registration number is required'),
-    body('password').notEmpty().withMessage('Password is required'),
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { registrationNumber, password } = req.body;
-
-        // Find student
-        const result = await db.query(
-            'SELECT * FROM students WHERE registration_number = $1 AND is_active = true',
-            [registrationNumber]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const student = result.rows[0];
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, student.password_hash);
-        if (!isValidPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Get course info
-        let courseName = null;
-        if (student.course_id) {
-            const courseResult = await db.query('SELECT title FROM courses WHERE id = $1', [student.course_id]);
-            if (courseResult.rows.length > 0) {
-                courseName = courseResult.rows[0].title;
-            }
-        }
-
-        // Generate JWT
-        const token = jwt.sign(
-            {
-                id: student.id,
-                registrationNumber: student.registration_number,
-                name: student.name
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-        );
-
-        res.json({
-            message: 'Login successful',
-            token,
-            user: {
-                id: student.id.toString(),
-                registrationNumber: student.registration_number,
-                name: student.name,
-                email: student.email,
-                phone: student.phone,
-                courseName,
-                sessionYear: student.session_year,
-                photoUrl: student.photo_url,
-            },
-        });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
+// ── Login ─────────────────────────────────────────────────────────────────
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
     }
+
+    // Authenticate with Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: 'Invalid email or password' });
+
+    const { user, session } = data;
+
+    // Fetch role profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, role, branch_id, full_name, status')
+      .eq('auth_uid', user.id)
+      .single();
+
+    if (!profile || profile.status === 0) {
+      return res.status(403).json({ error: 'Account is inactive or not found' });
+    }
+
+    // Return token + role info — Flutter app stores this
+    res.json({
+      success: true,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      user: {
+        id:        profile.id,
+        role:      profile.role,
+        name:      profile.full_name,
+        branch_id: profile.branch_id,
+        email:     user.email,
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
-// Register (simplified for demo)
-router.post('/register', [
-    body('registrationNumber').notEmpty(),
-    body('name').notEmpty(),
-    body('password').isLength({ min: 4 }),
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { registrationNumber, name, email, phone, password, courseId, sessionYear } = req.body;
-
-        // Check if already exists
-        const existing = await db.query(
-            'SELECT id FROM students WHERE registration_number = $1',
-            [registrationNumber]
-        );
-
-        if (existing.rows.length > 0) {
-            return res.status(409).json({ error: 'Registration number already exists' });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Insert student
-        const result = await db.query(
-            `INSERT INTO students (registration_number, name, email, phone, password_hash, course_id, session_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-            [registrationNumber, name, email, phone, hashedPassword, courseId, sessionYear]
-        );
-
-        res.status(201).json({
-            message: 'Registration successful',
-            studentId: result.rows[0].id,
-        });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Registration failed' });
-    }
 });
 
-// Verify Token
-router.get('/verify', require('../middleware/auth.middleware').authMiddleware, (req, res) => {
-    res.json({ valid: true, user: req.user });
+// ── Send OTP (Email based) ────────────────────────────────────────────────
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+
+    // Send OTP via Supabase
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false }, // Prevent random signups
+    });
+    
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ success: true, message: 'OTP sent successfully to email' });
+  } catch (err) {
+    console.error('OTP Send error:', err.message);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// ── Verify OTP ────────────────────────────────────────────────────────────
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP required' });
+    }
+
+    // Verify OTP with Supabase Auth
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'email',
+    });
+    
+    if (error) return res.status(401).json({ error: 'Invalid or expired OTP' });
+
+    const { user, session } = data;
+
+    // Fetch role profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, role, branch_id, full_name, status')
+      .eq('auth_uid', user.id)
+      .single();
+
+    if (!profile || profile.status === 0) {
+      return res.status(403).json({ error: 'Account is inactive or not found' });
+    }
+
+    // Return token + role info
+    res.json({
+      success: true,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      user: {
+        id:        profile.id,
+        role:      profile.role,
+        name:      profile.full_name,
+        branch_id: profile.branch_id,
+        email:     user.email,
+      }
+    });
+  } catch (err) {
+    console.error('Verify OTP error:', err.message);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+// ── Get current user profile ───────────────────────────────────────────────
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const role = req.role;
+    let extraData = {};
+
+    if (role === 'student') {
+      // Fetch student record linked to this profile
+      const { data: student } = await supabase
+        .from('students')
+        .select('id, name, reg_no, roll_no, photo_url, course_id, branch_id, status')
+        .eq('profile_id', req.profileId)
+        .single();
+      extraData = { student };
+    }
+
+    if (role === 'teacher') {
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('id, name, designation, department, branch_id')
+        .eq('profile_id', req.profileId)
+        .single();
+      extraData = { employee };
+    }
+
+    res.json({
+      success: true,
+      profile: {
+        id:       req.profileId,
+        role:     req.role,
+        name:     req.profile.full_name,
+        branch_id: req.branchId,
+        email:    req.user.email,
+      },
+      ...extraData
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not fetch profile' });
+  }
+});
+
+// ── Refresh token ─────────────────────────────────────────────────────────
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+    if (!refresh_token) return res.status(400).json({ error: 'refresh_token required' });
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+    if (error) return res.status(401).json({ error: 'Token refresh failed' });
+
+    res.json({
+      success: true,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Refresh failed' });
+  }
+});
+
+// ── Logout ────────────────────────────────────────────────────────────────
+router.post('/logout', requireAuth, async (req, res) => {
+  await supabase.auth.signOut();
+  res.json({ success: true, message: 'Logged out' });
+});
+
+// ── Admin: Register Branch Admin ──────────────────────────────────────────
+router.post('/admin/register-branch-admin', requireAuth, requirePermission('REGISTER_BRANCH_ADMIN'), async (req, res) => {
+  const { email, password, name } = req.body;
+  
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'Email, password and name are required' });
+  }
+
+  try {
+    // 1. Create user in Supabase Auth (Service Role bypasses signup confirmation if configured)
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name }
+    });
+
+    if (authError) return res.status(400).json({ error: authError.message });
+
+    const user = authData.user;
+
+    // 2. Create Profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        auth_uid: user.id,
+        full_name: name,
+        role: ROLES.BRANCH_ADMIN,
+        status: 1 // Active
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      // Cleanup: delete auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(user.id);
+      return res.status(500).json({ error: 'Failed to create user profile' });
+    }
+
+    // 3. Create Admin record
+    const { error: adminError } = await supabase
+      .from('admins')
+      .insert({
+        user_id: user.id,
+        email: email,
+        name: name
+      });
+
+    if (adminError) {
+      console.warn('⚠️ Admin record creation failed, but user and profile exist:', adminError.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Branch Admin registered successfully',
+      user: {
+        id: profile.id,
+        email: user.email,
+        name: name
+      }
+    });
+  } catch (err) {
+    console.error('Admin Registration Error:', err.message);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
 });
 
 module.exports = router;

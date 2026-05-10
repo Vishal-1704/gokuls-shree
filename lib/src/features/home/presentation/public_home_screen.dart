@@ -1,7 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
+import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';
+
+const Color _pageBg = Color(0xFF020B1D);
+const Color _surfaceCard = Color(0xFF0A1E3D);
+const Color _surfaceCardAlt = Color(0xFF0D2448);
+const Color _textPrimary = Color(0xFFF4F7FF);
+const Color _textSecondary = Color(0xFFB7C5E2);
+const Color _highlight = Color(0xFFF3DB73);
 
 class PublicHomeScreen extends StatefulWidget {
   const PublicHomeScreen({super.key});
@@ -16,27 +24,47 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _pageBg,
       body: _selectedIndex == 0 ? const _HomeTab() : const _AcademicsTab(),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: const Color(0xFF08172F),
+        indicatorColor: _highlight,
+        shadowColor: Colors.black.withValues(alpha: 0.35),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        height: 78,
+        surfaceTintColor: Colors.transparent,
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            icon: const Icon(Icons.home_outlined, color: _textSecondary),
+            selectedIcon: const Icon(Icons.home, color: Color(0xFF1B2130)),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.school_outlined),
-            selectedIcon: Icon(Icons.school),
+            icon: const Icon(Icons.school_outlined, color: _textSecondary),
+            selectedIcon: const Icon(Icons.school, color: Color(0xFF1B2130)),
             label: 'Academics',
           ),
         ],
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: _textPrimary,
+              fontSize: 12,
+            );
+          }
+          return const TextStyle(
+            fontWeight: FontWeight.w500,
+            color: _textSecondary,
+            fontSize: 12,
+          );
+        }),
       ),
     );
   }
@@ -44,6 +72,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
 
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
+  static const double _brandLogoSize = 92;
 
   Future<void> _launchWebsite() async {
     final Uri url = Uri.parse('https://www.gokulshreeschool.com');
@@ -62,7 +91,11 @@ class _HomeTab extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
             decoration: const BoxDecoration(
-              color: AppTheme.primaryColor,
+              gradient: LinearGradient(
+                colors: [Color(0xFF0B2753), Color(0xFF061834)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(32),
                 bottomRight: Radius.circular(32),
@@ -71,22 +104,27 @@ class _HomeTab extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  width: _brandLogoSize,
+                  height: _brandLogoSize,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.school_rounded,
-                    size: 48,
-                    color: AppTheme.primaryColor,
+                  child: ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(0),
+                      child: Image.asset(
+                        'assets/images/school_logo.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -96,7 +134,7 @@ class _HomeTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: _textPrimary,
                     height: 1.3,
                   ),
                 ),
@@ -107,14 +145,14 @@ class _HomeTab extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     "Official Student App",
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white,
+                      color: _textPrimary,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.5,
                     ),
@@ -135,7 +173,7 @@ class _HomeTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: _textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -175,7 +213,7 @@ class _HomeTab extends StatelessWidget {
 
           // 3. Testimonials Section
           Container(
-            color: Colors.grey.shade50,
+            color: const Color(0xFF05142B),
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +225,7 @@ class _HomeTab extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
+                      color: _textPrimary,
                     ),
                   ),
                 ),
@@ -228,19 +266,13 @@ class _HomeTab extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: AppTheme.primaryColor.withOpacity(0.2),
-                ),
+                border: Border.all(color: _highlight.withValues(alpha: 0.35)),
                 borderRadius: BorderRadius.circular(12),
-                color: AppTheme.primaryColor.withOpacity(0.05),
+                color: _surfaceCard,
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.verified_user,
-                    color: AppTheme.primaryColor,
-                    size: 32,
-                  ),
+                  const Icon(Icons.verified_user, color: _highlight, size: 32),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -251,13 +283,13 @@ class _HomeTab extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: AppTheme.primaryColor,
+                            color: _textPrimary,
                           ),
                         ),
                         SizedBox(height: 4),
                         Text(
                           "All certificates and marksheets can be verified online.",
-                          style: TextStyle(fontSize: 12, color: Colors.black87),
+                          style: TextStyle(fontSize: 12, color: _textSecondary),
                         ),
                       ],
                     ),
@@ -276,8 +308,8 @@ class _HomeTab extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => context.push('/login'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: _highlight,
+                  foregroundColor: const Color(0xFF1B2130),
                   elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -302,7 +334,7 @@ class _HomeTab extends StatelessWidget {
               child: const Text(
                 "Visit Official Website",
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: _textSecondary,
                   decoration: TextDecoration.underline,
                 ),
               ),
@@ -409,7 +441,7 @@ class _AcademicsTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (program['color'] as Color).withOpacity(0.1),
+                    color: (program['color'] as Color).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -483,11 +515,31 @@ class _AcademicsTab extends StatelessWidget {
     );
   }
 
+  void _openExamPortal(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const InAppWebViewScreen(
+          title: 'Online Exam Portal',
+          url: WebUrls.examPortal,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _pageBg,
       appBar: AppBar(
-        title: const Text('Academics & Features'),
+        backgroundColor: _pageBg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Academics & Features',
+          style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w700),
+        ),
+        iconTheme: const IconThemeData(color: _textPrimary),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -502,13 +554,13 @@ class _AcademicsTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+                color: _textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
               "Tap on a course to view details",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: _textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 16),
 
@@ -534,13 +586,13 @@ class _AcademicsTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+                color: _textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
               "Login to access the following services:",
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: _textSecondary),
             ),
             const SizedBox(height: 16),
 
@@ -592,12 +644,36 @@ class _AcademicsTab extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: () => context.push('/login'),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppTheme.primaryColor),
+                  side: const BorderSide(color: _highlight),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  foregroundColor: _highlight,
                 ),
-                child: const Text("Access Student Portal"),
+                child: const Text(
+                  "Access Student Portal",
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => _openExamPortal(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _highlight,
+                  foregroundColor: const Color(0xFF1B2130),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.quiz_outlined),
+                label: const Text(
+                  "Open Exam Portal",
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -616,10 +692,19 @@ class _ProgramCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = program['color'] as Color;
-    return Card(
-      elevation: 2,
-      shadowColor: color.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        color: _surfaceCardAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -631,7 +716,7 @@ class _ProgramCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(program['icon'] as IconData, color: color),
@@ -646,7 +731,7 @@ class _ProgramCard extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: _textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -660,17 +745,14 @@ class _ProgramCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           program['duration'] as String,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
+                          style: TextStyle(fontSize: 12, color: _textSecondary),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              const Icon(Icons.chevron_right, color: _textSecondary),
             ],
           ),
         ),
@@ -694,9 +776,9 @@ class _FeatureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -708,7 +790,7 @@ class _FeatureCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.98),
               fontSize: 13,
             ),
           ),
@@ -736,11 +818,11 @@ class _TestimonialCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surfaceCardAlt,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -752,11 +834,8 @@ class _TestimonialCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                child: Text(
-                  name[0],
-                  style: const TextStyle(color: AppTheme.primaryColor),
-                ),
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                child: Text(name[0], style: const TextStyle(color: _highlight)),
               ),
               const SizedBox(width: 12),
               Column(
@@ -764,11 +843,14 @@ class _TestimonialCard extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _textPrimary,
+                    ),
                   ),
                   Text(
                     course,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: const TextStyle(fontSize: 12, color: _textSecondary),
                   ),
                 ],
               ),
@@ -777,7 +859,11 @@ class _TestimonialCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             '"$text"',
-            style: const TextStyle(fontSize: 13, height: 1.4),
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: _textSecondary,
+            ),
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
           ),

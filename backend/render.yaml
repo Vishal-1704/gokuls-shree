@@ -1,15 +1,43 @@
+# render.yaml — Render.com deployment config
+# Docs: https://render.com/docs/infrastructure-as-code
+
 services:
-- type: web
-  name: gokul-shree-api
+  - type: web
+    name: gokul-shree-api
+    rootDir: backend
     runtime: node
-      plan: free
-        buildCommand: npm install
-          startCommand: npm start
-            envVars:
-              - key: SUPABASE_URL
-                  sync: false
-                    - key: SUPABASE_ANON_KEY
-                        sync: false
-                          - key: SUPABASE_SERVICE_KEY
-                              sync: false
-                              
+    region: singapore          # closest to India
+    plan: free
+    branch: main               # deploy from this git branch
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+
+    # Environment variables — set SECRET ones in Render dashboard
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 3000
+
+      - key: API_VERSION
+        value: v1
+
+      - key: SUPABASE_URL
+        value: https://rxjmdrjlsltqufrpvdyq.supabase.co
+
+      # ⚠ Set these as SECRET in Render Dashboard → Environment:
+      # SUPABASE_ANON_KEY
+      # SUPABASE_SERVICE_KEY
+      - key: SUPABASE_ANON_KEY
+        sync: false            # means: set manually in dashboard
+
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      - key: ALLOWED_ORIGINS
+        value: "*"

@@ -11,18 +11,23 @@ class AttendanceRepository {
   Future<List<Map<String, dynamic>>> getStudentEnrollments(
     String studentId,
   ) async {
-    final response = await supabase
-        .from('enrollments')
-        .select('''
-          *,
-          courses:course_id (
-            id, title, category, duration, total_classes, description
-          )
-        ''')
-        .eq('student_id', studentId)
-        .eq('status', 'active')
-        .order('enrolled_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await supabase
+          .from('enrollments')
+          .select('''
+            *,
+            courses:course_id (
+              id, title, category, duration, total_classes, description
+            )
+          ''')
+          .eq('student_id', studentId)
+          .eq('status', 'active')
+          .order('enrolled_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      // When RLS denies enrollments (e.g. missing policy), keep UI functional.
+      return [];
+    }
   }
 
   /// Get all enrollments for a course (for admin)

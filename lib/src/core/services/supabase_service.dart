@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gokul_shree_app/src/core/config/env_config.dart';
@@ -140,6 +139,117 @@ class SupabaseService {
     return response;
   }
 
+  Future<List<Map<String, dynamic>>> getStudentAttendance(
+    dynamic studentId,
+  ) async {
+    if (studentId == null) return [];
+
+    try {
+      final response = await _client
+          .from('student_attendance')
+          .select()
+          .eq('student_id', studentId)
+          .order('date', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      // Backward compatibility: some schemas only have attendance(enrollment_id,...)
+      // or temporary data mismatch; return empty and let UI show fallback state.
+      return [];
+    }
+  }
+
+  // ============================================
+  // SMART ATTENDANCE (QR + BLE)
+  // ============================================
+  Future<Map<String, dynamic>> startQrAttendanceSession({
+    required String scopeType,
+    String? studentId,
+    int? courseId,
+    int? batchId,
+    int? branchId,
+    required DateTime startsAt,
+    required DateTime expiresAt,
+    required String qrNonce,
+    required String qrPayloadHash,
+  }) async {
+    final payload = {
+      'scope_type': scopeType,
+      'scope_student_id': studentId,
+      'scope_course_id': courseId,
+      'scope_batch_id': batchId,
+      'scope_branch_id': branchId,
+      'starts_at': startsAt.toIso8601String(),
+      'expires_at': expiresAt.toIso8601String(),
+      'qr_nonce': qrNonce,
+      'qr_payload_hash': qrPayloadHash,
+      'created_by': _client.auth.currentUser?.id,
+      'is_active': true,
+    };
+
+    final response = await _client
+        .from('attendance_qr_sessions')
+        .insert(payload)
+        .select()
+        .single();
+    return Map<String, dynamic>.from(response);
+  }
+
+  Future<void> submitBleProximityEvent({
+    required String qrSessionId,
+    required String teacherDeviceId,
+    required String studentDeviceId,
+    required String studentId,
+    int? rssi,
+    double? estimatedDistanceM,
+    bool isValid = false,
+    String? reason,
+  }) async {
+    await _client.from('attendance_ble_events').insert({
+      'qr_session_id': qrSessionId,
+      'teacher_device_id': teacherDeviceId,
+      'student_device_id': studentDeviceId,
+      'student_id': studentId,
+      'rssi': rssi,
+      'estimated_distance_m': estimatedDistanceM,
+      'is_valid': isValid,
+      'reason': reason,
+    });
+  }
+
+  Future<Map<String, dynamic>> markSmartAttendance({
+    required String studentId,
+    required String source,
+    required String status,
+    String? qrSessionId,
+    String? teacherDeviceId,
+    String? studentDeviceId,
+    int? bleRssi,
+    double? estimatedDistanceM,
+    double confidenceScore = 0,
+    String? rejectionReason,
+    Map<String, dynamic>? meta,
+  }) async {
+    final response = await _client
+        .from('attendance_events')
+        .insert({
+          'qr_session_id': qrSessionId,
+          'student_id': studentId,
+          'source': source,
+          'status': status,
+          'teacher_device_id': teacherDeviceId,
+          'student_device_id': studentDeviceId,
+          'ble_rssi': bleRssi,
+          'estimated_distance_m': estimatedDistanceM,
+          'confidence_score': confidenceScore,
+          'rejection_reason': rejectionReason,
+          'meta': meta ?? <String, dynamic>{},
+        })
+        .select()
+        .single();
+
+    return Map<String, dynamic>.from(response);
+  }
+
   // ============================================
   // ENROLLMENTS
   // ============================================
@@ -237,6 +347,57 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  /// Public centre finder query used by website/app Phase 2.
+  Future<List<Map<String, dynamic>>> findBranches({
+    String? search,
+    String? district,
+  }) async {
+    var query = _client.from('branches').select().eq('status', true);
+
+    if (district != null && district.trim().isNotEmpty) {
+      query = query.ilike('district', '%${district.trim()}%');
+    }
+
+    if (search != null && search.trim().isNotEmpty) {
+      final q = search.trim();
+      query = query.or('name.ilike.%$q%,code.ilike.%$q%,address.ilike.%$q%');
+    }
+
+    final response = await query.order('name');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Public enquiry submission. Supports both `enquiries` and legacy `contacts` tables.
+  Future<bool> submitEnquiry({
+    required String name,
+    required String mobile,
+    required String message,
+    String? email,
+    String? district,
+  }) async {
+    final payload = {
+      'name': name.trim(),
+      'mobile': mobile.trim(),
+      'message': message.trim(),
+      'email': email?.trim().isEmpty == true ? null : email?.trim(),
+      'district': district?.trim().isEmpty == true ? null : district?.trim(),
+      'source': 'mobile_app',
+      'status': 'new',
+    };
+
+    try {
+      await _client.from('enquiries').insert(payload);
+      return true;
+    } catch (_) {
+      try {
+        await _client.from('contacts').insert(payload);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
   // ============================================
   // EMPLOYEES (Admin)
   // ============================================
@@ -256,6 +417,43 @@ class SupabaseService {
   // ============================================
   Future<AuthResponse> signInWithEmail(String email, String password) {
     return _client.auth.signInWithPassword(email: email, password: password);
+  }
+
+  // ============================================
+  // EXAM RESULTS
+  // ============================================
+  Future<List<Map<String, dynamic>>> getMyExamResults() async {
+    final student = await getStudentProfile();
+    if (student == null) return [];
+
+    final studentId = student['id'];
+
+    final response = await _client
+        .from('exam_results')
+        .select('''
+          *,
+          exam_sessions!inner (
+            ended_at,
+            paper_sets (
+              name
+            )
+          )
+        ''')
+        .eq('exam_sessions.student_id', studentId)
+        .order('calculated_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Get active paper sets for dashboard exam schedule fallback.
+  Future<List<Map<String, dynamic>>> getActivePaperSets({int limit = 5}) async {
+    final response = await _client
+        .from('paper_sets')
+        .select()
+        .eq('is_active', true)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<void> signOut() {
@@ -337,6 +535,9 @@ final myFeePaymentsProvider = FutureProvider<List<Map<String, dynamic>>>((
   return service.getMyFeePayments();
 });
 
+// ============================================
+// EXAM RESULTS
+// ============================================
 final pendingFeesProvider = FutureProvider<double>((ref) async {
   final service = ref.watch(supabaseServiceProvider);
   return service.getPendingFees();

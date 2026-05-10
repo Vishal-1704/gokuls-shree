@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
-import 'package:gokul_shree_app/src/features/auth/data/supabase_auth_service.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
 class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
@@ -33,18 +34,18 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             password: _passwordController.text,
           );
 
-      // Check state after login attempt
       final authState = ref.read(supabaseAuthProvider);
       if (authState is AuthAuthenticated) {
-        // Check if user is actually admin
         final role = authState.user.userMetadata?['role'];
         if (role == 'admin') {
           if (mounted) context.go('/admin/dashboard');
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Access Denied: Not an Admin Account'),
+              SnackBar(
+                content: Text('Access Denied: Not an Admin Account',
+                    style: AppTypography.bodyMd.copyWith(color: Colors.white)),
+                backgroundColor: AppColors.danger,
               ),
             );
             ref.read(supabaseAuthNotifierProvider).signOut();
@@ -52,9 +53,13 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         }
       } else if (authState is AuthError) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(authState.message)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authState.message,
+                  style: AppTypography.bodyMd.copyWith(color: Colors.white)),
+              backgroundColor: AppColors.danger,
+            ),
+          );
         }
       }
     }
@@ -66,7 +71,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     final isLoading = authState is AuthLoading;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light background
+      backgroundColor: AppColors.inkNavy900,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -77,46 +82,64 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo / Header
-                  const Icon(
-                    Icons.admin_panel_settings,
-                    size: 64,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Admin Portal',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
+                  // Shield icon with gold accent
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.goldCta.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings,
+                      size: 40,
+                      color: AppColors.goldCta,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Login to manage your institute',
+                  const SizedBox(height: 24),
+
+                  // Fraunces italic title
+                  Text(
+                    'Admin Portal',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                    style: AppTypography.displayMd,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Manage your institute',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyMd,
                   ),
                   const SizedBox(height: 48),
 
-                  // Login ID Field
+                  // Login ID Field — dark input
                   TextFormField(
                     controller: _loginIdController,
+                    style: AppTypography.bodyLg,
                     decoration: InputDecoration(
                       labelText: 'Admin Login ID',
+                      labelStyle: AppTypography.labelMd,
                       hintText: 'Enter your ID',
-                      prefixIcon: const Icon(Icons.person_outline),
+                      hintStyle: AppTypography.bodyMd.copyWith(
+                          color: AppColors.textMuted),
+                      prefixIcon: const Icon(Icons.person_outline,
+                          color: AppColors.textSecondary),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.inputFill,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                        borderSide: const BorderSide(
+                            color: AppColors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
+                        borderSide: const BorderSide(
+                            color: AppColors.inputBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: AppColors.inputFocusBorder, width: 2),
                       ),
                     ),
                     validator: (value) {
@@ -128,19 +151,25 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Password Field
+                  // Password Field — dark input
                   TextFormField(
                     controller: _passwordController,
                     obscureText: !_isPasswordVisible,
+                    style: AppTypography.bodyLg,
                     decoration: InputDecoration(
                       labelText: 'Password',
+                      labelStyle: AppTypography.labelMd,
                       hintText: 'Enter your password',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      hintStyle: AppTypography.bodyMd.copyWith(
+                          color: AppColors.textMuted),
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: AppColors.textSecondary),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordVisible
                               ? Icons.visibility
                               : Icons.visibility_off,
+                          color: AppColors.textSecondary,
                         ),
                         onPressed: () {
                           setState(() {
@@ -149,14 +178,21 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         },
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.inputFill,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                        borderSide: const BorderSide(
+                            color: AppColors.inputBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
+                        borderSide: const BorderSide(
+                            color: AppColors.inputBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: AppColors.inputFocusBorder, width: 2),
                       ),
                     ),
                     validator: (value) {
@@ -168,43 +204,50 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Login Button
+                  // Gold CTA Login Button
                   SizedBox(
-                    height: 50,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: AppColors.goldCta,
+                        foregroundColor: AppColors.inkNavy900,
+                        disabledBackgroundColor:
+                            AppColors.goldCta.withOpacity(0.4),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 2,
+                        elevation: 0,
                       ),
                       child: isLoading
                           ? const SizedBox(
                               height: 24,
                               width: 24,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                                color: AppColors.inkNavy900,
+                                strokeWidth: 2.5,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Login to Dashboard',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                              style: AppTypography.headingSm.copyWith(
+                                color: AppColors.inkNavy900,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Back to Student App
+                  // Back to Student App — gold text
                   TextButton(
                     onPressed: () => context.go('/'),
-                    child: const Text('Back to Student App'),
+                    child: Text(
+                      'Back to Student App',
+                      style: AppTypography.bodyMd.copyWith(
+                        color: AppColors.goldCta,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -215,3 +258,4 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     );
   }
 }
+

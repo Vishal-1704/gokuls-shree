@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
-import 'package:gokul_shree_app/src/features/auth/data/supabase_auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
+import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
+/// STU-01 — Student Login (brand guide compliant)
+/// Ink Navy background, Fraunces logo wordmark, Gold CTA.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,564 +20,546 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  // Login form
-  final _loginFormKey = GlobalKey<FormState>();
-  final _loginEmailController = TextEditingController();
-  final _loginPasswordController = TextEditingController();
-  bool _obscureLoginPassword = true;
-  bool _useRegNo = false; // Toggle between email and registration number
-
-  // Signup form
-  final _signupFormKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
+  final _mobileController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _signupNameController = TextEditingController();
-  final _signupEmailController = TextEditingController();
-  final _signupPhoneController = TextEditingController();
+  final _signupMobileController = TextEditingController();
   final _signupPasswordController = TextEditingController();
   final _signupConfirmPasswordController = TextEditingController();
-  bool _obscureSignupPassword = true;
-  bool _obscureConfirmPassword = true;
+  final _otpController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isOtpMode = false;
+  bool _otpSent = false;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _fadeController.forward();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _loginEmailController.dispose();
-    _loginPasswordController.dispose();
+    _mobileController.dispose();
+    _passwordController.dispose();
     _signupNameController.dispose();
-    _signupEmailController.dispose();
-    _signupPhoneController.dispose();
+    _signupMobileController.dispose();
     _signupPasswordController.dispose();
     _signupConfirmPasswordController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
   void _handleLogin() {
-    if (_loginFormKey.currentState!.validate()) {
-      if (_useRegNo) {
-        ref
-            .read(supabaseAuthNotifierProvider)
-            .signInWithRegNo(
-              registrationNumber: _loginEmailController.text.trim(),
-              password: _loginPasswordController.text,
-            );
+    if (!_formKey.currentState!.validate()) return;
+
+    final identifier = _mobileController.text.trim();
+    if (_isOtpMode) {
+      if (!_otpSent) {
+        // Send OTP
+        final email = identifier.contains('@') ? identifier : '$identifier@gokulshree.local';
+        ref.read(supabaseAuthNotifierProvider).sendEmailOtp(email: email);
+        setState(() => _otpSent = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('OTP sent to $email')),
+        );
       } else {
-        ref
-            .read(supabaseAuthNotifierProvider)
-            .signIn(
-              email: _loginEmailController.text.trim(),
-              password: _loginPasswordController.text,
-            );
+        // Verify OTP
+        final otp = _otpController.text.trim();
+        final email = identifier.contains('@') ? identifier : '$identifier@gokulshree.local';
+        ref.read(supabaseAuthNotifierProvider).verifyEmailOtp(email: email, token: otp);
       }
+    } else {
+      // Password Login
+      ref
+          .read(supabaseAuthNotifierProvider)
+          .signInWithMobile(identifier: identifier, password: _passwordController.text);
     }
   }
 
-  void _handleSignup() {
-    if (_signupFormKey.currentState!.validate()) {
-      ref
-          .read(supabaseAuthNotifierProvider)
-          .signUp(
-            email: _signupEmailController.text.trim(),
-            password: _signupPasswordController.text,
-            name: _signupNameController.text.trim(),
-            phone: _signupPhoneController.text.trim().isEmpty
-                ? null
-                : _signupPhoneController.text.trim(),
-          );
+  Future<void> _callCentre() async {
+    final uri = Uri.parse('tel:+919876543210');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _openSignupSheet() async {
+    final signupFormKey = GlobalKey<FormState>();
+    var signupObscurePassword = true;
+    var signupObscureConfirmPassword = true;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.inkNavy800,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Form(
+                key: signupFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Create Account', style: AppTypography.headingMd),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _signupNameController,
+                      style: AppTypography.bodyLg,
+                      decoration: const InputDecoration(
+                        labelText: 'Full Name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Name required'
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _signupMobileController,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      style: AppTypography.mono,
+                      decoration: const InputDecoration(
+                        labelText: 'Mobile Number',
+                        hintText: '9876543210',
+                        prefixIcon: Icon(Icons.phone_android),
+                      ),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        if (value.isEmpty) return 'Mobile number required';
+                        if (value.length < 10) return 'Enter 10 digit mobile';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _signupPasswordController,
+                      obscureText: signupObscurePassword,
+                      style: AppTypography.bodyLg,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setModalState(() {
+                              signupObscurePassword = !signupObscurePassword;
+                            });
+                          },
+                          icon: Icon(
+                            signupObscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Password required';
+                        if (v.length < 6) return 'Minimum 6 characters';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _signupConfirmPasswordController,
+                      obscureText: signupObscureConfirmPassword,
+                      style: AppTypography.bodyLg,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        prefixIcon: const Icon(Icons.lock_reset_outlined),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setModalState(() {
+                              signupObscureConfirmPassword =
+                                  !signupObscureConfirmPassword;
+                            });
+                          },
+                          icon: Icon(
+                            signupObscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v != _signupPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: AppSpacing.buttonHeight,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (!signupFormKey.currentState!.validate()) return;
+
+                          final mobile = _signupMobileController.text.trim();
+                          final email = '$mobile@gokulshree.local';
+                          final password = _signupPasswordController.text;
+                          final name = _signupNameController.text.trim();
+
+                          await ref
+                              .read(supabaseAuthNotifierProvider)
+                              .signUp(
+                                email: email,
+                                password: password,
+                                name: name,
+                                phone: mobile,
+                              );
+
+                          if (!mounted) return;
+
+                          _mobileController.text = mobile;
+                          _passwordController.text = password;
+
+                          if (Navigator.of(sheetContext).canPop()) {
+                            Navigator.of(sheetContext).pop();
+                          }
+                        },
+                        child: const Text('CREATE ACCOUNT'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _routeAfterLogin(AuthAuthenticated next) async {
+    final role = next.profile?['role']?.toString();
+    final metadataRole = next.user.userMetadata?['role']?.toString();
+    final isAdminMeta = next.user.userMetadata?['is_admin'] == true;
+    final hasAdminRole =
+        role == 'super_admin' ||
+        role == 'branch_admin' ||
+        metadataRole == 'super_admin' ||
+        metadataRole == 'branch_admin';
+
+    if (hasAdminRole || isAdminMeta) {
+      debugPrint(
+        'Login redirect: admin access detected (profileRole=$role, metadataRole=$metadataRole, isAdminMeta=$isAdminMeta), routing to /admin',
+      );
+      if (mounted) context.go('/admin');
+      return;
+    }
+
+    if (role == 'student') {
+      debugPrint(
+        'Login redirect: student role detected, routing to /student-dashboard',
+      );
+      if (mounted) context.go('/student-dashboard');
+      return;
+    }
+
+    try {
+      debugPrint(
+        'Login redirect: role missing/unknown (${role ?? 'null'}), checking admins table fallback',
+      );
+      final isAdmin = await ref.read(isAdminProvider.future);
+      if (!mounted) return;
+      debugPrint(
+        'Login redirect fallback result: isAdmin=$isAdmin, routing to ${isAdmin ? '/admin' : '/student-dashboard'}',
+      );
+      context.go(isAdmin ? '/admin' : '/student-dashboard');
+    } catch (_) {
+      debugPrint(
+        'Login redirect fallback failed, defaulting to /student-dashboard',
+      );
+      if (mounted) context.go('/student-dashboard');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(supabaseAuthProvider);
+    final isLoading = authState is AuthLoading;
 
     // Listen for auth state changes
     ref.listen<SupabaseAuthState>(supabaseAuthProvider, (previous, next) {
       if (next is AuthAuthenticated) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login successful!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Login successful!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
           ),
         );
-        context.go('/dashboard');
+        _routeAfterLogin(next);
       } else if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.message),
-            backgroundColor: AppTheme.errorColor,
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     });
 
-    final isLoading = authState is AuthLoading;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Portal'),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.secondaryColor,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Login'),
-            Tab(text: 'Sign Up'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildLoginTab(isLoading), _buildSignupTab(isLoading)],
-      ),
-    );
-  }
+      backgroundColor: AppColors.inkNavy900,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenPadding,
+            ),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── 1. Logo ──
+                    Container(
+                      height: 80,
+                      width: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.goldCta.withOpacity(0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.goldCta.withOpacity(0.1),
+                            blurRadius: 24,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/school_logo.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
 
-  Widget _buildLoginTab(bool isLoading) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _loginFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 32),
+                    // ── 2. Title (Fraunces italic) ──
+                    Text(
+                      'Gokulshree',
+                      style: AppTypography.displayLg,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Student Portal',
+                      style: AppTypography.headingMd.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Enter Email or Mobile',
+                      style: AppTypography.bodyMd.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.xxxl),
 
-            // Logo/Icon Area
-            Container(
-              height: 100,
-              width: 100,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor,
-                    AppTheme.primaryColor.withOpacity(0.7),
+                    // ── 3. Mobile Number Field ──
+                    TextFormField(
+                      controller: _mobileController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      style: AppTypography.bodyLg,
+                      decoration: const InputDecoration(
+                        labelText: 'Email or Mobile',
+                        hintText: 'admin@school.com or 9876...',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Email or Mobile daalo';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Toggle Password / OTP ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Password'),
+                          selected: !_isOtpMode,
+                          onSelected: (val) {
+                            setState(() {
+                              _isOtpMode = false;
+                              _otpSent = false;
+                            });
+                          },
+                          selectedColor: AppColors.goldCta.withOpacity(0.2),
+                          labelStyle: TextStyle(
+                              color: !_isOtpMode ? AppColors.goldCta : AppColors.textMuted),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('OTP'),
+                          selected: _isOtpMode,
+                          onSelected: (val) {
+                            setState(() {
+                              _isOtpMode = true;
+                              _otpSent = false;
+                            });
+                          },
+                          selectedColor: AppColors.goldCta.withOpacity(0.2),
+                          labelStyle: TextStyle(
+                              color: _isOtpMode ? AppColors.goldCta : AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── 4. Password / OTP Field ──
+                    if (!_isOtpMode)
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _handleLogin(),
+                        style: AppTypography.bodyLg,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Password daalo';
+                          }
+                          return null;
+                        },
+                      )
+                    else if (_otpSent)
+                      TextFormField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _handleLogin(),
+                        style: AppTypography.mono.copyWith(letterSpacing: 2.0),
+                        decoration: const InputDecoration(
+                          labelText: 'Enter OTP',
+                          prefixIcon: Icon(Icons.message_outlined),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.length < 6) {
+                            return 'Enter 6-digit OTP';
+                          }
+                          return null;
+                        },
+                      ),
+                    const SizedBox(height: AppSpacing.xxl),
+
+                    // ── 5. Login Button (Gold CTA) ──
+                    SizedBox(
+                      width: double.infinity,
+                      height: AppSpacing.buttonHeight,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _handleLogin,
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppColors.inkNavy900,
+                                ),
+                              )
+                            : Text(_isOtpMode && !_otpSent ? 'SEND OTP' : 'LOGIN'),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ── 6. Forgot Password ──
+                    TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: Text(
+                        'Bhool gaye password?',
+                        style: AppTypography.bodyMd.copyWith(
+                          color: AppColors.goldCta,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _openSignupSheet,
+                      child: Text(
+                        'Create new account',
+                        style: AppTypography.bodyMd.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── 7. Help Link ──
+                    TextButton.icon(
+                      onPressed: _callCentre,
+                      icon: const Icon(Icons.phone_outlined, size: 16),
+                      label: Text(
+                        'Centre pe call karo',
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.school, size: 48, color: Colors.white),
-            ),
-
-            const SizedBox(height: 32),
-
-            Text(
-              'Welcome Back!',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Login to access your student portal',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Toggle: Email vs Registration Number
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ChoiceChip(
-                  label: const Text('Email'),
-                  selected: !_useRegNo,
-                  onSelected: (selected) {
-                    setState(() => _useRegNo = false);
-                    _loginEmailController.clear();
-                  },
-                ),
-                const SizedBox(width: 12),
-                ChoiceChip(
-                  label: const Text('Reg. Number'),
-                  selected: _useRegNo,
-                  onSelected: (selected) {
-                    setState(() => _useRegNo = true);
-                    _loginEmailController.clear();
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Email/Registration Number Field
-            TextFormField(
-              controller: _loginEmailController,
-              keyboardType: _useRegNo
-                  ? TextInputType.text
-                  : TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: _useRegNo ? 'Registration Number' : 'Email',
-                hintText: _useRegNo
-                    ? 'Enter your registration number'
-                    : 'Enter your email',
-                prefixIcon: Icon(
-                  _useRegNo ? Icons.badge_outlined : Icons.email_outlined,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return _useRegNo
-                      ? 'Please enter your registration number'
-                      : 'Please enter your email';
-                }
-                if (!_useRegNo && !value.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Password Field
-            TextFormField(
-              controller: _loginPasswordController,
-              obscureText: _obscureLoginPassword,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _handleLogin(),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: 'Enter your password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureLoginPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () => setState(
-                    () => _obscureLoginPassword = !_obscureLoginPassword,
-                  ),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your password';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 8),
-
-            // Forgot Password Link
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _showForgotPasswordDialog,
-                child: const Text('Forgot Password?'),
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Login Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _handleLogin,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Login', style: TextStyle(fontSize: 16)),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Switch to Sign Up
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Don't have an account? ",
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                TextButton(
-                  onPressed: () => _tabController.animateTo(1),
-                  child: const Text('Sign Up'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSignupTab(bool isLoading) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _signupFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 16),
-
-            Text(
-              'Create Account',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Sign up to get started',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Name Field
-            TextFormField(
-              controller: _signupNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                hintText: 'Enter your full name',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your name';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Email Field
-            TextFormField(
-              controller: _signupEmailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'Enter your email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!value.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Phone Field (Optional)
-            TextFormField(
-              controller: _signupPhoneController,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number (Optional)',
-                hintText: 'Enter your phone number',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Password Field
-            TextFormField(
-              controller: _signupPasswordController,
-              obscureText: _obscureSignupPassword,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: 'Create a password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureSignupPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () => setState(
-                    () => _obscureSignupPassword = !_obscureSignupPassword,
-                  ),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a password';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Confirm Password Field
-            TextFormField(
-              controller: _signupConfirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _handleSignup(),
-              decoration: InputDecoration(
-                labelText: 'Confirm Password',
-                hintText: 'Re-enter your password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () => setState(
-                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                  ),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please confirm your password';
-                }
-                if (value != _signupPasswordController.text) {
-                  return 'Passwords do not match';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 32),
-
-            // Sign Up Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _handleSignup,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Create Account',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Switch to Login
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Already have an account? ",
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                TextButton(
-                  onPressed: () => _tabController.animateTo(0),
-                  child: const Text('Login'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter your email to receive a password reset link.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (emailController.text.isNotEmpty) {
-                final success = await ref
-                    .read(supabaseAuthNotifierProvider)
-                    .resetPassword(emailController.text.trim());
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success
-                            ? 'Password reset email sent!'
-                            : 'Failed to send reset email',
-                      ),
-                      backgroundColor: success ? Colors.green : Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Send'),
-          ),
-        ],
+        ),
       ),
     );
   }

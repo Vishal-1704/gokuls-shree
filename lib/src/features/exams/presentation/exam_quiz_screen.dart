@@ -15,7 +15,7 @@ final examQuestionsProvider = FutureProvider.family<List<Question>, String>((
 
 class ExamQuizScreen extends ConsumerStatefulWidget {
   final String examId;
-  final Exam? examMetadata; // Passed via extra
+  final Exam? examMetadata;
 
   const ExamQuizScreen({super.key, required this.examId, this.examMetadata});
 
@@ -27,7 +27,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
     with WidgetsBindingObserver {
   final PageController _pageController = PageController();
   int _currentQuestionIndex = 0;
-  Map<int, int> _selectedAnswers = {}; // Map<QuestionIndex, OptionIndex>
+  final Map<int, int> _selectedAnswers = {};
   Timer? _timer;
   int _remainingSeconds = 0;
   bool _isSubmitted = false;
@@ -36,48 +36,34 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // Start listening to lifecycle
+    WidgetsBinding.instance.addObserver(this);
     if (widget.examMetadata != null) {
       _remainingSeconds = widget.examMetadata!.durationMinutes * 60;
       _startTimer();
     }
   }
 
-  // ANTI-CHEAT: Detect Tab Switching
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      // User left the app (or notification shade pulled down)
-      if (!_isSubmitted) {
-        _handleAppSwitch();
-      }
+      if (!_isSubmitted) _handleAppSwitch();
     }
   }
 
   void _handleAppSwitch() {
     _switchCounts++;
     debugPrint("⚠️ App Switch Detected! Count: $_switchCounts");
-
-    // Warn user immediately (when they come back, or if logic runs in background)
-    // Since UI can't update easily in background, we set state and show dialog on resume usually.
-    // However, showing a dialog now might work if still active context.
-
     if (_switchCounts >= 3) {
-      _submitExam(); // Auto submit after 3 warnings
-    } else {
-      // Show warning snackbar or dialog
-      // Note: Calling showDialog from background might fail or not show until resume.
+      _submitExam();
     }
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
+        setState(() => _remainingSeconds--);
       } else {
         _timer?.cancel();
         _submitExam();
@@ -87,16 +73,16 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // Stop listening
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
   String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   void _submitExam([List<Question>? questions]) {
@@ -115,9 +101,8 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
       }
     }
 
-    // Navigate to Result Screen
     context.pushReplacement(
-      '/exams/result',
+      '/exam-result',
       extra: {
         'score': score,
         'total': total,
@@ -129,27 +114,41 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
   @override
   Widget build(BuildContext context) {
     final questionsAsync = ref.watch(examQuestionsProvider(widget.examId));
+    final isTimeWarning = _remainingSeconds < 60;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
-        title: Text(widget.examMetadata?.title ?? 'Exam'),
+        title: Text(
+          widget.examMetadata?.title ?? 'Exam',
+          style: const TextStyle(fontSize: 16),
+        ),
+        elevation: 0,
         actions: [
+          // Timer badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
-              color: _remainingSeconds < 60 ? Colors.red : Colors.blue,
+              color: isTimeWarning ? Colors.red : const Color(0xFF1E3A8A),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, color: Colors.white, size: 16),
-                const SizedBox(width: 4),
+                Icon(
+                  isTimeWarning ? Icons.warning_rounded : Icons.timer,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 5),
                 Text(
                   _formatTime(_remainingSeconds),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontFamily: 'monospace',
                   ),
                 ),
               ],
@@ -162,134 +161,219 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
           questionsAsync.when(
             data: (questions) {
               if (questions.isEmpty) {
-                return const Center(child: Text("No questions found."));
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.quiz_outlined,
+                        size: 48,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "No questions found.",
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                );
               }
-              // Start timer if not started (e.g., if metadata was null)
+
               if (_timer == null && !_isSubmitted) {
-                _remainingSeconds = 30 * 60; // Default 30 mins
+                _remainingSeconds = 30 * 60;
                 _startTimer();
               }
 
+              final answered = _selectedAnswers.length;
+
               return Column(
                 children: [
-                  // Progress Bar
+                  // ──── Progress Bar ────
                   LinearProgressIndicator(
                     value: (_currentQuestionIndex + 1) / questions.length,
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: Colors.grey.shade200,
+                    minHeight: 4,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppTheme.primaryColor,
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // Question Count
+                  // ──── Question Counter + Answered ────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Question ${_currentQuestionIndex + 1} of ${questions.length}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
                         Text(
-                          'Question ${_currentQuestionIndex + 1}/${questions.length}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
+                          '$answered/${questions.length} answered',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Question Page View
+                  // ──── Question + Options ────
                   Expanded(
                     child: PageView.builder(
                       controller: _pageController,
-                      physics:
-                          const NeverScrollableScrollPhysics(), // Disable swipe
+                      physics: const NeverScrollableScrollPhysics(),
                       itemCount: questions.length,
                       itemBuilder: (context, index) {
                         final question = questions[index];
                         return SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                question.text,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
+                              // Question text
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  question.text,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.4,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 18),
+
+                              // Options
                               ...List.generate(question.options.length, (
                                 optIndex,
                               ) {
                                 final isSelected =
                                     _selectedAnswers[index] == optIndex;
+                                final optLabel = String.fromCharCode(
+                                  65 + optIndex,
+                                );
+
                                 return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedAnswers[index] = optIndex;
-                                      });
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedAnswers[index] = optIndex;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
                                           color: isSelected
                                               ? AppTheme.primaryColor
-                                              : Colors.grey.shade300,
-                                          width: isSelected ? 2 : 1,
+                                                    .withOpacity(0.08)
+                                              : Colors.white,
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? AppTheme.primaryColor
+                                                : Colors.grey.shade300,
+                                            width: isSelected ? 2 : 1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color: AppTheme.primaryColor
+                                                        .withOpacity(0.1),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ]
+                                              : null,
                                         ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        color: isSelected
-                                            ? AppTheme.primaryColor.withOpacity(
-                                                0.05,
-                                              )
-                                            : Colors.white,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 32,
+                                              height: 32,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
                                                 color: isSelected
                                                     ? AppTheme.primaryColor
-                                                    : Colors.grey,
+                                                    : Colors.grey.shade100,
+                                                border: Border.all(
+                                                  color: isSelected
+                                                      ? AppTheme.primaryColor
+                                                      : Colors.grey.shade400,
+                                                  width: 1.5,
+                                                ),
                                               ),
-                                              color: isSelected
-                                                  ? AppTheme.primaryColor
-                                                  : null,
+                                              alignment: Alignment.center,
+                                              child: isSelected
+                                                  ? const Icon(
+                                                      Icons.check,
+                                                      size: 18,
+                                                      color: Colors.white,
+                                                    )
+                                                  : Text(
+                                                      optLabel,
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors
+                                                            .grey
+                                                            .shade600,
+                                                      ),
+                                                    ),
                                             ),
-                                            child: isSelected
-                                                ? const Icon(
-                                                    Icons.check,
-                                                    size: 16,
-                                                    color: Colors.white,
-                                                  )
-                                                : null,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              question.options[optIndex],
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w500
-                                                    : FontWeight.normal,
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                question.options[optIndex],
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w600
+                                                      : FontWeight.normal,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -302,16 +386,16 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                     ),
                   ),
 
-                  // Bottom Navigation Buttons
+                  // ──── Bottom Navigation ────
                   Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                    decoration: BoxDecoration(
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, -5),
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, -4),
                         ),
                       ],
                     ),
@@ -319,7 +403,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                       children: [
                         if (_currentQuestionIndex > 0)
                           Expanded(
-                            child: OutlinedButton(
+                            child: OutlinedButton.icon(
                               onPressed: () {
                                 _pageController.previousPage(
                                   duration: const Duration(milliseconds: 300),
@@ -327,16 +411,33 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                 );
                                 setState(() => _currentQuestionIndex--);
                               },
-                              child: const Text('Previous'),
+                              icon: const Icon(Icons.arrow_back_ios, size: 14),
+                              label: const Text('Previous'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
                         if (_currentQuestionIndex > 0)
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
+                              backgroundColor:
+                                  _currentQuestionIndex < questions.length - 1
+                                  ? AppTheme.primaryColor
+                                  : Colors.green,
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
                             ),
                             onPressed: () {
                               if (_currentQuestionIndex <
@@ -347,14 +448,23 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                 );
                                 setState(() => _currentQuestionIndex++);
                               } else {
-                                // Submit
-                                _submitExam(questions);
+                                // Confirm submit
+                                _showSubmitDialog(questions);
                               }
                             },
-                            child: Text(
+                            icon: Icon(
+                              _currentQuestionIndex < questions.length - 1
+                                  ? Icons.arrow_forward_ios
+                                  : Icons.check_circle,
+                              size: 16,
+                            ),
+                            label: Text(
                               _currentQuestionIndex < questions.length - 1
                                   ? 'Next'
                                   : 'Submit',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -367,24 +477,43 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => Center(child: Text('Error: $err')),
           ),
+
+          // ──── Anti-Cheat Warning Banner ────
           if (_switchCounts > 0)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.red,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade600,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning, color: Colors.white),
-                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "Warning: App switch detected! ($_switchCounts/3)",
+                        "⚠️ App switch detected! ($_switchCounts/3 — auto-submit at 3)",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -392,6 +521,62 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showSubmitDialog(List<Question> questions) {
+    final unanswered = questions.length - _selectedAnswers.length;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Submit Exam?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Answered: ${_selectedAnswers.length}/${questions.length}',
+              style: const TextStyle(fontSize: 15),
+            ),
+            if (unanswered > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                '$unanswered questions unanswered!',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            const Text(
+              'Once submitted, you cannot change your answers.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Review'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _submitExam(questions);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Submit'),
+          ),
         ],
       ),
     );

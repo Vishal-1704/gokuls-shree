@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,6 +25,8 @@ class ProfileImagePicker extends ConsumerStatefulWidget {
 }
 
 class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
+  static const String _profileBucket = 'profile-images';
+
   File? _selectedImage;
   bool _isUploading = false;
   String? _imageUrl;
@@ -71,22 +72,37 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
     setState(() => _isUploading = true);
 
     try {
-      // 1. Convert image to Base64
+      // Image is already compressed by image_picker via imageQuality/maxWidth.
       final bytes = await _selectedImage!.readAsBytes();
-      final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      final filePath =
+          'students/${widget.userId}/${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      // 2. Update Student Record Directly with Base64 string
+      // Upload binary image to Supabase Storage
+      await supabase.storage.from(_profileBucket).uploadBinary(filePath, bytes);
+
+      final imageUrl = supabase.storage
+          .from(_profileBucket)
+          .getPublicUrl(filePath);
+
+      // Remove previously stored storage object if it belongs to the same bucket.
+      final oldPath = _extractStoragePath(_imageUrl);
+      if (oldPath != null && oldPath != filePath) {
+        await supabase.storage.from(_profileBucket).remove([oldPath]);
+      }
+
+      // Persist only URL in DB (small footprint).
       await supabase
           .from('students')
-          .update({'photo_url': base64String})
+          .update({'photo_url': imageUrl})
           .eq('id', widget.userId);
 
       setState(() {
-        _imageUrl = base64String;
+        _imageUrl = imageUrl;
+        _selectedImage = null;
         _isUploading = false;
       });
 
-      widget.onImageUploaded?.call(base64String);
+      widget.onImageUploaded?.call(imageUrl);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -195,7 +211,7 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 28),
@@ -212,12 +228,18 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
   }
 
   Future<void> _removeImage() async {
+    final existingPath = _extractStoragePath(_imageUrl);
+
     setState(() {
       _selectedImage = null;
       _imageUrl = null;
     });
 
     try {
+      if (existingPath != null) {
+        await supabase.storage.from(_profileBucket).remove([existingPath]);
+      }
+
       await supabase
           .from('students')
           .update({'photo_url': null})
@@ -225,6 +247,16 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
     } catch (e) {
       debugPrint('Error removing image: $e');
     }
+  }
+
+  String? _extractStoragePath(String? url) {
+    if (url == null || url.isEmpty) return null;
+
+    final marker = '/storage/v1/object/public/$_profileBucket/';
+    final idx = url.indexOf(marker);
+    if (idx == -1) return null;
+
+    return url.substring(idx + marker.length);
   }
 
   @override
@@ -239,14 +271,13 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
             height: widget.size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.3),
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
                 width: 2,
               ),
-              image: _getImageDecoration(),
             ),
-            child: _getAvatarChild(),
+            child: ClipOval(child: _buildAvatarContent()),
           ),
 
           // Edit button
@@ -275,7 +306,7 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
               ),
               child: const Center(
                 child: CircularProgressIndicator(
@@ -289,31 +320,28 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
     );
   }
 
-  DecorationImage? _getImageDecoration() {
+  Widget _buildAvatarContent() {
     if (_selectedImage != null) {
-      return DecorationImage(
-        image: FileImage(_selectedImage!),
-        fit: BoxFit.cover,
-      );
+      return Image.file(_selectedImage!, fit: BoxFit.cover);
     }
+
     if (_imageUrl != null && _imageUrl!.isNotEmpty) {
-      return DecorationImage(
-        image: NetworkImage(_imageUrl!),
+      return Image.network(
+        _imageUrl!,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildLogoFallback();
+        },
       );
     }
-    return null;
+
+    return _buildLogoFallback();
   }
 
-  Widget? _getAvatarChild() {
-    if (_selectedImage != null ||
-        (_imageUrl != null && _imageUrl!.isNotEmpty)) {
-      return null;
-    }
-    return Icon(
-      Icons.person,
-      size: widget.size * 0.5,
-      color: AppTheme.primaryColor,
+  Widget _buildLogoFallback() {
+    return Padding(
+      padding: EdgeInsets.all(widget.size * 0.22),
+      child: Image.asset('assets/images/school_logo.png', fit: BoxFit.contain),
     );
   }
 }

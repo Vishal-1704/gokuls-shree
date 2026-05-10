@@ -1,445 +1,148 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
-import 'package:gokul_shree_app/src/core/data/student_repository.dart'; // Keep if used in header? No, used in bottom nav.
-// Wait, GNav is used in bottom nav which I removed.
-// Header uses _buildHeaderBtn which uses InkWell.
-// So google_nav_bar is UNUSED.
-// student_profile_screen is UNUSED.
-import 'package:gokul_shree_app/src/features/student/presentation/student_result_list_screen.dart';
+import 'package:gokul_shree_app/src/core/data/student_repository.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
+import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
 
   @override
-  ConsumerState<StudentDashboardScreen> createState() =>
-      _StudentDashboardScreenState();
+  ConsumerState<StudentDashboardScreen> createState() => _StudentDashboardScreenState();
 }
 
-class _StudentDashboardScreenState
-    extends ConsumerState<StudentDashboardScreen> {
-  final Color _primaryColor = const Color(0xFF1A3A5C);
-  final Color _textDark = const Color(0xFF1F2937);
-
+class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(studentRepositoryProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.inkNavy900,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Good Morning,',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Suraj Kumar', // Mock Name
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: _textDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      _buildHeaderBtn(
-                        Icons.notifications_outlined,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 12),
-                      _buildHeaderBtn(
-                        Icons.menu,
-                        onTap: () {
-                          context.push('/menu');
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Scrollable Content
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                children: [
-                  // Profile Card
-                  FutureBuilder<Map<String, dynamic>>(
+        child: RefreshIndicator(
+          onRefresh: () async => setState(() {}),
+          child: CustomScrollView(
+            slivers: [
+              _buildAppBar(),
+              SliverPadding(
+                padding: const EdgeInsets.all(20),
+                sliver: SliverToBoxAdapter(
+                  child: FutureBuilder<Map<String, dynamic>>(
                     future: repo.getStudentProfile(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const SizedBox(
-                          height: 200,
-                          child: Center(child: CircularProgressIndicator()),
+                    builder: (context, profileSnap) {
+                      if (profileSnap.connectionState == ConnectionState.waiting) return _buildLoading();
+                      if (profileSnap.hasError) {
+                        return Center(
+                          child: Text('Error loading profile: ${profileSnap.error}', 
+                          style: AppTypography.bodySm.copyWith(color: Colors.redAccent)),
                         );
                       }
-                      final data = snapshot.data!;
-                      return _buildProfileCard(data);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Attendance Card
-                  FutureBuilder<Map<String, dynamic>>(
-                    future: repo.getAttendanceStats(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const SizedBox.shrink();
-                      return _buildAttendanceCard(snapshot.data!);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Quick Actions
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildQuickActionBtn(
-                          Icons.quiz,
-                          'Online\nExams',
-                          _primaryColor,
-                          () => context.push('/exams'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionBtn(
-                          Icons.assignment_turned_in,
-                          'Results',
-                          Colors.green,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const StudentResultListScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionBtn(
-                          Icons.library_books,
-                          'Study\nMaterial',
-                          Colors.orange,
-                          () {},
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Notices
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Important Notices',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text(
-                          'SEE ALL',
-                          style: TextStyle(
-                            color: _primaryColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: repo.getNotices(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const SizedBox.shrink();
+                      final profile = profileSnap.data ?? {};
+                      
                       return Column(
-                        children: snapshot.data!
-                            .map((n) => _buildNoticeCard(n))
-                            .toList(),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDigitalIDCard(profile),
+                          const SizedBox(height: 24),
+                          
+                          _buildSectionTitle('Academic Progress'),
+                          const SizedBox(height: 12),
+                          _buildAttendanceAndFees(repo),
+                          
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Notice Board'),
+                          const SizedBox(height: 12),
+                          _buildNoticeBoard(repo),
+                          
+                          const SizedBox(height: 24),
+                          _buildQuickActions(),
+                          const SizedBox(height: 100),
+                        ],
                       );
                     },
                   ),
-                  const SizedBox(height: 80), // Bottom padding
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderBtn(IconData icon, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, size: 22, color: _textDark),
-      ),
-    );
-  }
-
-  Widget _buildProfileCard(Map<String, dynamic> data) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            _primaryColor,
-            const Color(0xFF2563EB), // Blue-600
-            const Color(0xFF4338CA), // Indigo-700
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _primaryColor.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Background Circle Decoration
-          Positioned(
-            top: -40,
-            right: -40,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                // Avatar
-                Container(
-                  width: 80,
-                  height: 80,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.2),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: NetworkImage(data['photo_url']),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
                 ),
-                const SizedBox(width: 16),
-                // Text Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        data['name'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              data['class_section'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '#${data['reg_no']}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                          ),
-                        ),
-                        child: Text(
-                          '🔥 ${data['streak']} Day Streak',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAttendanceCard(Map<String, dynamic> data) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Attendance',
-                style: TextStyle(
-                  color: _textDark,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Monthly Progress',
-                style: TextStyle(
-                  color: Color(0xFF4c669a),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.trending_up, color: _primaryColor, size: 18),
-                  const SizedBox(width: 4),
-                  Text(
-                    data['status'],
-                    style: TextStyle(
-                      color: _primaryColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
-          // Circular Progress
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Stack(
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: AppColors.inkNavy900,
+      floating: true,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('GOKUL SHREE', style: AppTypography.labelMd.copyWith(color: AppColors.goldCta, letterSpacing: 2)),
+          Text('Student Dashboard', style: AppTypography.headingSm),
+        ],
+      ),
+      actions: [
+        IconButton(icon: const Icon(Icons.notifications_none_rounded), onPressed: () {}),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildDigitalIDCard(Map<String, dynamic> data) {
+    return Container(
+      width: double.infinity,
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [AppColors.inkNavy800, Color(0xFF1E293B)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 20, offset: const Offset(0, 10))],
+        border: Border.all(color: AppColors.goldCta.withOpacity(0.2)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20, top: -20,
+            child: Icon(Icons.school_rounded, size: 150, color: Colors.white.withOpacity(0.03)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
               children: [
-                Center(
-                  child: SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: CircularProgressIndicator(
-                      value: data['percentage'] / 100,
-                      strokeWidth: 8,
-                      backgroundColor: const Color(0xFFe7ebf3),
-                      valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
-                      strokeCap: StrokeCap.round,
-                    ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(data['name']?.toUpperCase() ?? 'STUDENT', style: AppTypography.headingMd.copyWith(letterSpacing: 1.5)),
+                      const SizedBox(height: 4),
+                      Text(data['class_section'] ?? 'Class/Course', style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
+                      const Spacer(),
+                      _buildIDDetail('REG NO', data['reg_no'] ?? 'N/A'),
+                      const SizedBox(height: 8),
+                      _buildIDDetail('SESSION', '2024-25'),
+                    ],
                   ),
                 ),
-                Center(
-                  child: Text(
-                    '${data['percentage']}%',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _textDark,
+                const SizedBox(width: 16),
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                      child: QrImageView(
+                        data: 'STU-${data['id']}',
+                        version: QrVersions.auto,
+                        size: 80.0,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text('SCAN FOR PROFILE', style: AppTypography.labelSm.copyWith(fontSize: 8, color: AppColors.goldCta)),
+                  ],
                 ),
               ],
             ),
@@ -449,120 +152,114 @@ class _StudentDashboardScreenState
     );
   }
 
-  Widget _buildQuickActionBtn(
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildIDDetail(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTypography.labelSm.copyWith(fontSize: 9, color: AppColors.textMuted)),
+        Text(value, style: AppTypography.bodyMd.copyWith(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+      ],
+    );
+  }
+
+  Widget _buildAttendanceAndFees(StudentRepository repo) {
+    return Row(
+      children: [
+        Expanded(
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: repo.getAttendanceStats(),
+            builder: (context, snap) {
+              final stats = snap.data ?? {'percentage': 0, 'status': '...'};
+              return _buildSmallCard(
+                title: 'Attendance',
+                value: '${stats['percentage']}%',
+                icon: Icons.calendar_today_rounded,
+                color: Colors.blueAccent,
+                onTap: () => context.push('/attendance'),
+              );
+            }
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: repo.getFeeSnapshot(),
+            builder: (context, snap) {
+              final snapshot = snap.data ?? {'all_paid': false};
+              final isPaid = snapshot['all_paid'] == true;
+              return _buildSmallCard(
+                title: 'Fee Status',
+                value: isPaid ? 'PAID' : 'DUE',
+                icon: Icons.account_balance_wallet_rounded,
+                color: isPaid ? AppColors.success : Colors.orangeAccent,
+                onTap: () => context.push('/fee-status'),
+              );
+            }
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmallCard({required String title, required String value, required IconData icon, required Color color, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
+          color: AppColors.inkNavy800,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4),
-          ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: _textDark,
-                height: 1.2,
-              ),
-            ),
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 12),
+            Text(title, style: AppTypography.labelMd.copyWith(color: AppColors.textSecondary)),
+            Text(value, style: AppTypography.headingSm.copyWith(color: color)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNoticeCard(Map<String, dynamic> notice) {
-    Color iconColor;
-    Color iconBg;
-    if (notice['color'] == 'blue') {
-      iconColor = Colors.blue.shade600;
-      iconBg = Colors.blue.shade50;
-    } else {
-      iconColor = Colors.amber.shade600;
-      iconBg = Colors.amber.shade50;
-    }
+  Widget _buildNoticeBoard(StudentRepository repo) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: repo.getNotices(),
+      builder: (context, snap) {
+        final notices = snap.data ?? [];
+        if (notices.isEmpty) return _buildEmptyNotice();
+        
+        return Column(
+          children: notices.take(2).map((n) => _buildNoticeTile(n)).toList(),
+        );
+      },
+    );
+  }
 
+  Widget _buildNoticeTile(Map<String, dynamic> notice) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
+        color: AppColors.inkNavy800.withOpacity(0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 4),
-        ],
+        border: Border.all(color: AppColors.divider.withOpacity(0.1)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-            child: Icon(
-              notice['type'] == 'campaign' ? Icons.campaign : Icons.event_note,
-              color: iconColor,
-              size: 20,
-            ),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.goldCta.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.campaign_rounded, color: AppColors.goldCta, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  notice['title'],
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  notice['description'],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF4c669a),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  notice['time'],
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
-                ),
+                Text(notice['title'] ?? 'Notice', style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.bold)),
+                Text(notice['content'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
               ],
             ),
           ),
@@ -570,4 +267,48 @@ class _StudentDashboardScreenState
       ),
     );
   }
+
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Quick Actions'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _buildActionIcon(Icons.assignment_rounded, 'Results', () => context.push('/results')),
+            _buildActionIcon(Icons.description_rounded, 'Documents', () => context.push('/student/docs')),
+            _buildActionIcon(Icons.quiz_rounded, 'Mock Test', () {}),
+            _buildActionIcon(Icons.support_agent_rounded, 'Support', () {}),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionIcon(IconData icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppColors.inkNavy800, borderRadius: BorderRadius.circular(16)),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: AppTypography.labelMd.copyWith(fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(title, style: AppTypography.headingSm.copyWith(color: AppColors.goldCta, letterSpacing: 1));
+  }
+
+  Widget _buildLoading() => const Center(child: CircularProgressIndicator(color: AppColors.goldCta));
+  Widget _buildEmptyNotice() => Center(child: Text('No active notices', style: AppTypography.bodySm.copyWith(color: AppColors.textMuted)));
 }

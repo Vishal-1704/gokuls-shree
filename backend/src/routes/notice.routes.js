@@ -1,76 +1,47 @@
-const express = require('express');
-const db = require('../config/database');
+/**
+ * Notice & Course Routes (unchanged structure, just role-gated)
+ */
+const router = require('express').Router();
+const { supabase } = require('../config/supabase');
+const { requireAuth, requireRole, getBranchFilter } = require('../middleware/auth.middleware');
 
-const router = express.Router();
+// ── Notices (all roles can read) ──────────────────────────────────────────
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    let query = supabase
+      .from('notices')
+      .select('id, title, content, type, published_at')
+      .eq('status', 1)
+      .order('published_at', { ascending: false })
+      .limit(50);
 
-// Get all notices
-router.get('/', async (req, res) => {
-    try {
-        const { category, limit } = req.query;
-
-        let query = 'SELECT * FROM notices WHERE is_active = true';
-        const params = [];
-        let paramIndex = 1;
-
-        if (category) {
-            query += ` AND category = $${paramIndex}`;
-            params.push(category);
-            paramIndex++;
-        }
-
-        query += ' ORDER BY published_at DESC';
-
-        if (limit) {
-            query += ` LIMIT $${paramIndex}`;
-            params.push(parseInt(limit));
-        }
-
-        const result = await db.query(query, params);
-
-        res.json({
-            count: result.rows.length,
-            notices: result.rows.map(row => ({
-                id: row.id.toString(),
-                title: row.title,
-                content: row.content,
-                category: row.category,
-                attachmentUrl: row.attachment_url,
-                publishedAt: row.published_at,
-            })),
-        });
-    } catch (error) {
-        console.error('Get notices error:', error);
-        res.status(500).json({ error: 'Failed to fetch notices' });
+    // Students/teachers see only their branch + public notices
+    if (['student', 'teacher'].includes(req.role) && req.branchId) {
+      query = query.or(`branch_id.eq.${req.branchId},is_public.eq.true`);
     }
+    const branchId = getBranchFilter(req);
+    if (req.role === 'branch_admin' && branchId) query = query.eq('branch_id', branchId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Get notice by ID
-router.get('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
+// Admin: create notice
+router.post('/', requireAuth, requireRole('super_admin', 'branch_admin'), async (req, res) => {
+  try {
+    const body = { ...req.body, created_by: req.profileId };
+    if (req.role === 'branch_admin') body.branch_id = req.branchId;
 
-        const result = await db.query(
-            'SELECT * FROM notices WHERE id = $1 AND is_active = true',
-            [id]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Notice not found' });
-        }
-
-        const row = result.rows[0];
-        res.json({
-            id: row.id.toString(),
-            title: row.title,
-            content: row.content,
-            category: row.category,
-            attachmentUrl: row.attachment_url,
-            publishedAt: row.published_at,
-        });
-    } catch (error) {
-        console.error('Get notice error:', error);
-        res.status(500).json({ error: 'Failed to fetch notice' });
-    }
+    const { data, error } = await supabase.from('notices').insert(body).select().single();
+    if (error) throw error;
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
