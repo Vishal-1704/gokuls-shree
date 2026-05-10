@@ -1,23 +1,24 @@
-# Render.com Deployment Configuration
-# This file tells Render how to build and start the app
-
 services:
   - type: web
-    name: gokul-shree-api
-    runtime: node
-    region: oregon  # Free tier region
-    plan: free
-    buildCommand: npm install
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: JWT_SECRET
-        generateValue: true
-      - key: JWT_EXPIRES_IN
-        value: 7d
-      - key: API_VERSION
-        value: v1
-      # Database URL will be set from Neon
-      - key: DATABASE_URL
-        sync: false  # Set manually after creating Neon database
+      name: gokul-shree-api
+          runtime: node
+              region: oregon
+                  plan: free
+                      buildCommand: npm install
+                          startCommand: npm start
+                              envVars:
+                                    - key: NODE_ENV
+                                            value: production
+                                                  - key: JWT_SECRET
+                                                          generateValue: true
+                                                                - key: JWT_EXPIRES_IN
+                                                                        value: 7d
+                                                                              - key: API_VERSION
+                                                                                      value: v1
+                                                                                            - key: SUPABASE_URL
+                                                                                                    sync: false
+                                                                                                          - key: SUPABASE_ANON_KEY
+                                                                                                                  sync: false
+                                                                                                                        - key: SUPABASE_SERVICE_KEY
+                                                                                                                                sync: false
+                                                                                                                                
