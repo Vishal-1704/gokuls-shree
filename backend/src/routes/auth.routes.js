@@ -53,8 +53,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-});
-
 // ── Send OTP (Email based) ────────────────────────────────────────────────
 router.post('/send-otp', async (req, res) => {
   try {
