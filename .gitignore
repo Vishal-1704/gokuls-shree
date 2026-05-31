@@ -62,3 +62,33 @@ db_schema_extract.txt
 tatus
 *.log
 
+# ─── RUTHLESS AUDIT ADDITIONS ────────────────────────────────────────────────
+
+# VS Code (was commented out above — enforce it)
+.vscode/
+
+# HTTrack web scraper tool (binaries + C++ source — never needed in deployment)
+/tools/
+backend/tools/
+
+# Supabase cloud metadata (contains pooler URL / project-ref / DB credentials)
+backend/supabase/.temp/
+
+# Local Windows dev scripts
+f.bat
+.slashf.bat*
+
+# Flutter DevTools local config
+devtools_options.yaml
+
+# Design brief documents
+marksheet_ai_brief_v2.docx
+UI_UX_DESIGN_BRIEF.md
+
+# Debug / scratch files at root
+*.txt
+*.docx
+
+# Emulator device state files
+*.txt
+
