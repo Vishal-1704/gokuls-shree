@@ -1,1 +1,0 @@
---- FORM INPUTS ---\nInput: name="back" type="hidden" value=""\nInput: name="loginid" type="text" value="undefined"\nInput: name="password" type="password" value="undefined"\nInput: name="Submit2" type="submit" value="Login"\n

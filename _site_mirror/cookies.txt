@@ -1,4 +1,0 @@
-# HTTrack Website Copier Cookie File
-# This file format is compatible with Netscape cookies
-www.gokulshreeschool.com	TRUE	/	FALSE	1999999999	PHPSESSID	76bb111f732083fd20b60855644d1f10
-
