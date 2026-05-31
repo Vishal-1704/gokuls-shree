@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
 
 class StudentAcademicsScreen extends ConsumerStatefulWidget {
   const StudentAcademicsScreen({super.key});

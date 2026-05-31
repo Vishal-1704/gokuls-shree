@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
-import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
+import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
+import 'package:gokul_shree_app/src/core/models/user_session.dart';
 
 /// Admin Panel screen for managing courses, notices, students, and downloads
 /// Only accessible by admin users
@@ -271,6 +273,8 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
       return const Center(child: Text('No students found'));
     }
 
+    final role = ref.watch(currentRoleProvider);
+
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
@@ -295,7 +299,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               ),
               title: Text(student['name'] ?? 'Unknown'),
               subtitle: Text(
-                student['registration_number'] ?? student['email'] ?? '',
+                student['reg_no'] ?? student['registration_number'] ?? student['email'] ?? '',
               ),
               trailing: PopupMenuButton(
                 itemBuilder: (context) => [
@@ -304,14 +308,16 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                     child: Text('View Details'),
                   ),
                   const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  const PopupMenuItem(
-                    value: 'reset_password',
-                    child: Text('Send Password Reset'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete', style: TextStyle(color: Colors.red)),
-                  ),
+                  if (role == UserRole.superAdmin) ...[
+                    const PopupMenuItem(
+                      value: 'reset_password',
+                      child: Text('Send Password Reset'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
                 ],
                 onSelected: (value) => _handleStudentAction(value, student),
               ),

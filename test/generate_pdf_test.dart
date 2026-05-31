@@ -10,24 +10,24 @@ void main() {
 
     // Load assets
     final marksheetBgBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\backend\\assets\\documents\\marksheet.jpg',
+      'backend/assets/documents/marksheet.jpg',
     ).readAsBytes();
     final certBgBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\backend\\assets\\documents\\certificate.jpg',
+      'backend/assets/documents/certificate.jpg',
     ).readAsBytes();
 
     // Load other assets for MarksheetService (Legacy mode)
     final logoBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\assets\\images\\school_logo.png',
+      'assets/images/school_logo.png',
     ).readAsBytes();
     final isoBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\assets\\images\\iso.png',
+      'assets/images/iso.png',
     ).readAsBytes();
     final msmeBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\assets\\images\\msme.png',
+      'assets/images/msme.png',
     ).readAsBytes();
     final skillBytes = await File(
-      'C:\\Users\\mevis\\-GM-\\assets\\images\\skill.png',
+      'assets/images/skill.png',
     ).readAsBytes();
 
     // Logos can be placeholders or reused if needed, but overlay strategy mainly uses the full BG.

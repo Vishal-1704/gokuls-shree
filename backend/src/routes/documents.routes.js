@@ -213,17 +213,23 @@ router.get('/certificate/me',
 
 router.post('/certificate',
   requireAuth,
-  requirePermission('ISSUE_CERTIFICATE'),  // super_admin ONLY
+  requirePermission('ISSUE_CERTIFICATE'),
   sensitiveLimiter,
   auditLog('ISSUE_CERTIFICATE'),
   async (req, res) => {
     try {
-      const body = {
-        ...req.body,
-        approved_by: req.profileId,
-        status: 1,
-        approved_at: new Date().toISOString(),
-      };
+      const body = { ...req.body };
+
+      if (req.role !== ROLES.SUPER_ADMIN) {
+        body.status = 0; // Forced to 0 (PENDING) for branch admins
+        body.branch_id = req.branchId; // Scope to branch
+        delete body.approved_by;
+        delete body.approved_at;
+      } else {
+        body.approved_by = req.profileId;
+        body.status = 1; // Super Admin issues directly
+        body.approved_at = new Date().toISOString();
+      }
 
       // Verify linked marksheet is approved before issuing cert
       if (body.marksheet_id) {
@@ -238,6 +244,44 @@ router.post('/certificate',
         .from('certificates').insert(body).select().single();
       if (error) throw error;
       res.status(201).json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// SUPER ADMIN ONLY: approve certificate
+router.patch('/certificate/:id/approve',
+  requireAuth,
+  requirePermission('APPROVE_CERTIFICATE'), // super_admin ONLY
+  sensitiveLimiter,
+  auditLog('APPROVE_CERTIFICATE'),
+  async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      // Verify it exists and is currently pending
+      const { data: existing } = await supabase
+        .from('certificates').select('id, status').eq('id', id).single();
+
+      if (!existing) return res.status(404).json({ error: 'Certificate not found' });
+      if (existing.status === 1) return res.status(400).json({ error: 'Already approved/issued' });
+
+      const { data, error } = await supabase
+        .from('certificates')
+        .update({
+          status:      1,
+          approved_by: req.profileId,
+          approved_at: new Date().toISOString(),
+          updated_at:  new Date().toISOString(),
+        })
+          .eq('id', id)
+          .select()
+          .single();
+
+      if (error) throw error;
+      res.json({ success: true, message: 'Certificate approved. Student can now view/download.', data });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

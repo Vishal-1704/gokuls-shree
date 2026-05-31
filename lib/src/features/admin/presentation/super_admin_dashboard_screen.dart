@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/providers/session_provider.dart';
-import '../../../core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'super_admin_reset_password_screen.dart'; // New screen
 
 class SuperAdminDashboardScreen extends ConsumerWidget {
   const SuperAdminDashboardScreen({super.key});
@@ -28,24 +29,37 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // System stats
+          // System stats — live pending counts
           FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
             future: ref.read(adminRepositoryProvider).getPendingDocuments(),
-            builder: (context, snap) {
-              final pending = snap.data?['marksheets']?.length ?? 0;
-              final certs = snap.data?['certificates']?.length ?? 0;
-              
-              return GridView.count(
-                crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.6,
-                children: [
-                  const _AdminStat('Total Students',  '192', Icons.people_rounded,         Colors.blue),
-                  const _AdminStat('Total Branches',  '5',   Icons.account_balance_rounded, Colors.purple),
-                  _AdminStat('Pending Approvals', '$pending', Icons.pending_actions_rounded, Colors.orange),
-                  _AdminStat('Certificates',    '$certs', Icons.workspace_premium_rounded,Colors.green),
-                ],
+            builder: (context, docSnap) {
+              return FutureBuilder<List<Map<String, dynamic>>>(
+                future: ref.read(adminRepositoryProvider).getPendingStudents(),
+                builder: (context, studentSnap) {
+                  final pendingDocs =
+                      (docSnap.data?['marksheets']?.length ?? 0) +
+                      (docSnap.data?['certificates']?.length ?? 0);
+                  final pendingStudents = studentSnap.data?.length ?? 0;
+                  final certs = docSnap.data?['certificates']?.length ?? 0;
+
+                  return GridView.count(
+                    crossAxisCount: 2, shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.6,
+                    children: [
+                      _AdminStat('Pending Students', '$pendingStudents',
+                          Icons.pending_actions_rounded, Colors.orange),
+                      _AdminStat('Pending Docs', '$pendingDocs',
+                          Icons.description_outlined, Colors.deepOrange),
+                      const _AdminStat('Total Branches', '5',
+                          Icons.account_balance_rounded, Colors.purple),
+                      _AdminStat('Certificates', '$certs',
+                          Icons.workspace_premium_rounded, Colors.green),
+                    ],
+                  );
+                },
               );
-            }
+            },
           ),
           const SizedBox(height: 24),
           const Text('Super Admin Actions',
@@ -54,10 +68,24 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
           _ActionCard(
             icon: Icons.verified_rounded,
             title: 'Pending Approvals',
-            subtitle: '8 marksheets awaiting your approval',
-            badge: '8',
+            subtitle: 'Students, marksheets & certificates awaiting your approval',
+            badge: '!',
             color: Colors.orange,
-            onTap: () => context.go('/super-admin/approvals'),
+            onTap: () => context.push('/super-admin/approvals'),
+          ),
+          _ActionCard(
+            icon: Icons.lock_reset_rounded,
+            title: 'Reset User Password',
+            subtitle: 'Reset password for any student, teacher, or admin (audit-logged)',
+            color: Colors.red,
+            onTap: () => context.push('/super-admin/reset-password'),
+          ),
+          _ActionCard(
+            icon: Icons.quiz_rounded,
+            title: 'Manage Exam Papers',
+            subtitle: 'Create, update, and manage course exam question sets',
+            color: Colors.amber,
+            onTap: () => context.push('/super-admin/paper-manager'),
           ),
           _ActionCard(
             icon: Icons.workspace_premium_rounded,
@@ -71,19 +99,19 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
             title: 'Manage Branches',
             subtitle: 'View and manage all franchise branches',
             color: Colors.blue,
-            onTap: () => context.go('/super-admin/branches'),
+            onTap: () => context.push('/super-admin/branches'),
           ),
           _ActionCard(
             icon: Icons.bar_chart_rounded,
             title: 'Full Reports',
             subtitle: 'Revenue, attendance, results across all branches',
             color: Colors.teal,
-            onTap: () => context.go('/super-admin/reports'),
+            onTap: () => context.push('/super-admin/reports'),
           ),
           _ActionCard(
             icon: Icons.add_circle_rounded,
             title: 'Add Student',
-            subtitle: 'Manually enroll a new student',
+            subtitle: 'Manually enroll a new student (approved immediately)',
             color: Colors.cyan,
             onTap: () => context.push('/admin/add-student'),
           ),

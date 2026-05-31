@@ -64,7 +64,9 @@ class BackendService {
     final websiteBase = EnvConfig.websiteBaseUrl.trim();
 
     final rawCandidates = <String>[
-      '$envBase/v1/documents/generate_pdf',
+      envBase.endsWith('/v1') || envBase.endsWith('/v1/')
+          ? '$envBase/documents/generate_pdf'
+          : '$envBase/v1/documents/generate_pdf',
       // Emulator-hosted backend.
       'http://10.0.2.2:3000/api/v1/documents/generate_pdf',
       // Physical-device-hosted backend via adb reverse.

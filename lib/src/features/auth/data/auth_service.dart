@@ -287,7 +287,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
         // Best-effort sync to students table for Reg No login path
         try {
           await _client.from('students').upsert({
-            'id': user.id,
+            'profile_id': user.id,
             'name': name,
             'email': email,
             'phone': phone,
@@ -419,12 +419,12 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       await _client
           .from('students')
           .update(studentPayload)
-          .eq('id', auth.user.id);
+          .eq('profile_id', auth.user.id);
     } catch (_) {
       if (studentPayload.containsKey('email_last_changed_at')) {
         final fallback = Map<String, dynamic>.from(studentPayload)
           ..remove('email_last_changed_at');
-        await _client.from('students').update(fallback).eq('id', auth.user.id);
+        await _client.from('students').update(fallback).eq('profile_id', auth.user.id);
       }
     }
 

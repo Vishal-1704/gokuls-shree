@@ -122,7 +122,7 @@ class SupabaseService {
     final response = await _client
         .from('students')
         .select('*, courses(title)')
-        .eq('registration_number', regNo)
+        .eq('reg_no', regNo)
         .maybeSingle();
     return response;
   }
@@ -134,7 +134,7 @@ class SupabaseService {
     final response = await _client
         .from('students')
         .select('*, courses(title)')
-        .eq('id', userId)
+        .eq('profile_id', userId)
         .maybeSingle();
     return response;
   }

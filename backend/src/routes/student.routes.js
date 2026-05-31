@@ -142,6 +142,7 @@ router.post(
       // Double-enforce: never allow client to override
       if (req.role !== ROLES.SUPER_ADMIN) {
         body.branch_id = req.queryBranchId;
+        body.status = 0; // Forced to 0 (PENDING) for branch admins
       }
 
       // Required fields check
@@ -183,6 +184,7 @@ router.put(
       delete body.profile_id;
       if (req.role !== ROLES.SUPER_ADMIN) {
         body.branch_id = req.queryBranchId; // lock to their branch
+        delete body.status; // Branch admin cannot change/approve status
       }
 
       let query = supabase
@@ -196,6 +198,38 @@ router.put(
       const { data, error } = await query.select().single();
       if (error || !data) return res.status(404).json({ error: 'Student not found or access denied' });
       res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// ══════════════════════════════════════════════════════════════
+// SUPER ADMIN ONLY: approve student registration
+// PATCH /api/v1/students/:id/approve
+// ══════════════════════════════════════════════════════════════
+router.patch(
+  '/:id/approve',
+  requireAuth,
+  requirePermission('APPROVE_STUDENT'),
+  auditLog('APPROVE_STUDENT'),
+  async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.id);
+      if (isNaN(studentId)) return res.status(400).json({ error: 'Invalid student ID' });
+
+      const { data, error } = await supabase
+        .from('students')
+        .update({
+          status: 1, // Approved/Active
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', studentId)
+        .select()
+        .single();
+
+      if (error || !data) return res.status(404).json({ error: 'Student not found or approval failed' });
+      res.json({ success: true, message: 'Student registration approved successfully', data });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

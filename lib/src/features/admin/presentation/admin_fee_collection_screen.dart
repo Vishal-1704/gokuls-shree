@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
-import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 
 class AdminFeeCollectionScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? student; // Optional pre-filled student

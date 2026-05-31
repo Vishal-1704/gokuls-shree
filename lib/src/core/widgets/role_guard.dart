@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../models/user_session.dart';
 import '../providers/session_provider.dart';
+import '../../features/auth/data/auth_service.dart';
 
 class RoleGuard extends ConsumerWidget {
   const RoleGuard({
@@ -160,7 +161,7 @@ class _SessionWatchdogState extends ConsumerState<SessionWatchdog>
       // (Implementation: use your ApiClient to call /auth/me)
       // For now just check if session exists
     } catch (_) {
-      ref.read(sessionProvider.notifier).clearSession();
+      ref.read(supabaseAuthNotifierProvider).signOut();
     }
   }
 

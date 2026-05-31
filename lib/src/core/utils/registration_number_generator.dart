@@ -81,20 +81,20 @@ class RegistrationNumberGenerator {
     try {
       rows = await client
           .from('students')
-          .select('registration_number')
-          .not('registration_number', 'is', null)
+          .select('reg_no')
+          .not('reg_no', 'is', null)
           .order('created_at', ascending: true)
           .limit(1000);
     } catch (_) {
       rows = await client
           .from('students')
-          .select('registration_number')
-          .not('registration_number', 'is', null)
+          .select('reg_no')
+          .not('reg_no', 'is', null)
           .limit(1000);
     }
 
     return rows
-        .map((e) => (e['registration_number'] ?? '').toString().trim())
+        .map((e) => (e['reg_no'] ?? '').toString().trim())
         .where((e) => e.isNotEmpty)
         .toList();
   }

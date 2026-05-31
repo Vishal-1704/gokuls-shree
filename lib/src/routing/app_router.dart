@@ -1,6 +1,6 @@
 // lib/src/routing/app_router.dart
 // Complete role-based navigation.
-// After login → role determines which shell + bottom nav is shown.
+// Decoupled sub-route bundles are imported from each feature module.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,50 +11,14 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import '../core/models/user_session.dart';
 import '../core/providers/session_provider.dart';
 
-// ── Public screens
-import '../features/home/presentation/public_home_screen.dart';
-import '../features/auth/presentation/login_screen.dart';
-import '../features/auth/presentation/forgot_password_screen.dart';
-import '../features/contact/presentation/contact_screen.dart';
-import '../features/contact/presentation/centre_finder_screen.dart';
-import '../features/documents/presentation/verification_screen.dart';
-
-// ── Student screens
-import '../features/student/presentation/student_dashboard_screen.dart';
-import '../features/student/presentation/student_fee_status_screen.dart';
-import '../features/student/presentation/student_result_list_screen.dart';
-import '../features/student/presentation/student_attendance_screen.dart';
-import '../features/student/presentation/student_id_card_screen.dart';
-import '../features/documents/presentation/my_documents_screen.dart';
-import '../features/exams/presentation/exam_list_screen.dart';
-import '../features/exams/presentation/exam_instructions_screen.dart';
-import '../features/exams/presentation/exam_quiz_screen.dart';
-import '../features/exams/presentation/exam_result_screen.dart';
-import '../features/exams/domain/exam_model.dart';
-import '../features/auth/presentation/account_screen.dart';
-
-// ── Teacher screens
-import '../features/teacher/presentation/teacher_dashboard_screen.dart';
-import '../features/teacher/presentation/teacher_attendance_screen.dart';
-import '../features/teacher/presentation/teacher_students_screen.dart';
-
-// ── Branch Admin screens
-import '../features/admin/presentation/admin_dashboard_screen.dart';
-import '../features/admin/presentation/admin_dashboard_home.dart';
-import '../features/admin/presentation/admin_panel_screen.dart';
-import '../features/admin/presentation/admin_add_student_screen.dart';
-import 'package:gokul_shree_app/src/features/admin/presentation/admin_results_entry_screen.dart';
-import 'package:gokul_shree_app/src/features/admin/presentation/admin_dues_report_screen.dart';
-import 'package:gokul_shree_app/src/features/admin/presentation/branch_registration_screen.dart';
-import 'package:gokul_shree_app/src/features/admin/presentation/franchise_setup_screen.dart';
-import '../features/admin/presentation/admin_dues_report_screen.dart';
-import '../features/admin/presentation/admin_marksheet_generator_screen.dart';
-import '../features/admin/presentation/admin_study_material_upload_screen.dart';
-import '../features/admin/presentation/admin_exam_scheduler_screen.dart';
-
-// ── Super Admin screens  (reuse admin screens + extras)
-import '../features/admin/presentation/super_admin_dashboard_screen.dart';
-import '../features/admin/presentation/super_admin_approvals_screen.dart';
+// Import modular routes
+import '../features/auth/routing/auth_routes.dart';
+import '../features/contact/routing/contact_routes.dart';
+import '../features/documents/routing/documents_routes.dart';
+import '../features/exams/routing/exams_routes.dart';
+import '../features/student/routing/student_routes.dart';
+import '../features/teacher/routing/teacher_routes.dart';
+import '../features/admin/routing/admin_routes.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROUTER PROVIDER
@@ -82,24 +46,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      // ══════════════════════════════════════════════════
-      // PUBLIC — no auth needed
-      // ══════════════════════════════════════════════════
-      GoRoute(path: '/',               builder: (c, s) => const PublicHomeScreen()),
-      GoRoute(path: '/login',          builder: (c, s) => const LoginScreen()),
-      GoRoute(path: '/forgot-password',builder: (c, s) => const ForgotPasswordScreen()),
-      GoRoute(path: '/contact',        builder: (c, s) => const ContactScreen()),
-      GoRoute(path: '/centre-finder',  builder: (c, s) => const CentreFinderScreen()),
-      GoRoute(
-        path: '/verify',
-        builder: (c, s) => const VerificationScreen(),
-        routes: [
-          GoRoute(
-            path: ':id',
-            builder: (c, s) => VerificationScreen(documentId: s.pathParameters['id']),
-          ),
-        ],
-      ),
+      // Public / Auth
+      ...AuthRoutes.routes,
+      ...ContactRoutes.routes,
+      ...DocumentsRoutes.routes,
+      ...ExamsRoutes.routes,
+      ...StudentRoutes.standaloneRoutes,
+      ...AdminRoutes.standaloneRoutes,
+      ...TeacherRoutes.standaloneRoutes,
+
+      // Fallback or Public Home
+      GoRoute(path: '/', builder: (c, s) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
 
       // ══════════════════════════════════════════════════
       // STUDENT SHELL — bottom nav: Dashboard | Exams | Docs | Profile
@@ -115,20 +72,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.person_rounded,       text: 'Profile'),
           ],
         ),
-      branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/student', builder: (c, s) => const StudentDashboardScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/student/exams', builder: (c, s) => const ExamListScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/student/docs', builder: (c, s) => const MyDocumentsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/student/profile', builder: (c, s) => const AccountScreen()),
-          ]),
-        ],
+        branches: StudentRoutes.branches,
       ),
 
       // ══════════════════════════════════════════════════
@@ -145,20 +89,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.person_rounded,         text: 'Profile'),
           ],
         ),
-        branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/teacher', builder: (c, s) => const TeacherDashboardScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/teacher/attendance', builder: (c, s) => const TeacherAttendanceScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/teacher/students', builder: (c, s) => const TeacherStudentsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/teacher/profile', builder: (c, s) => const AccountScreen()),
-          ]),
-        ],
+        branches: TeacherRoutes.branches,
       ),
 
       // ══════════════════════════════════════════════════
@@ -176,28 +107,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.person_rounded,       text: 'Profile'),
           ],
         ),
-        branches: [
-          StatefulShellBranch(routes: [
-            // Use AdminDashboardHome directly to avoid double nav bar from AdminDashboardScreen
-            GoRoute(path: '/branch-admin', builder: (c, s) => const AdminDashboardHome()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/branch-admin/students', builder: (c, s) => const AdminPanelScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/branch-admin/fees', builder: (c, s) => const AdminDuesReportScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/branch-admin/reports', builder: (c, s) => const AdminMarksheetGeneratorScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/branch-admin/profile', builder: (c, s) => const AccountScreen()),
-          ]),
-        ],
+        branches: AdminRoutes.branchAdminBranches,
       ),
 
       // ══════════════════════════════════════════════════
-      // SUPER ADMIN SHELL — Dashboard | Approvals | Branches | Settings | Profile
+      // SUPER ADMIN SHELL
       // ══════════════════════════════════════════════════
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => _RoleShell(
@@ -211,60 +125,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.person_rounded,               text: 'Profile'),
           ],
         ),
-        branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/super-admin', builder: (c, s) => const SuperAdminDashboardScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/super-admin/approvals', builder: (c, s) => const SuperAdminApprovalsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/super-admin/branches', builder: (c, s) => const AdminPanelScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/super-admin/reports', builder: (c, s) => const AdminMarksheetGeneratorScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/super-admin/profile', builder: (c, s) => const AccountScreen()),
-          ]),
-        ],
-      ),
-
-      // ══════════════════════════════════════════════════
-      // STANDALONE SCREENS (push on top of any shell)
-      // ══════════════════════════════════════════════════
-      GoRoute(path: '/fee-status',  builder: (c, s) => const StudentFeeStatusScreen()),
-      GoRoute(path: '/results',     builder: (c, s) => const StudentResultListScreen()),
-      GoRoute(path: '/attendance',  builder: (c, s) => const StudentAttendanceScreen()),
-      GoRoute(path: '/id-card',     builder: (c, s) => const StudentIdCardScreen()),
-
-      GoRoute(path: '/admin/add-student',        builder: (c, s) => const AdminAddStudentScreen()),
-      GoRoute(path: '/admin/results-entry',      builder: (c, s) => const AdminResultsEntryScreen()),
-      GoRoute(path: '/admin/exam-scheduler',     builder: (c, s) => const AdminExamSchedulerScreen()),
-      GoRoute(path: '/admin/study-material',     builder: (c, s) => const AdminStudyMaterialUploadScreen()),
-      GoRoute(path: '/admin/branch-registration', builder: (c, s) => const BranchRegistrationScreen()),
-      GoRoute(path: '/admin/franchise-setup',     builder: (c, s) => const FranchiseSetupScreen()),
-
-      // Exam flow
-      GoRoute(
-        path: '/exam-instruction/:id',
-        builder: (c, s) => ExamInstructionsScreen(exam: s.extra as Exam),
-      ),
-      GoRoute(
-        path: '/exam-start/:id',
-        builder: (c, s) => ExamQuizScreen(
-          examId: s.pathParameters['id']!,
-          examMetadata: s.extra as Exam?,
-        ),
-      ),
-      GoRoute(
-        path: '/exam-result',
-        builder: (c, s) {
-          final e = s.extra as Map<String, dynamic>;
-          return ExamResultScreen(
-            score: e['score'], totalQuestions: e['total'], examTitle: e['title'],
-          );
-        },
+        branches: AdminRoutes.superAdminBranches,
       ),
     ],
   );

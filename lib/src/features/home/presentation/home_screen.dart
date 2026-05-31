@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/core/data/mock_repository.dart';
-import 'package:gokul_shree_app/src/core/data/attendance_repository.dart';
+import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';

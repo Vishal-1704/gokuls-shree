@@ -55,6 +55,7 @@ dependencies:
   mobile_scanner: ^7.1.4
   crypto: ^3.0.7
   intl: ^0.20.2
+  flutter_blue_plus: ^1.31.0
 
 dev_dependencies:
   flutter_launcher_icons: "^0.13.1"

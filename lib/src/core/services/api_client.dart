@@ -120,7 +120,6 @@ class ApiClient {
       try {
         if (requestData is Map) {
           final email = requestData['email']?.toString().toLowerCase() ?? '';
-          final password = requestData['password']?.toString() ?? '';
 
           // STRICT ADMIN CHECK
           // In a real app, the server returns the role based on the DB.

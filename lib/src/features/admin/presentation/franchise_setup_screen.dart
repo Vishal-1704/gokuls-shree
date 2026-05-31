@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/widgets/custom_button.dart';
 import 'package:gokul_shree_app/src/core/widgets/custom_text_field.dart';
 
@@ -135,7 +135,7 @@ class _FranchiseSetupScreenState extends ConsumerState<FranchiseSetupScreen> {
                 controller: _addressController,
                 label: 'Branch Address',
                 hint: 'Full physical address',
-                icon: Icons.location_on_outline,
+                icon: Icons.location_on_outlined,
                 maxLines: 3,
               ),
               const SizedBox(height: 32),

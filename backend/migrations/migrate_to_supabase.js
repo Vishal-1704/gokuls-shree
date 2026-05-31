@@ -30,28 +30,76 @@ function readSQL() {
 /** Extract all INSERT rows for a given table from the SQL dump */
 function extractTableData(sql, tableName) {
   const rows = [];
-  // Match all INSERT INTO `tableName` (...) VALUES (...);
   const blockRx = new RegExp(
-    `INSERT INTO \`${tableName}\`[^;]+;`,
-    'gis'
+    `INSERT INTO \`${tableName}\`[\\s\\S]+?;\\r?\\n`,
+    'gi'
   );
   const blocks = sql.match(blockRx) || [];
 
   for (const block of blocks) {
-    // Extract column names
     const colMatch = block.match(/\(([^)]+)\)\s+VALUES/i);
     if (!colMatch) continue;
     const cols = colMatch[1]
       .split(',')
       .map(c => c.trim().replace(/`/g, ''));
 
-    // Extract all value tuples
-    const valueSection = block.substring(block.indexOf('VALUES') + 6);
-    // Split on ),(  boundaries
-    const tupleRx = /\(([^)]*(?:\([^)]*\)[^)]*)*)\)/g;
-    let m;
-    while ((m = tupleRx.exec(valueSection)) !== null) {
-      const vals = smartSplit(m[1]);
+    const valuesStartIndex = block.toUpperCase().indexOf('VALUES') + 6;
+    const valueSection = block.substring(valuesStartIndex);
+
+    // State machine to extract tuples
+    const tuples = [];
+    let currentTuple = '';
+    let inString = false;
+    let escape = false;
+    let parenDepth = 0;
+
+    for (let i = 0; i < valueSection.length; i++) {
+      const c = valueSection[i];
+
+      if (parenDepth === 0) {
+        if (c === '(') {
+          parenDepth = 1;
+          currentTuple = '';
+        }
+        continue;
+      }
+
+      // Inside a tuple
+      if (escape) {
+        currentTuple += c;
+        escape = false;
+        continue;
+      }
+
+      if (c === '\\') {
+        currentTuple += c;
+        escape = true;
+        continue;
+      }
+
+      if (c === "'") {
+        currentTuple += c;
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (c === '(') {
+          parenDepth++;
+        } else if (c === ')') {
+          parenDepth--;
+          if (parenDepth === 0) {
+            tuples.push(currentTuple);
+            continue;
+          }
+        }
+      }
+
+      currentTuple += c;
+    }
+
+    for (const t of tuples) {
+      const vals = smartSplit(t);
       if (vals.length !== cols.length) continue;
       const obj = {};
       cols.forEach((col, i) => {
@@ -61,6 +109,7 @@ function extractTableData(sql, tableName) {
         } else if (v.startsWith("'") && v.endsWith("'")) {
           obj[col] = v.slice(1, -1)
             .replace(/\\'/g, "'")
+            .replace(/\\"/g, '"')
             .replace(/\\\\/g, '\\')
             .replace(/\\r\\n/g, '\n')
             .replace(/\\n/g, '\n');
@@ -91,12 +140,12 @@ function smartSplit(str) {
 }
 
 /** Batch upsert to Supabase */
-async function upsert(table, rows, chunkSize = 50) {
+async function upsert(table, rows, chunkSize = 50, conflictCol = 'legacy_id') {
   if (!rows.length) { console.log(`  ⏭  ${table}: no rows`); return 0; }
   let inserted = 0;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
-    const { error } = await supabase.from(table).upsert(chunk, { onConflict: 'legacy_id' });
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: conflictCol });
     if (error) {
       console.error(`  ❌ ${table} chunk ${i}-${i + chunkSize}:`, error.message);
     } else {
@@ -131,8 +180,8 @@ function transformBranches(rows) {
 function transformCourses(rows) {
   return rows.map(r => ({
     legacy_id:   r.id,
-    name:        r.name        || '',
-    short_name:  r.short_name  || r.sname || '',
+    name:        r.courses     || r.name || '',
+    short_name:  r.code        || r.short_name || r.sname || '',
     duration:    r.duration    || '',
     fee:         parseFloat(r.fee || r.fees || 0) || 0,
     category:    r.category    || r.type || 'General',
@@ -352,7 +401,7 @@ async function migrate() {
   // ── Step 1: States ──────────────────────────────────────────────────────
   console.log('📍 Step 1: States');
   const stateRows = extractTableData(sql, 'state');
-  await upsert('states', transformStates(stateRows));
+  await upsert('states', transformStates(stateRows), 50, 'code');
 
   // ── Step 2: Branches ────────────────────────────────────────────────────
   console.log('\n🏫 Step 2: Branches');
@@ -378,23 +427,29 @@ async function migrate() {
   // ── Step 4: Subjects ────────────────────────────────────────────────────
   console.log('\n📖 Step 4: Subjects');
   const subjectRows = extractTableData(sql, 'subject');
-  const subjects = transformSubjects(subjectRows).map(s => ({
-    ...s,
-    course_id: courseMap[s.legacy_course_id] || null,
-    legacy_course_id: undefined,
-  }));
+  const subjects = transformSubjects(subjectRows).map(s => {
+    const copy = {
+      ...s,
+      course_id: courseMap[s.legacy_course_id] || null,
+    };
+    delete copy.legacy_course_id;
+    return copy;
+  });
   await upsert('subjects', subjects);
 
   // ── Step 5: Students ────────────────────────────────────────────────────
   console.log('\n🎓 Step 5: Students');
   const memberRows = extractTableData(sql, 'members');
-  const studentData = transformStudents(memberRows).map(s => ({
-    ...s,
-    branch_id: branchMap[s.legacy_branch_id] || null,
-    course_id: courseMap[s.legacy_course_id] || null,
-    legacy_branch_id: undefined,
-    legacy_course_id: undefined,
-  }));
+  const studentData = transformStudents(memberRows).map(s => {
+    const copy = {
+      ...s,
+      branch_id: branchMap[s.legacy_branch_id] || null,
+      course_id: courseMap[s.legacy_course_id] || null,
+    };
+    delete copy.legacy_branch_id;
+    delete copy.legacy_course_id;
+    return copy;
+  });
   await upsert('students', studentData);
 
   const { data: students } = await supabase.from('students').select('id,legacy_id');
@@ -405,23 +460,29 @@ async function migrate() {
   // ── Step 6: Fee Payments ─────────────────────────────────────────────────
   console.log('\n💰 Step 6: Fee Payments');
   const feeRows = extractTableData(sql, 'fees');
-  const fees = transformFees(feeRows).map(f => ({
-    ...f,
-    student_id: studentMap[f.legacy_student_id] || null,
-    branch_id:  branchMap[f.legacy_branch_id]   || null,
-    legacy_student_id: undefined,
-    legacy_branch_id: undefined,
-  }));
+  const fees = transformFees(feeRows).map(f => {
+    const copy = {
+      ...f,
+      student_id: studentMap[f.legacy_student_id] || null,
+      branch_id:  branchMap[f.legacy_branch_id]   || null,
+    };
+    delete copy.legacy_student_id;
+    delete copy.legacy_branch_id;
+    return copy;
+  });
   await upsert('fee_payments', fees);
 
   // ── Step 7: Student Attendance ──────────────────────────────────────────
   console.log('\n📅 Step 7: Student Attendance');
   const attRows = extractTableData(sql, 'sattdance');
-  const attendance = transformAttendance(attRows).map(a => ({
-    ...a,
-    student_id: studentMap[a.legacy_student_id] || null,
-    legacy_student_id: undefined,
-  }));
+  const attendance = transformAttendance(attRows).map(a => {
+    const copy = {
+      ...a,
+      student_id: studentMap[a.legacy_student_id] || null,
+    };
+    delete copy.legacy_student_id;
+    return copy;
+  });
   await upsert('student_attendance', attendance);
 
   // ── Step 8: Marksheets ───────────────────────────────────────────────────
@@ -432,13 +493,16 @@ async function migrate() {
   const studentByRegNo = {};
   (allStudents || []).forEach(s => { studentByRegNo[s.reg_no] = s.id; });
 
-  const marksheets = transformMarksheets(msRows).map(m => ({
-    ...m,
-    student_id:       studentByRegNo[m.legacy_student_roll] || null,
-    course_id:        courseMap[m.legacy_course_id] || null,
-    legacy_course_id: undefined,
-    legacy_student_roll: undefined,
-  }));
+  const marksheets = transformMarksheets(msRows).map(m => {
+    const copy = {
+      ...m,
+      student_id:       studentByRegNo[m.legacy_student_roll] || null,
+      course_id:        courseMap[m.legacy_course_id] || null,
+    };
+    delete copy.legacy_course_id;
+    delete copy.legacy_student_roll;
+    return copy;
+  });
   await upsert('marksheets', marksheets);
 
   // ── Step 9: Exam Categories ──────────────────────────────────────────────
@@ -453,27 +517,33 @@ async function migrate() {
   // ── Step 10: Exam Results ────────────────────────────────────────────────
   console.log('\n🏆 Step 10: Exam Results (Online Tests)');
   const resultRows = extractTableData(sql, 'final_result');
-  const results = transformExamResults(resultRows).map(r => ({
-    ...r,
-    student_id:         studentMap[r.legacy_student_id] || null,
-    category_id:        catMap[r.legacy_category_id]    || null,
-    branch_id:          branchMap[r.legacy_branch_id]   || null,
-    legacy_student_id:  undefined,
-    legacy_category_id: undefined,
-    legacy_branch_id:   undefined,
-  }));
+  const results = transformExamResults(resultRows).map(r => {
+    const copy = {
+      ...r,
+      student_id:         studentMap[r.legacy_student_id] || null,
+      category_id:        catMap[r.legacy_category_id]    || null,
+      branch_id:          branchMap[r.legacy_branch_id]   || null,
+    };
+    delete copy.legacy_student_id;
+    delete copy.legacy_category_id;
+    delete copy.legacy_branch_id;
+    return copy;
+  });
   await upsert('exam_results', results);
 
   // ── Step 11: Admit Cards ─────────────────────────────────────────────────
   console.log('\n🎫 Step 11: Admit Cards');
   const admitRows = extractTableData(sql, 'admitcard');
-  const admitCards = transformAdmitCards(admitRows).map(a => ({
-    ...a,
-    student_id:       studentMap[a.legacy_student_id] || null,
-    branch_id:        branchMap[a.legacy_branch_id]   || null,
-    legacy_student_id: undefined,
-    legacy_branch_id:  undefined,
-  }));
+  const admitCards = transformAdmitCards(admitRows).map(a => {
+    const copy = {
+      ...a,
+      student_id:       studentMap[a.legacy_student_id] || null,
+      branch_id:        branchMap[a.legacy_branch_id]   || null,
+    };
+    delete copy.legacy_student_id;
+    delete copy.legacy_branch_id;
+    return copy;
+  });
   await upsert('admit_cards', admitCards);
 
   // ── Step 12: Notices ─────────────────────────────────────────────────────

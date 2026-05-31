@@ -6,8 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
-import 'package:gokul_shree_app/src/core/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
+import 'package:gokul_shree_app/src/core/models/user_session.dart';
 
 /// STU-01 — Student Login (brand guide compliant)
 /// Ink Navy background, Fraunces logo wordmark, Gold CTA.
@@ -257,46 +258,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _routeAfterLogin(AuthAuthenticated next) async {
-    final role = next.profile?['role']?.toString();
-    final metadataRole = next.user.userMetadata?['role']?.toString();
-    final isAdminMeta = next.user.userMetadata?['is_admin'] == true;
-    final hasAdminRole =
-        role == 'super_admin' ||
-        role == 'branch_admin' ||
-        metadataRole == 'super_admin' ||
-        metadataRole == 'branch_admin';
+    final roleStr = next.profile?['role']?.toString();
+    final role = UserRoleExt.fromString(roleStr);
 
-    if (hasAdminRole || isAdminMeta) {
-      debugPrint(
-        'Login redirect: admin access detected (profileRole=$role, metadataRole=$metadataRole, isAdminMeta=$isAdminMeta), routing to /admin',
-      );
-      if (mounted) context.go('/admin');
-      return;
-    }
+    final homeRoute = UserSession(
+      profileId: next.profile?['id']?.toString() ?? '',
+      authUid: next.user.id,
+      role: role,
+      name: next.profile?['full_name']?.toString() ?? '',
+      email: next.user.email ?? '',
+      permissions: List<String>.from(next.profile?['permissions'] ?? []),
+    ).homeRoute;
 
-    if (role == 'student') {
-      debugPrint(
-        'Login redirect: student role detected, routing to /student-dashboard',
-      );
-      if (mounted) context.go('/student-dashboard');
-      return;
-    }
-
-    try {
-      debugPrint(
-        'Login redirect: role missing/unknown (${role ?? 'null'}), checking admins table fallback',
-      );
-      final isAdmin = await ref.read(isAdminProvider.future);
-      if (!mounted) return;
-      debugPrint(
-        'Login redirect fallback result: isAdmin=$isAdmin, routing to ${isAdmin ? '/admin' : '/student-dashboard'}',
-      );
-      context.go(isAdmin ? '/admin' : '/student-dashboard');
-    } catch (_) {
-      debugPrint(
-        'Login redirect fallback failed, defaulting to /student-dashboard',
-      );
-      if (mounted) context.go('/student-dashboard');
+    debugPrint('Login redirect: role=$role, routing to $homeRoute');
+    if (mounted) {
+      context.go(homeRoute);
     }
   }
 

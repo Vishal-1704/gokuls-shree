@@ -37,6 +37,7 @@ class UserSession {
   final String   email;
   final int?     branchId;
   final String?  accessToken;
+  final List<String> permissions;
 
   const UserSession({
     required this.profileId,
@@ -46,7 +47,21 @@ class UserSession {
     required this.email,
     this.branchId,
     this.accessToken,
+    this.permissions = const [],
   });
+
+  /// Check if the user has a specific permission.
+  /// Super Admin automatically has all permissions.
+  bool hasPermission(String permission) {
+    if (role == UserRole.superAdmin) return true;
+    return permissions.contains(permission);
+  }
+
+  /// Check if the user has any of the specified permissions.
+  bool hasAnyPermission(List<String> requiredPermissions) {
+    if (role == UserRole.superAdmin) return true;
+    return requiredPermissions.any((p) => permissions.contains(p));
+  }
 
   factory UserSession.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>? ?? {};
@@ -58,6 +73,7 @@ class UserSession {
       email:       user['email']?.toString() ?? '',
       branchId:    user['branch_id'] as int?,
       accessToken: json['access_token']?.toString(),
+      permissions: List<String>.from(user['permissions'] ?? []),
     );
   }
 

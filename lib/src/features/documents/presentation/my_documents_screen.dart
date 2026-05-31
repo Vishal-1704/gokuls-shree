@@ -1,14 +1,11 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/features/documents/data/document_repository.dart';
-import 'package:gokul_shree_app/src/core/widgets/pdf_viewer_screen.dart';
-import 'package:printing/printing.dart';
-import 'package:gokul_shree_app/src/features/documents/services/certificate_service.dart';
-import 'package:gokul_shree_app/src/features/documents/services/marksheet_service.dart';
+import 'marksheet_viewer_screen.dart';
+import 'certificate_viewer_screen.dart';
 
 class MyDocumentsScreen extends ConsumerStatefulWidget {
   const MyDocumentsScreen({super.key});
@@ -185,10 +182,20 @@ class _MyDocumentsScreenState extends ConsumerState<MyDocumentsScreen> {
   }
 
   Future<void> _viewDocument(String type, Map<String, dynamic> doc) async {
-    // We would normally generate the PDF here or fetch from Storage
-    // For now, let's show a snackbar as we have finalized the schema and flow.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening $type... Digitally Verified.')),
-    );
+    if (type == 'Marksheet') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MarksheetViewerScreen(marksheet: doc),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CertificateViewerScreen(certificate: doc),
+        ),
+      );
+    }
   }
 }
