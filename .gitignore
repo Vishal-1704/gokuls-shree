@@ -49,6 +49,7 @@ app.*.map.json
 
 # Legacy SQL database dumps and test outputs containing private credentials/data
 /old/
+supabase/.temp/
 madhepuradiet_gokulshreeschool (1).sql
 certificate_output.pdf
 marksheet_output.pdf
