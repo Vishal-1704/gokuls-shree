@@ -46,3 +46,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Legacy SQL database dumps and test outputs containing private credentials/data
+madhepuradiet_gokulshreeschool (1).sql
+certificate_output.pdf
+marksheet_output.pdf
+*.pdf
+_site_mirror/
+temp_design_assets/
+analyze.txt
+tatus
+*.log
+
