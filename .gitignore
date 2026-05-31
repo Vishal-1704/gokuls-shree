@@ -57,6 +57,7 @@ marksheet_output.pdf
 _site_mirror/
 temp_design_assets/
 analyze.txt
+db_schema_extract.txt
 tatus
 *.log
 
