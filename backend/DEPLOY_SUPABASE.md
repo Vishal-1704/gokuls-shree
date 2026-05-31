@@ -36,7 +36,7 @@ Keep your Express backend (on Render) but use Supabase for the PostgreSQL databa
 2. Scroll to **Connection string** → **URI**
 3. Copy the connection string:
    ```
-   postgresql://postgres:[iNYksPb$tug47$p]@db.[PROJECT-REF].supabase.co:5432/postgres
+   postgresql://postgres:<YOUR_DATABASE_PASSWORD>@db.<YOUR_PROJECT_REF>.supabase.co:5432/postgres
    ```
 
 ### Step 3: Update Render Environment
