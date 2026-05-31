@@ -9,7 +9,7 @@ services:
     region: singapore          # closest to India
     plan: free
     branch: main               # deploy from this git branch
-    buildCommand: PUPPETEER_SKIP_DOWNLOAD=true npm install
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
 
@@ -44,7 +44,4 @@ services:
 
       - key: ALLOWED_ORIGINS
         value: "*"
-
-      - key: PUPPETEER_SKIP_DOWNLOAD
-        value: "true"
 
