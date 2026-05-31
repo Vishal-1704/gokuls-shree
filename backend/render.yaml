@@ -44,3 +44,7 @@ services:
 
       - key: ALLOWED_ORIGINS
         value: "*"
+
+      - key: PUPPETEER_CACHE_DIR
+        value: "/opt/render/project/src/backend/.cache/puppeteer"
+
