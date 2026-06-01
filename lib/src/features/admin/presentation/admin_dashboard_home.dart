@@ -386,7 +386,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                         style: AppTypography.headingSm,
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => context.push('/admin/dues-report'),
                         child: Text(
                           'View All',
                           style: AppTypography.bodyMd.copyWith(

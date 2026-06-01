@@ -428,6 +428,32 @@ final studentExamResultsProvider = FutureProvider<List<Map<String, dynamic>>>((
   return repository.getMyExamResults();
 });
 
+final studentProfileProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  final repository = ref.watch(studentRepositoryProvider);
+  return repository.getStudentProfile();
+});
+
+final studentAttendanceProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  final repository = ref.watch(studentRepositoryProvider);
+  final profile = await repository.getStudentProfile();
+  final studentId = profile['id']?.toString();
+  if (studentId == null || studentId.isEmpty) {
+    return [];
+  }
+
+  final supabaseService = ref.watch(supabaseServiceProvider);
+  return supabaseService.getStudentAttendance(studentId);
+});
+
+final studentAcademicCalendarProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) {
+  final repository = ref.watch(studentRepositoryProvider);
+  return repository.getAcademicCalendarEvents();
+});
+
 final studentFeeStatusProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {

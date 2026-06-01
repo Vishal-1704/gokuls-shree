@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_add_staff_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,7 @@ class AdminStaffDirectoryScreen extends ConsumerStatefulWidget {
 class _AdminStaffDirectoryScreenState
     extends ConsumerState<AdminStaffDirectoryScreen> {
   bool _isLoading = true;
+  String? _loadError;
   List<Map<String, dynamic>> _staffList = [];
   List<Map<String, dynamic>> _filteredStaff = [];
   final TextEditingController _searchController = TextEditingController();
@@ -28,7 +30,7 @@ class _AdminStaffDirectoryScreenState
 
   Future<void> _loadStaff() async {
     setState(() => _isLoading = true);
-    // Fetch from repo (or use mock if table doesn't exist yet)
+    _loadError = null;
     try {
       final repo = ref.read(adminRepositoryProvider);
       final data = await repo.getStaff();
@@ -40,52 +42,15 @@ class _AdminStaffDirectoryScreenState
         });
       }
     } catch (e) {
-      // Fallback to mock data if API fails (likely table missing)
       if (mounted) {
         setState(() {
-          _staffList = _getMockStaff();
-          _filteredStaff = _staffList;
+          _staffList = [];
+          _filteredStaff = [];
+          _loadError = e.toString();
           _isLoading = false;
         });
       }
     }
-  }
-
-  List<Map<String, dynamic>> _getMockStaff() {
-    return [
-      {
-        'id': '1',
-        'name': 'Rajesh Kumar',
-        'role': 'Teacher',
-        'phone': '9876543210',
-        'email': 'rajesh@school.com',
-        'photo_url': null,
-      },
-      {
-        'id': '2',
-        'name': 'Sunita Sharma',
-        'role': 'Admin',
-        'phone': '9876543211',
-        'email': 'sunita@school.com',
-        'photo_url': null,
-      },
-      {
-        'id': '3',
-        'name': 'Ramesh Singh',
-        'role': 'Driver',
-        'phone': '9876543212',
-        'email': 'ramesh@school.com',
-        'photo_url': null,
-      },
-      {
-        'id': '4',
-        'name': 'Priya Patel',
-        'role': 'Teacher',
-        'phone': '9876543213',
-        'email': 'priya@school.com',
-        'photo_url': null,
-      },
-    ];
   }
 
   void _filterStaff(String query) {
@@ -166,19 +131,21 @@ class _AdminStaffDirectoryScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         title: const Text(
           'Staff Directory',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.inkNavy800,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddEditStaff(),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppColors.goldCta,
+        foregroundColor: AppColors.inkNavy900,
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -188,14 +155,24 @@ class _AdminStaffDirectoryScreenState
             child: TextField(
               controller: _searchController,
               onChanged: _filterStaff,
+              style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search by Name or Role...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.inputFill,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: AppColors.inkNavy600),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.inkNavy600),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.goldCta),
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
@@ -203,31 +180,58 @@ class _AdminStaffDirectoryScreenState
           ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppColors.goldCta))
+                : _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Unable to load staff data',
+                            style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _loadError!,
+                            style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton(
+                            onPressed: _loadStaff,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 : _filteredStaff.isEmpty
-                ? const Center(child: Text('No staff found'))
+                ? const Center(child: Text('No staff found', style: TextStyle(color: AppColors.textSecondary)))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _filteredStaff.length,
                     itemBuilder: (context, index) {
                       final staff = _filteredStaff[index];
-                      return Card(
+                      return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
+                        decoration: BoxDecoration(
+                          color: AppColors.inkNavy800,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.inkNavy600),
                         ),
-                        elevation: 2,
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(12),
                           leading: CircleAvatar(
                             radius: 24,
-                            backgroundColor: AppTheme.primaryColor.withOpacity(
-                              0.1,
-                            ),
+                            backgroundColor: AppColors.inkNavy700,
                             child: Text(
-                              staff['name'][0],
-                              style: TextStyle(
-                                color: AppTheme.primaryColor,
+                              staff['name'][0].toUpperCase(),
+                              style: const TextStyle(
+                                color: AppColors.goldCta,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -236,12 +240,13 @@ class _AdminStaffDirectoryScreenState
                             staff['name'],
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
                               fontSize: 16,
                             ),
                           ),
                           subtitle: Text(
                             staff['role'] ?? 'Staff',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: const TextStyle(color: AppColors.textSecondary),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -249,21 +254,23 @@ class _AdminStaffDirectoryScreenState
                               IconButton(
                                 icon: const Icon(
                                   Icons.call,
-                                  color: Colors.green,
+                                  color: AppColors.success,
                                 ),
-                                onPressed: () => _makeCall(staff['phone']),
+                                onPressed: () => _makeCall(staff['phone'] ?? staff['contact'] ?? ''),
                               ),
                               PopupMenuButton(
+                                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                                color: AppColors.inkNavy800,
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(
                                     value: 'edit',
-                                    child: Text('Edit'),
+                                    child: Text('Edit', style: TextStyle(color: AppColors.textPrimary)),
                                   ),
                                   const PopupMenuItem(
                                     value: 'delete',
                                     child: Text(
                                       'Delete',
-                                      style: TextStyle(color: Colors.red),
+                                      style: TextStyle(color: AppColors.danger),
                                     ),
                                   ),
                                 ],
@@ -271,7 +278,7 @@ class _AdminStaffDirectoryScreenState
                                   if (value == 'edit') {
                                     _navigateToAddEditStaff(staff);
                                   } else if (value == 'delete') {
-                                    _deleteStaff(staff['id']);
+                                    _deleteStaff(staff['id']?.toString() ?? '');
                                   }
                                 },
                               ),

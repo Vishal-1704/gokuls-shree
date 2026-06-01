@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 
@@ -16,6 +20,9 @@ class AdminAdmitCardScreen extends ConsumerStatefulWidget {
 class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
   bool _isGenerating = false;
   Map<String, dynamic>? _admitCardData;
+
+  String get _qrPayload =>
+      'ADM:${widget.student['reg_no'] ?? '000'}:${widget.student['name'] ?? 'student'}';
 
   @override
   void initState() {
@@ -46,6 +53,51 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
         ).showSnackBar(SnackBar(content: Text('Error generating card: $e')));
       }
     }
+  }
+
+  Future<void> _sharePdf() async {
+    final pdf = pw.Document();
+    final name = widget.student['name']?.toString() ?? 'Student';
+    final regNo = widget.student['reg_no']?.toString() ?? '-';
+    final className = widget.student['class']?.toString() ?? '-';
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Text(
+                  'ADMIT CARD',
+                  style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 16),
+                pw.Text('Name: $name'),
+                pw.Text('Reg No: $regNo'),
+                pw.Text('Class: $className'),
+                pw.SizedBox(height: 24),
+                pw.Center(
+                  child: pw.BarcodeWidget(
+                    barcode: pw.Barcode.qrCode(),
+                    data: _qrPayload,
+                    width: 140,
+                    height: 140,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'admit_card_$regNo.pdf',
+    );
   }
 
   @override
@@ -155,17 +207,15 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                         _buildInfoRow('Exam Center', 'Main Block, Hall A'),
                         _buildInfoRow('Roll Number', '25010045'),
                         const SizedBox(height: 24),
-                        // Mock QR
-                        Container(
-                          height: 100,
-                          width: 100,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.qr_code, size: 60),
+                        QrImageView(
+                          data: _qrPayload,
+                          size: 120,
+                          backgroundColor: Colors.white,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Scan to Verify',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                         ),
                       ],
                     ),
@@ -175,7 +225,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: _sharePdf,
                           icon: const Icon(Icons.share),
                           label: const Text('Share PDF'),
                           style: OutlinedButton.styleFrom(

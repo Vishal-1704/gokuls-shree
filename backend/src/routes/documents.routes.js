@@ -17,8 +17,25 @@ const { requirePermission, strictBranchGuard,
         studentSelfGuard, ROLES }               = require('../middleware/role.guard');
 const { sensitiveLimiter, apiLimiter }          = require('../middleware/rate.limiter');
 const { auditLog }                              = require('../middleware/audit.logger');
+const documentService                           = require('../services/document.service');
 
 router.use(apiLimiter);
+
+// Public PDF generator route
+router.post('/generate_pdf', async (req, res) => {
+  try {
+    const { regno, type } = req.body;
+    if (!regno || !type) {
+      return res.status(400).json({ error: 'regno and type are required' });
+    }
+    const pdfBuffer = await documentService.generatePdfFromLiveUrl(regno, type);
+    res.contentType('application/pdf');
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('PDF generation error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ══════════════════════════════════════════════════════════════
 // MARKSHEETS

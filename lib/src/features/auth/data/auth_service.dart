@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:gokul_shree_app/src/core/utils/registration_number_generator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:dio/dio.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 
 // ============================================
 // AUTH STATES
@@ -74,7 +76,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       final profile = await _client
           .from('profiles')
           .select()
-          .eq('id', user.id)
+          .eq('auth_uid', user.id)
           .maybeSingle();
 
       _state = AuthAuthenticated(user, profile);
@@ -111,10 +113,50 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     }
   }
 
+  Future<String?> _resolveEmailForIdentifier(String identifier) async {
+    final cleanId = identifier.trim();
+    if (cleanId.isEmpty) return null;
+    if (cleanId.contains('@')) return cleanId;
+
+    try {
+      final profile = await _client
+          .from('profiles')
+          .select('email')
+          .eq('contact', cleanId)
+          .maybeSingle();
+      final profileEmail = profile?['email']?.toString().trim();
+      if (profileEmail != null && profileEmail.isNotEmpty) {
+        return profileEmail;
+      }
+    } catch (_) {}
+
+    try {
+      final student = await _client
+          .from('students')
+          .select('email')
+          .eq('reg_no', cleanId)
+          .maybeSingle();
+      final studentEmail = student?['email']?.toString().trim();
+      if (studentEmail != null && studentEmail.isNotEmpty) {
+        return studentEmail;
+      }
+    } catch (_) {}
+
+    return '$cleanId@gokulshree.local';
+  }
+
   /// Send OTP to Email
   Future<void> sendEmailOtp({required String email}) async {
     _state = AuthLoading();
     notifyListeners();
+
+    if (email.endsWith('@gokulshree.local')) {
+      _state = AuthError(
+        'OTP login is not supported for mobile numbers (requires a configured SMS gateway). Please use Password login or enter a valid email address.',
+      );
+      notifyListeners();
+      return;
+    }
 
     try {
       await _client.auth.signInWithOtp(email: email);
@@ -131,7 +173,10 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   }
 
   /// Verify Email OTP
-  Future<void> verifyEmailOtp({required String email, required String token}) async {
+  Future<void> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
     _state = AuthLoading();
     notifyListeners();
 
@@ -166,9 +211,14 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cleanId = identifier.trim();
-      // If it looks like an email, use it directly. Otherwise, map to .local
-      final email = cleanId.contains('@') ? cleanId : '$cleanId@gokulshree.local';
+      final email = await _resolveEmailForIdentifier(identifier);
+      if (email == null || email.isEmpty) {
+        _state = AuthError(
+          'Please enter a valid mobile number, registration number, or email.',
+        );
+        notifyListeners();
+        return;
+      }
 
       final response = await _client.auth.signInWithPassword(
         email: email,
@@ -215,7 +265,12 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   /// Reset password
   Future<bool> resetPassword(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email);
+      final resolvedEmail = await _resolveEmailForIdentifier(email);
+      if (resolvedEmail == null || resolvedEmail.isEmpty) {
+        return false;
+      }
+
+      await _client.auth.resetPasswordForEmail(resolvedEmail);
       return true;
     } catch (e) {
       return false;
@@ -223,99 +278,68 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   }
 
   /// Sign up
-  Future<void> signUp({
+  Future<bool> signUp({
     required String email,
     required String password,
     required String name,
-    String? registrationNumber,
     String? phone,
+    String? fatherName,
+    String? dob,
+    String? address,
+    String? gender,
+    int? courseId,
+    int? branchId,
   }) async {
     _state = AuthLoading();
     notifyListeners();
 
     try {
-      final resolvedRegistrationNumber =
-          registrationNumber != null && registrationNumber.trim().isNotEmpty
-          ? registrationNumber.trim()
-          : await RegistrationNumberGenerator.generateNext(_client);
+      final baseUrl = EnvConfig.apiBaseUrl.isNotEmpty
+          ? EnvConfig.apiBaseUrl
+          : 'http://localhost:3001/api/v1';
 
-      debugPrint('Attempting signup for $email');
-      final response = await _client.auth.signUp(
-        email: email,
-        password: password,
+      debugPrint('Attempting student signup via backend for $email');
+
+      final response = await Dio().post(
+        '$baseUrl/auth/register',
+        options: Options(headers: {'Content-Type': 'application/json'}),
         data: {
-          'full_name': name,
-          'registration_number': resolvedRegistrationNumber,
-          'mobile': phone,
+          'email': email,
+          'password': password,
+          'name': name,
+          'phone': phone,
+          'father_name': fatherName,
+          'dob': dob,
+          'address': address,
+          'gender': gender,
+          'course_id': courseId,
+          'branch_id': branchId,
         },
       );
 
-      final user = response.user;
-      if (user != null) {
-        // Email-confirmation projects return user but no active session
-        if (response.session == null) {
-          _state = AuthError(
-            'Signup successful. Check your email to confirm, then login with Email.',
-          );
-          notifyListeners();
-          return;
-        }
-
-        debugPrint('Signup successful. User ID: ${user.id}');
-
-        // 1. Check if profile exists (created by trigger)
-        // 2. If not, or if fields are empty, update it manually
-        // We delay slightly to let the trigger run
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        try {
-          await _client.from('profiles').upsert({
-            'id': user.id,
-            'full_name': name,
-            'mobile': phone,
-            'email': email,
-            'registration_number': resolvedRegistrationNumber,
-            'role': 'student', // Default role
-            'updated_at': DateTime.now().toIso8601String(),
-          });
-          debugPrint('Profile manually updated/ensured');
-        } catch (profileError) {
-          debugPrint('Profile update warning: $profileError');
-          // Non-blocking, continue
-        }
-
-        // Best-effort sync to students table for Reg No login path
-        try {
-          await _client.from('students').upsert({
-            'profile_id': user.id,
-            'name': name,
-            'email': email,
-            'phone': phone,
-            'registration_number': resolvedRegistrationNumber,
-            'is_active': true,
-          });
-        } catch (_) {
-          // Non-blocking (RLS/policy may restrict this table)
-        }
-
-        await _loadProfile(user);
-      } else {
-        debugPrint(
-          'Signup response user is null. Email confirmation might be required.',
-        );
-        // If email confirmation is enabled, we are technically signed up but not "signed in"
-        // Show specific message
-        _state = AuthError('Please check your email to confirm your account.');
+      final body = response.data as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['success'] == true) {
+        debugPrint('Signup via backend successful. Pending approval.');
+        _state = AuthUnauthenticated();
         notifyListeners();
+        return true;
+      } else {
+        _state = AuthError(body['error'] ?? 'Signup failed');
+        notifyListeners();
+        return false;
       }
-    } on AuthException catch (e) {
-      debugPrint('AuthException: ${e.message} (StatusCode: ${e.statusCode})');
-      _state = AuthError(e.message);
+    } on DioException catch (e) {
+      final errorMsg =
+          e.response?.data?['error'] ?? e.message ?? 'Signup connection error';
+      debugPrint('DioException during signup: $errorMsg');
+      _state = AuthError(errorMsg.toString());
       notifyListeners();
+      return false;
     } catch (e) {
       debugPrint('General Exception during signup: $e');
       _state = AuthError('Signup failed: ${e.toString()}');
       notifyListeners();
+      return false;
     }
   }
 
@@ -384,7 +408,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     final profilePayload = <String, dynamic>{
       'id': auth.user.id,
       'full_name': trimmedName,
-      'mobile': trimmedPhone,
+      'contact': trimmedPhone,
       'updated_at': now.toIso8601String(),
     };
     if (targetEmail.isNotEmpty) {
@@ -406,7 +430,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
 
     final studentPayload = <String, dynamic>{
       'name': trimmedName,
-      'phone': trimmedPhone,
+      'contact': trimmedPhone,
     };
     if (targetEmail.isNotEmpty) {
       studentPayload['email'] = targetEmail;
@@ -424,7 +448,10 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       if (studentPayload.containsKey('email_last_changed_at')) {
         final fallback = Map<String, dynamic>.from(studentPayload)
           ..remove('email_last_changed_at');
-        await _client.from('students').update(fallback).eq('profile_id', auth.user.id);
+        await _client
+            .from('students')
+            .update(fallback)
+            .eq('profile_id', auth.user.id);
       }
     }
 

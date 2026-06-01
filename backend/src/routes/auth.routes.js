@@ -9,6 +9,91 @@ const { supabase } = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { requirePermission, ROLES } = require('../middleware/role.guard');
 
+// ── Public Student Register ───────────────────────────────────────────────
+router.post('/register', async (req, res) => {
+  const { email, password, name, phone, father_name, dob, address, gender, course_id, branch_id } = req.body;
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'Email, password and name are required' });
+  }
+
+  try {
+    // 1. Create user in Supabase Auth (auto-confirms email to bypass SMTP errors)
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, mobile: phone }
+    });
+
+    if (authError) return res.status(400).json({ error: authError.message });
+
+    const user = authData.user;
+
+    // 2. Create Profile record (role = student, status = 0 - Pending)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        auth_uid: user.id,
+        full_name: name,
+        role: ROLES.STUDENT,
+        contact: phone,
+        email: email,
+        branch_id: branch_id ? parseInt(branch_id) : null,
+        status: 0,
+        permissions: [
+          'READ_OWN_PROFILE',
+          'READ_OWN_FEES',
+          'READ_OWN_ATTENDANCE',
+          'READ_OWN_MARKSHEET',
+          'READ_OWN_CERTIFICATE',
+          'READ_OWN_IDCARD',
+          'TAKE_EXAM'
+        ]
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      await supabase.auth.admin.deleteUser(user.id);
+      return res.status(500).json({ error: 'Failed to create student profile: ' + profileError.message });
+    }
+
+    // 3. Create Student record (status = 0 - Pending)
+    const { error: studentError } = await supabase
+      .from('students')
+      .insert({
+        profile_id: user.id,
+        name: name,
+        email: email,
+        contact: phone,
+        status: 0,
+        father_name: father_name || null,
+        dob: dob || null,
+        address: address || null,
+        gender: gender || null,
+        course_id: course_id ? parseInt(course_id) : null,
+        branch_id: branch_id ? parseInt(branch_id) : null
+      });
+
+    if (studentError) {
+      console.warn('⚠️ Student record creation warning:', studentError.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Student registered successfully and is pending approval',
+      user: {
+        id: profile.id,
+        email: user.email,
+        name: name
+      }
+    });
+  } catch (err) {
+    console.error('Student Registration Error:', err.message);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
 // ── Login ─────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
@@ -26,7 +111,7 @@ router.post('/login', async (req, res) => {
     // Fetch role profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, role, branch_id, full_name, status')
+      .select('id, role, branch_id, full_name, status, permissions')
       .eq('auth_uid', user.id)
       .single();
 
@@ -45,6 +130,7 @@ router.post('/login', async (req, res) => {
         name:      profile.full_name,
         branch_id: profile.branch_id,
         email:     user.email,
+        permissions: profile.permissions || []
       }
     });
   } catch (err) {
@@ -156,6 +242,7 @@ router.get('/me', requireAuth, async (req, res) => {
         name:     req.profile.full_name,
         branch_id: req.branchId,
         email:    req.user.email,
+        permissions: req.profile.permissions || []
       },
       ...extraData
     });
@@ -217,7 +304,22 @@ router.post('/admin/register-branch-admin', requireAuth, requirePermission('REGI
         auth_uid: user.id,
         full_name: name,
         role: ROLES.BRANCH_ADMIN,
-        status: 1 // Active
+        status: 1, // Active
+        permissions: [
+          'READ_OWN_PROFILE',
+          'MARK_ATTENDANCE',
+          'READ_BRANCH_STUDENTS',
+          'UPLOAD_MARKS',
+          'ENROLL_STUDENT',
+          'RECORD_FEE',
+          'SUBMIT_MARKSHEET',
+          'ISSUE_ADMIT_CARD',
+          'READ_BRANCH_FEES',
+          'MANAGE_NOTICES',
+          'ISSUE_CERTIFICATE',
+          'SETUP_OWN_BRANCH',
+          'REGISTER_TEACHER'
+        ]
       })
       .select()
       .single();
@@ -290,7 +392,13 @@ router.post('/admin/register-teacher', requireAuth, requirePermission('REGISTER_
         full_name: name,
         role: ROLES.TEACHER,
         branch_id: branchId,
-        status: 1 // Active
+        status: 1, // Active
+        permissions: [
+          'READ_OWN_PROFILE',
+          'MARK_ATTENDANCE',
+          'READ_BRANCH_STUDENTS',
+          'UPLOAD_MARKS'
+        ]
       })
       .select()
       .single();

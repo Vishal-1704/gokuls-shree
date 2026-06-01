@@ -10,6 +10,28 @@ import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 /// Admin repository for CRUD operations on courses, notices, and students
 /// Only accessible by admin users
 class AdminRepository {
+  Future<Map<String, dynamic>?> _currentAdminProfile() async {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser == null) return null;
+
+    return supabase
+        .from('profiles')
+        .select('role, branch_id')
+        .eq('auth_uid', currentUser.id)
+        .maybeSingle();
+  }
+
+  Future<bool> _isSuperAdmin() async {
+    final profile = await _currentAdminProfile();
+    return profile?['role']?.toString() == 'super_admin';
+  }
+
+  Future<int?> _resolveBranchId({int? branchId}) async {
+    if (branchId != null) return branchId;
+    final profile = await _currentAdminProfile();
+    return profile?['branch_id'] as int?;
+  }
+
   // ===========================================
   // COURSES CRUD
   // ===========================================
@@ -166,7 +188,15 @@ class AdminRepository {
 
   /// Get all students
   Future<List<Map<String, dynamic>>> getStudents() async {
-    final response = await supabase.from('students').select().order('name');
+    final profile = await _currentAdminProfile();
+    var query = supabase.from('students').select().order('name');
+    final role = profile?['role']?.toString();
+    final branchId = profile?['branch_id'] as int?;
+    if (role != 'super_admin' && branchId != null) {
+      query = query.eq('branch_id', branchId);
+    }
+
+    final response = await query;
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -176,16 +206,25 @@ class AdminRepository {
     int pageSize = 20,
     String? query,
     String statusFilter = 'all',
+    int? branchId,
   }) async {
     final start = (page - 1) * pageSize;
     final search = (query ?? '').trim().toLowerCase();
+    final resolvedBranchId = await _resolveBranchId(branchId: branchId);
+    final isSuperAdmin = await _isSuperAdmin();
 
     // Use correct column names matching the actual DB schema:
     // reg_no (not registration_number), contact (not phone), status (not is_active)
-    final response = await supabase
+    var queryBuilder = supabase
         .from('students')
         .select('id, name, reg_no, contact, photo_url, status, courses(name, short_name), branches(name)')
         .order('name');
+
+    if (!isSuperAdmin && resolvedBranchId != null) {
+      queryBuilder = queryBuilder.eq('branch_id', resolvedBranchId);
+    }
+
+    final response = await queryBuilder;
 
     var rows = List<Map<String, dynamic>>.from(response);
 
@@ -233,27 +272,19 @@ class AdminRepository {
     String? phone,
     String? courseId,
     String? photoUrl,
+    int? branchId,
   }) async {
     final resolvedRegistrationNumber =
         registrationNumber != null && registrationNumber.trim().isNotEmpty
         ? registrationNumber.trim()
         : await RegistrationNumberGenerator.generateNext(supabase);
 
-    final currentUser = supabase.auth.currentUser;
     var status = 0;
-    int? userBranchId;
-    if (currentUser != null) {
-      final profile = await supabase
-          .from('profiles')
-          .select('role, branch_id')
-          .eq('auth_uid', currentUser.id)
-          .maybeSingle();
-      if (profile != null) {
-        if (profile['role'] == 'super_admin') {
-          status = 1;
-        }
-        userBranchId = profile['branch_id'] as int?;
-      }
+    final profile = await _currentAdminProfile();
+    final isSuperAdmin = profile?['role']?.toString() == 'super_admin';
+    final resolvedBranchId = await _resolveBranchId(branchId: branchId);
+    if (isSuperAdmin) {
+      status = 1;
     }
 
     final payload = <String, dynamic>{
@@ -265,8 +296,8 @@ class AdminRepository {
       'photo_url': photoUrl,
       'status': status,
     };
-    if (userBranchId != null) {
-      payload['branch_id'] = userBranchId;
+    if (resolvedBranchId != null) {
+      payload['branch_id'] = resolvedBranchId;
     }
 
     final response = await supabase
@@ -288,27 +319,19 @@ class AdminRepository {
     String? guardianName,
     String? address,
     String? dateOfBirth,
+    int? branchId,
   }) async {
     final resolvedRegistrationNumber =
         registrationNumber != null && registrationNumber.trim().isNotEmpty
         ? registrationNumber.trim()
         : await RegistrationNumberGenerator.generateNext(supabase);
 
-    final currentUser = supabase.auth.currentUser;
     var status = 0;
-    int? userBranchId;
-    if (currentUser != null) {
-      final profile = await supabase
-          .from('profiles')
-          .select('role, branch_id')
-          .eq('auth_uid', currentUser.id)
-          .maybeSingle();
-      if (profile != null) {
-        if (profile['role'] == 'super_admin') {
-          status = 1;
-        }
-        userBranchId = profile['branch_id'] as int?;
-      }
+    final profile = await _currentAdminProfile();
+    final isSuperAdmin = profile?['role']?.toString() == 'super_admin';
+    final resolvedBranchId = await _resolveBranchId(branchId: branchId);
+    if (isSuperAdmin) {
+      status = 1;
     }
 
     final fullPayload = <String, dynamic>{
@@ -323,8 +346,8 @@ class AdminRepository {
       'status': status,
       'created_at': DateTime.now().toIso8601String(),
     };
-    if (userBranchId != null) {
-      fullPayload['branch_id'] = userBranchId;
+    if (resolvedBranchId != null) {
+      fullPayload['branch_id'] = resolvedBranchId;
     }
 
     try {
@@ -343,8 +366,8 @@ class AdminRepository {
         'course_id': courseId,
         'status': status,
       };
-      if (userBranchId != null) {
-        fallbackPayload['branch_id'] = userBranchId;
+      if (resolvedBranchId != null) {
+        fallbackPayload['branch_id'] = resolvedBranchId;
       }
 
       final response = await supabase
@@ -383,7 +406,32 @@ class AdminRepository {
 
   /// Delete a student
   Future<void> deleteStudent(String id) async {
-    await supabase.from('students').delete().eq('id', id);
+    final profile = await _currentAdminProfile();
+    final isSuperAdmin = profile?['role']?.toString() == 'super_admin';
+    final branchId = profile?['branch_id'] as int?;
+
+    final student = await supabase
+        .from('students')
+        .select('id, branch_id, profile_id')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (student == null) {
+      throw Exception('Student not found');
+    }
+
+    final studentBranchId = student['branch_id'] as int?;
+    if (!isSuperAdmin && branchId != null && studentBranchId != branchId) {
+      throw Exception('You do not have permission to delete this student.');
+    }
+
+    final studentId = student['id'];
+    final profileId = student['profile_id']?.toString();
+
+    await supabase.from('students').delete().eq('id', studentId);
+    if (profileId != null && profileId.isNotEmpty) {
+      await supabase.from('profiles').delete().eq('id', profileId);
+    }
   }
 
   // ===========================================
@@ -742,8 +790,13 @@ class AdminRepository {
 
   /// Get all staff members
   Future<List<Map<String, dynamic>>> getStaff() async {
-    final response = await supabase.from('staff').select().order('name');
-    return List<Map<String, dynamic>>.from(response);
+    final response = await supabase.from('employees').select().order('name');
+    return List<Map<String, dynamic>>.from(response).map((emp) => {
+      ...emp,
+      'phone': emp['contact'],
+      'role': emp['designation'],
+      'joining_date': emp['doj'],
+    }).toList();
   }
 
   /// Add a new staff member
@@ -756,19 +809,23 @@ class AdminRepository {
     String? joiningDate,
   }) async {
     final response = await supabase
-        .from('staff')
+        .from('employees')
         .insert({
           'name': name,
           'email': email,
-          'role': role,
-          'phone': phone,
-          'photo_url': photoUrl,
-          'joining_date': joiningDate ?? DateTime.now().toIso8601String(),
-          'is_active': true,
+          'designation': role,
+          'contact': phone,
+          'doj': joiningDate?.substring(0, 10) ?? DateTime.now().toIso8601String().substring(0, 10),
+          'status': 1,
         })
         .select()
         .single();
-    return response;
+    return {
+      ...response,
+      'phone': response['contact'],
+      'role': response['designation'],
+      'joining_date': response['doj'],
+    };
   }
 
   /// Update a staff member
@@ -783,22 +840,26 @@ class AdminRepository {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (email != null) updates['email'] = email;
-    if (role != null) updates['role'] = role;
-    if (phone != null) updates['phone'] = phone;
-    if (photoUrl != null) updates['photo_url'] = photoUrl;
+    if (role != null) updates['designation'] = role;
+    if (phone != null) updates['contact'] = phone;
 
     final response = await supabase
-        .from('staff')
+        .from('employees')
         .update(updates)
-        .eq('id', id)
+        .eq('id', int.tryParse(id) ?? id)
         .select()
         .single();
-    return response;
+    return {
+      ...response,
+      'phone': response['contact'],
+      'role': response['designation'],
+      'joining_date': response['doj'],
+    };
   }
 
   /// Delete a staff member
   Future<void> deleteStaff(String id) async {
-    await supabase.from('staff').delete().eq('id', id);
+    await supabase.from('employees').delete().eq('id', int.tryParse(id) ?? id);
   }
 
   // ===========================================
@@ -847,6 +908,19 @@ class AdminRepository {
 
     if (response.isEmpty) {
       throw Exception('Approval failed — student not found or permission denied.');
+    }
+
+    final student = await supabase
+        .from('students')
+        .select('profile_id')
+        .eq('id', studentId)
+        .maybeSingle();
+    final profileId = student?['profile_id']?.toString();
+    if (profileId != null && profileId.isNotEmpty) {
+      await supabase
+          .from('profiles')
+          .update({'status': 1, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', profileId);
     }
   }
 
@@ -998,6 +1072,10 @@ final adminRepositoryProvider = Provider<AdminRepository>((ref) {
 
 final adminStudentsProvider = FutureProvider<List<Map<String, dynamic>>>(
   (ref) => ref.watch(adminRepositoryProvider).getStudents(),
+);
+
+final adminCoursesProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) => ref.watch(adminRepositoryProvider).getCourses(),
 );
 
 final adminStudentResultsProvider =

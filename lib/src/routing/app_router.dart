@@ -37,11 +37,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         '/contact', '/centre-finder', '/verify'];
       final isPublic = publicPaths.any((p) => path == p || path.startsWith('/verify/'));
 
-      // Not logged in → force to public home
-      if (!loggedIn && !isPublic) return '/';
+      // Not logged in → redirect to login
+      if (!loggedIn) {
+        if (path == '/' || !isPublic) return '/login';
+      }
 
       // Already logged in → redirect away from public pages to role home
       if (loggedIn && isPublic) return session.homeRoute;
+
+      if (loggedIn && !_isAllowedRouteForRole(session, path)) {
+        return session.homeRoute;
+      }
 
       return null;
     },
@@ -222,4 +228,45 @@ class _RoleShellState extends ConsumerState<_RoleShell> {
       ),
     );
   }
+}
+
+bool _isAllowedRouteForRole(UserSession session, String path) {
+  final allowedPaths = <String>{
+    session.homeRoute,
+    if (session.role == UserRole.student) ...<String>{
+      '/fee-status',
+      '/results',
+      '/attendance',
+      '/id-card',
+    },
+    if (session.role == UserRole.teacher) ...<String>{
+      '/teacher/attendance',
+      '/teacher/students',
+      '/teacher/upload-results',
+    },
+    if (session.role == UserRole.branchAdmin) ...<String>{
+      '/admin/add-student',
+      '/admin/dues-report',
+      '/admin/marksheet-generator',
+      '/admin/results-entry',
+      '/admin/exam-scheduler',
+      '/admin/study-material',
+      '/admin/branch-registration',
+      '/admin/franchise-setup',
+    },
+    if (session.role == UserRole.superAdmin) ...<String>{
+      '/admin/add-student',
+      '/admin/branch-registration',
+      '/admin/dues-report',
+      '/admin/marksheet-generator',
+      '/super-admin/approvals',
+      '/super-admin/branches',
+      '/super-admin/reports',
+      '/super-admin/profile',
+      '/super-admin/reset-password',
+      '/super-admin/paper-manager',
+    },
+  };
+
+  return allowedPaths.contains(path);
 }

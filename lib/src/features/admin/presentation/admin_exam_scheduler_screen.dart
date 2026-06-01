@@ -225,11 +225,14 @@ class _AdminExamSchedulerScreenState
               rows: rows,
               valueBuilder: (s) => (s['id'] ?? '').toString(),
               labelBuilder: (s) =>
-                  '${s['name'] ?? 'Student'} (${s['registration_number'] ?? 'N/A'})',
+                  '${s['name'] ?? 'Student'} (${s['reg_no'] ?? 'N/A'})',
             );
           },
           loading: () => const LinearProgressIndicator(),
-          error: (_, __) => _buildManualAssignmentValueField(),
+          error: (error, _) => _buildPickerFallback(
+            message: 'Unable to load students: $error',
+            onRetry: () => ref.invalidate(adminStudentsProvider),
+          ),
         );
       case 'course':
         final coursesAsync = ref.watch(schedulerCoursesProvider);
@@ -243,11 +246,14 @@ class _AdminExamSchedulerScreenState
               pickerTitle: 'Select Course',
               rows: rows,
               valueBuilder: (c) => (c['id'] ?? '').toString(),
-              labelBuilder: (c) => '${c['title'] ?? 'Course'} (ID ${c['id']})',
+              labelBuilder: (c) => '${c['title'] ?? 'Course'}',
             );
           },
           loading: () => const LinearProgressIndicator(),
-          error: (_, __) => _buildManualAssignmentValueField(),
+          error: (error, _) => _buildPickerFallback(
+            message: 'Unable to load courses: $error',
+            onRetry: () => ref.invalidate(schedulerCoursesProvider),
+          ),
         );
       case 'branch':
         final branchesAsync = ref.watch(branchesProvider);
@@ -261,18 +267,24 @@ class _AdminExamSchedulerScreenState
               pickerTitle: 'Select Branch',
               rows: rows,
               valueBuilder: (b) => (b['id'] ?? '').toString(),
-              labelBuilder: (b) => '${b['name'] ?? 'Branch'} (ID ${b['id']})',
+              labelBuilder: (b) => '${b['name'] ?? 'Branch'}',
             );
           },
           loading: () => const LinearProgressIndicator(),
-          error: (_, __) => _buildManualAssignmentValueField(),
+          error: (error, _) => _buildPickerFallback(
+            message: 'Unable to load branches: $error',
+            onRetry: () => ref.invalidate(branchesProvider),
+          ),
         );
       case 'batch':
         final batchesAsync = ref.watch(adminBatchTargetsProvider);
         return batchesAsync.when(
           data: (rows) {
             if (rows.isEmpty) {
-              return _buildManualAssignmentValueField();
+              return _buildPickerFallback(
+                message: 'No batches are available yet.',
+                onRetry: () => ref.invalidate(adminBatchTargetsProvider),
+              );
             }
             return _buildSearchableAssignmentField(
               label: 'Batch',
@@ -283,11 +295,34 @@ class _AdminExamSchedulerScreenState
             );
           },
           loading: () => const LinearProgressIndicator(),
-          error: (_, __) => _buildManualAssignmentValueField(),
+          error: (error, _) => _buildPickerFallback(
+            message: 'Unable to load batches: $error',
+            onRetry: () => ref.invalidate(adminBatchTargetsProvider),
+          ),
         );
       default:
         return _buildManualAssignmentValueField();
     }
+  }
+
+  Widget _buildPickerFallback({required String message, required VoidCallback onRetry}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(message, style: const TextStyle(color: AppColors.danger)),
+          const SizedBox(height: 8),
+          OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
   }
 
   Widget _buildManualAssignmentValueField() {

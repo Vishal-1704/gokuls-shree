@@ -89,9 +89,7 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final coursesFuture = ref.watch(
-      FutureProvider((ref) => ref.watch(adminRepositoryProvider).getCourses()),
-    );
+    final coursesFuture = ref.watch(adminCoursesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,

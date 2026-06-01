@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../admin/data/admin_repository.dart';
 
@@ -19,9 +20,9 @@ class TeacherDashboardScreen extends ConsumerWidget {
     final hasUploadResults = session?.hasPermission('UPLOAD_MARKS') ?? session?.hasPermission('upload_results') ?? false;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A2010),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2E18),
+        backgroundColor: AppColors.inkNavy800,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

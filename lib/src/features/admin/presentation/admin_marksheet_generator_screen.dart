@@ -165,7 +165,7 @@ class _AdminMarksheetGeneratorScreenState
                         (s) => DropdownMenuItem<String>(
                           value: s['id'].toString(),
                           child: Text(
-                            '${s['name'] ?? 'Unknown'} (${s['registration_number'] ?? 'N/A'})',
+                            '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
                           ),
                         ),
                       )
@@ -180,6 +180,18 @@ class _AdminMarksheetGeneratorScreenState
                           .read(adminRepositoryProvider)
                           .getStudentMarksheetData(_studentId!),
                       builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(
+                            child: Text(
+                              'Unable to load result rows: ${snap.error}',
+                              style: AppTypography.bodyMd.copyWith(
+                                color: AppColors.danger,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                        }
+
                         if (!snap.hasData) {
                           return const Center(
                             child: CircularProgressIndicator(

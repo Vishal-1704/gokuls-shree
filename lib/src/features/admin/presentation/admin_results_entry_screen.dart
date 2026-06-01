@@ -100,6 +100,7 @@ class _AdminResultsEntryScreenState
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
+        backgroundColor: AppColors.inkNavy800,
         title: Text(
           'Results Entry',
           style: AppTypography.headingMd.copyWith(color: AppColors.textPrimary),
@@ -126,7 +127,7 @@ class _AdminResultsEntryScreenState
                           (s) => DropdownMenuItem<String>(
                             value: s['id'].toString(),
                             child: Text(
-                              '${s['name'] ?? 'Unknown'} (${s['registration_number'] ?? 'N/A'})',
+                                '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),

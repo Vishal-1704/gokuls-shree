@@ -23,7 +23,10 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
           const Text('Super Admin · Full Access', style: TextStyle(color: Colors.purpleAccent, fontSize: 11)),
         ]),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_rounded, color: Colors.white70), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.notifications_rounded, color: Colors.white70),
+            onPressed: () => context.push('/super-admin/approvals'),
+          ),
         ],
       ),
       body: SingleChildScrollView(

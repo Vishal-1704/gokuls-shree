@@ -90,11 +90,13 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
           ),
           const SizedBox(height: 24),
           if (isValid) ...[
-            // Mock Student Details
-            const ListTile(
-              leading: CircleAvatar(child: Text('S')),
-              title: Text('Student Name'),
-              subtitle: Text('REG12345 • Class 10A'),
+            ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.qr_code_rounded)),
+              title: const Text('Scanned QR Payload'),
+              subtitle: Text(
+                code,
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
             ),
             const SizedBox(height: 24),
           ],

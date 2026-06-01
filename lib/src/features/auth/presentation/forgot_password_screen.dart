@@ -26,12 +26,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
 
-    final mobile = _mobileController.text.trim();
-    final internalEmail = '$mobile@gokulshree.local';
+    final identifier = _mobileController.text.trim();
 
     final success = await ref
         .read(supabaseAuthNotifierProvider)
-        .resetPassword(internalEmail);
+      .resetPassword(identifier);
 
     if (mounted) {
       setState(() {
@@ -151,7 +150,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ] else ...[
                 // Input State
                 Text(
-                  "Enter your registered mobile number below. We'll alert the administration to verify and reset your access.",
+                      "Enter your registered mobile number, registration number, or email address. We'll send the reset link to the linked account.",
                   style: AppTypography.bodyMd.copyWith(
                     color: AppColors.textSecondary,
                     height: 1.5,
@@ -168,8 +167,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     keyboardType: TextInputType.phone,
                     style: AppTypography.mono.copyWith(letterSpacing: 1.5),
                     decoration: InputDecoration(
-                      labelText: 'Registered Mobile Number',
-                      hintText: '9876543210',
+                      labelText: 'Mobile Number / Reg No / Email',
+                      hintText: '9876543210 or GOKUL0181121',
                       prefixIcon: const Icon(Icons.phone_android),
                       prefixText: '+91 ',
                       prefixStyle: AppTypography.mono.copyWith(color: AppColors.textMuted),

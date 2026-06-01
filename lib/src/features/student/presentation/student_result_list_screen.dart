@@ -12,9 +12,11 @@ class StudentResultListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resultsAsync = ref.watch(studentExamResultsProvider);
+    final profileAsync = ref.watch(studentProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'My Results',
@@ -22,7 +24,7 @@ class StudentResultListScreen extends ConsumerWidget {
             color: AppColors.textPrimary,
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.inkNavy800,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
@@ -159,11 +161,21 @@ class StudentResultListScreen extends ConsumerWidget {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () => _downloadMarksheet(
-                            context,
-                            ref,
-                            'REG123', // TODO: Use real RegNo
-                          ),
+                          onPressed: () {
+                            final regNo = profileAsync.maybeWhen(
+                              data: (profile) => profile['reg_no']?.toString() ?? '',
+                              orElse: () => '',
+                            );
+
+                            if (regNo.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Registration number is not available yet')),
+                              );
+                              return;
+                            }
+
+                            _downloadMarksheet(context, ref, regNo);
+                          },
                           icon: const Icon(Icons.download_rounded, size: 20),
                           label: Text(
                             'Download Signed Marksheet',

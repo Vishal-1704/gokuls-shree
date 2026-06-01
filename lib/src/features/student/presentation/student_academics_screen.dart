@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 
 class StudentAcademicsScreen extends ConsumerStatefulWidget {
   const StudentAcademicsScreen({super.key});
@@ -23,75 +25,69 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final calendarAsync = ref.watch(studentAcademicCalendarProvider);
+
     return Scaffold(
-      backgroundColor: _bgLight,
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         title: const Text(
           'Academics',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.inkNavy800,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: _primaryColor,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: _primaryColor,
+          labelColor: AppColors.goldCta,
+          unselectedLabelColor: Colors.white54,
+          indicatorColor: AppColors.goldCta,
           tabs: const [
-            Tab(text: 'Classwork'),
-            Tab(text: 'Homework'),
+            Tab(text: 'Calendar'),
+            Tab(text: 'Updates'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildWorkList('Classwork'), _buildWorkList('Homework')],
+      body: calendarAsync.when(
+        data: (items) => TabBarView(
+          controller: _tabController,
+          children: [
+            _buildWorkList(items.where((item) => item['type'] == 'exam').toList(), 'Academic Calendar'),
+            _buildWorkList(items.where((item) => item['type'] != 'exam').toList(), 'Updates'),
+          ],
+        ),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+        error: (error, _) => Center(
+          child: Text('Unable to load academics: $error', style: const TextStyle(color: Colors.white70)),
+        ),
       ),
     );
   }
 
-  Widget _buildWorkList(String type) {
-    // Mock Data
-    final items = [
-      {
-        'subject': 'Mathematics',
-        'title': type == 'Homework' ? 'Solve Exercise 2.4' : 'Algebra Refresh',
-        'due': 'Tomorrow',
-        'status': 'Pending',
-        'color': Colors.blue,
-      },
-      {
-        'subject': 'Science',
-        'title': 'Chapter 5 Reading',
-        'due': 'Today',
-        'status': 'Completed',
-        'color': Colors.green,
-      },
-      {
-        'subject': 'English',
-        'title': 'Poem Recitation',
-        'due': 'Fri, 24 Dec',
-        'status': 'Pending',
-        'color': Colors.orange,
-      },
-    ];
+  Widget _buildWorkList(List<Map<String, dynamic>> items, String emptyLabel) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text('No $emptyLabel items available', style: const TextStyle(color: Colors.white70)),
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final color = item['color'] as Color;
+        final title = (item['text'] ?? item['title'] ?? 'Update').toString();
+        final due = (item['date'] ?? 'TBA').toString();
+        final color = item['type'] == 'exam' ? Colors.blue : Colors.orange;
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF112A16),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.15),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -108,7 +104,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                 ),
                 child: Center(
                   child: Text(
-                    (item['subject'] as String)[0],
+                    title.isNotEmpty ? title[0] : '?',
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.bold,
@@ -123,18 +119,18 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['subject'] as String,
+                      item['type'] == 'exam' ? 'Exam' : 'Notice',
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: Colors.white54,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      item['title'] as String,
+                      title,
                       style: const TextStyle(
-                        color: Colors.black,
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -145,16 +141,10 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                         Icon(
                           Icons.calendar_today,
                           size: 12,
-                          color: Colors.grey[400],
+                          color: Colors.white54,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          item['due'] as String,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
+                        Text(due, style: const TextStyle(color: Colors.white54, fontSize: 12)),
                       ],
                     ),
                   ],
@@ -166,19 +156,13 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      (item['status'] == 'Completed'
-                              ? Colors.green
-                              : Colors.orange)
-                          .withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  item['status'] as String,
+                  item['type'] == 'exam' ? 'Exam' : 'Notice',
                   style: TextStyle(
-                    color: item['status'] == 'Completed'
-                        ? Colors.green
-                        : Colors.orange,
+                    color: color,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),

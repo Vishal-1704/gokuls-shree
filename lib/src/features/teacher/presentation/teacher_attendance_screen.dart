@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 
 class TeacherAttendanceScreen extends ConsumerStatefulWidget {
   const TeacherAttendanceScreen({super.key});
@@ -56,18 +57,50 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
 
   Future<void> _saveAttendance() async {
     setState(() => _isLoading = true);
-    // Simulate API call to backend hardened route
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Attendance synchronized with server.'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    try {
+      final today = DateTime.now();
+      final dateOnly =
+          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      for (final student in _students) {
+        final id = student['id'];
+        final statusCode = _attendanceMap[id] ?? 'P';
+        final status = statusCode == 'A'
+            ? 'absent'
+            : statusCode == 'L'
+                ? 'late'
+                : 'present';
+
+        await supabase.from('student_attendance').upsert({
+          'student_id': id,
+          'date': dateOnly,
+          'status': status,
+          'marked_at': DateTime.now().toIso8601String(),
+          'marked_by': supabase.auth.currentUser?.id,
+        }, onConflict: 'student_id,date');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attendance saved to the database.'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save attendance: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -76,7 +109,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D2E18), // Forest green accent for teachers
+        backgroundColor: AppColors.inkNavy800,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
