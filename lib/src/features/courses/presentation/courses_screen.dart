@@ -1,6 +1,6 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gokul_shree_app/src/core/data/mock_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/widgets/app_image.dart';
@@ -19,8 +19,8 @@ class CoursesScreen extends ConsumerWidget {
           bottom: TabBar(
             isScrollable: true,
             indicatorColor: AppTheme.secondaryColor,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
+            labelColor: AppColors.textPrimary,
+            unselectedLabelColor: AppColors.textSecondary,
             tabs: [
               _buildTab('Diploma', Icons.computer),
               _buildTab('Vocational', Icons.build_outlined),
@@ -64,17 +64,7 @@ class _SupabaseCourseList extends StatelessWidget {
     return coursesAsync.when(
       data: (courses) {
         if (courses.isEmpty) {
-          // Fallback to mock data
-          final mockRepo = ref.read(mockRepositoryProvider);
-          final mockCourses = mockRepo
-              .getCourses()
-              .where((c) => c.category == category)
-              .toList();
-
-          if (mockCourses.isEmpty) {
-            return _buildEmptyState();
-          }
-          return _CourseListView(courses: mockCourses, category: category);
+          return _buildEmptyState();
         }
 
         // Convert Supabase data to Course objects
@@ -96,13 +86,7 @@ class _SupabaseCourseList extends StatelessWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) {
         debugPrint('Supabase courses error: $error');
-        // Fallback to mock data on error
-        final mockRepo = ref.read(mockRepositoryProvider);
-        final mockCourses = mockRepo
-            .getCourses()
-            .where((c) => c.category == category)
-            .toList();
-        return _CourseListView(courses: mockCourses, category: category);
+        return _buildEmptyState();
       },
     );
   }
@@ -216,7 +200,7 @@ class _CourseCard extends StatelessWidget {
                       backgroundColor: CourseImageHelper.getCategoryColor(
                         category,
                       ),
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.textPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

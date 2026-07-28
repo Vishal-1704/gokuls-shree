@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,12 +45,20 @@ class _StudentBleScannerState extends ConsumerState<StudentBleScanner> {
   void _cleanup() {
     _scanSubscription?.cancel();
     _progressTimer?.cancel();
-    if (FlutterBluePlus.isScanningNow) {
+    if (!kIsWeb && FlutterBluePlus.isScanningNow) {
       FlutterBluePlus.stopScan();
     }
   }
 
   Future<void> _startBluetoothScan() async {
+    if (kIsWeb) {
+      setState(() {
+        _isScanning = false;
+        _statusText = 'BLE Attendance scanning is available on Android/iOS mobile devices.';
+      });
+      return;
+    }
+
     setState(() {
       _isScanning = true;
       _statusText = 'Scanning for teacher beacon...';
@@ -197,7 +206,7 @@ class _StudentBleScannerState extends ConsumerState<StudentBleScanner> {
       decoration: BoxDecoration(
         color: AppColors.inkNavy800.withOpacity(0.8),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -232,7 +241,7 @@ class _StudentBleScannerState extends ConsumerState<StudentBleScanner> {
                 size: 40,
                 color: _verified
                     ? AppColors.success
-                    : (_isScanning ? AppColors.goldShine : Colors.white24),
+                    : (_isScanning ? AppColors.goldShine : AppColors.textMuted),
               ),
             ],
           ),

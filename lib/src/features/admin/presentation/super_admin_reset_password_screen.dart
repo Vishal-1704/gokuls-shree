@@ -75,19 +75,19 @@ class _SuperAdminResetPasswordScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Confirm Password Reset',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
         content: Text(
           'Reset password for "${_selectedProfile!['full_name'] ?? 'Unknown'}"?\n\n'
           'This action is logged. The user will need to use the new password immediately.',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
@@ -160,21 +160,21 @@ class _SuperAdminResetPasswordScreenState
       case 'branch_admin': return Colors.blue;
       case 'teacher': return Colors.teal;
       case 'student': return AppColors.goldCta;
-      default: return Colors.white54;
+      default: return AppColors.textMuted;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         elevation: 0,
         title: const Text('Reset User Password',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -213,22 +213,22 @@ class _SuperAdminResetPasswordScreenState
 
                     // Select user
                     Text('Select Target User',
-                        style: AppTypography.labelMd.copyWith(color: Colors.white70)),
+                        style: AppTypography.labelMd.copyWith(color: AppColors.textSecondary)),
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A0A2E),
+                        color: AppColors.inkNavy800,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
+                        border: Border.all(color: AppColors.divider),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<Map<String, dynamic>>(
                           isExpanded: true,
                           value: _selectedProfile,
-                          dropdownColor: const Color(0xFF1A0A2E),
+                          dropdownColor: AppColors.inkNavy800,
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           hint: const Text('-- Select a user --',
-                              style: TextStyle(color: Colors.white38)),
+                              style: TextStyle(color: AppColors.textMuted)),
                           items: _profiles.map((p) {
                             final role = p['role'] as String? ?? 'unknown';
                             final name = p['full_name'] ?? 'Unknown';
@@ -247,7 +247,7 @@ class _SuperAdminResetPasswordScreenState
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(name,
-                                        style: const TextStyle(color: Colors.white),
+                                        style: const TextStyle(color: AppColors.textPrimary),
                                         overflow: TextOverflow.ellipsis),
                                   ),
                                   const SizedBox(width: 6),
@@ -284,7 +284,7 @@ class _SuperAdminResetPasswordScreenState
                               children: [
                                 Text(_selectedProfile!['full_name'] ?? 'Unknown',
                                     style: const TextStyle(
-                                        color: Colors.white, fontWeight: FontWeight.w600)),
+                                        color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                 Text(_roleLabel(_selectedProfile!['role'] ?? ''),
                                     style: TextStyle(
                                         color: _roleColor(_selectedProfile!['role'] ?? ''),
@@ -298,34 +298,34 @@ class _SuperAdminResetPasswordScreenState
 
                     const SizedBox(height: 28),
                     Text('New Password',
-                        style: AppTypography.labelMd.copyWith(color: Colors.white70)),
+                        style: AppTypography.labelMd.copyWith(color: AppColors.textSecondary)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _newPasswordCtrl,
                       obscureText: _obscureNew,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Min. 6 characters',
-                        hintStyle: const TextStyle(color: Colors.white24),
+                        hintStyle: const TextStyle(color: AppColors.textMuted),
                         filled: true,
-                        fillColor: const Color(0xFF1A0A2E),
+                        fillColor: AppColors.inkNavy800,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(color: AppColors.divider),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(color: AppColors.divider),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(color: AppColors.goldCta),
                         ),
-                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.white38),
+                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                               _obscureNew ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.white38),
+                              color: AppColors.textMuted),
                           onPressed: () => setState(() => _obscureNew = !_obscureNew),
                         ),
                       ),
@@ -337,34 +337,34 @@ class _SuperAdminResetPasswordScreenState
                     ),
                     const SizedBox(height: 16),
                     Text('Confirm New Password',
-                        style: AppTypography.labelMd.copyWith(color: Colors.white70)),
+                        style: AppTypography.labelMd.copyWith(color: AppColors.textSecondary)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _confirmCtrl,
                       obscureText: _obscureConfirm,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Re-enter new password',
-                        hintStyle: const TextStyle(color: Colors.white24),
+                        hintStyle: const TextStyle(color: AppColors.textMuted),
                         filled: true,
-                        fillColor: const Color(0xFF1A0A2E),
+                        fillColor: AppColors.inkNavy800,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(color: AppColors.divider),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white12),
+                          borderSide: const BorderSide(color: AppColors.divider),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(color: AppColors.goldCta),
                         ),
-                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.white38),
+                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                               _obscureConfirm ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.white38),
+                              color: AppColors.textMuted),
                           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                         ),
                       ),
@@ -382,7 +382,7 @@ class _SuperAdminResetPasswordScreenState
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade700,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.textPrimary,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                           elevation: 0,
@@ -392,7 +392,7 @@ class _SuperAdminResetPasswordScreenState
                             ? const SizedBox(
                                 width: 18, height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
+                                    strokeWidth: 2, color: AppColors.textPrimary))
                             : const Icon(Icons.lock_reset_rounded),
                         label: Text(
                           _isSaving ? 'Resetting...' : 'Reset Password',
@@ -405,7 +405,7 @@ class _SuperAdminResetPasswordScreenState
                     Center(
                       child: Text(
                         '🔒 This action is recorded in the audit log.',
-                        style: AppTypography.bodySm.copyWith(color: Colors.white30),
+                        style: AppTypography.bodySm.copyWith(color: AppColors.textMuted),
                       ),
                     ),
                   ],

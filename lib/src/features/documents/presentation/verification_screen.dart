@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/features/documents/data/document_repository.dart';
@@ -78,7 +79,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.textPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -208,7 +209,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       appBar: AppBar(
         title: const Text('Verify Certificate'),
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
       ),
       backgroundColor: Colors.black,
       body: widget.documentId != null
@@ -240,13 +241,13 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                       const Text(
                         'Align certificate within the frame',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Scanning for QR code...',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: AppColors.textPrimary.withOpacity(0.7),
                           fontSize: 12,
                         ),
                       ),
@@ -286,7 +287,7 @@ class _ScannerOverlay extends StatelessWidget {
               width: scanWindowSize.width,
               height: scanWindowSize.height,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),

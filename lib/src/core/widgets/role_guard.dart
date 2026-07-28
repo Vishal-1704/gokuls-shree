@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 // lib/src/core/widgets/role_guard.dart
 //
 // Flutter-side security guard.
@@ -58,8 +59,8 @@ class _LoadingScreen extends StatelessWidget {
   const _LoadingScreen();
   @override
   Widget build(BuildContext context) => const Scaffold(
-    backgroundColor: Color(0xFF0E1E33),
-    body: Center(child: CircularProgressIndicator(color: Color(0xFFF5CC45))),
+    backgroundColor: AppColors.inkNavy800,
+    body: Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
   );
 }
 
@@ -74,7 +75,7 @@ class _AccessDeniedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0E1E33),
+    backgroundColor: AppColors.inkNavy800,
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -86,7 +87,7 @@ class _AccessDeniedScreen extends StatelessWidget {
             const Text(
               'Access Denied',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -95,13 +96,13 @@ class _AccessDeniedScreen extends StatelessWidget {
             Text(
               'This section is not available for your account type.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white60, fontSize: 14),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF5CC45),
-                foregroundColor: const Color(0xFF0E1E33),
+                backgroundColor: AppColors.goldCta,
+                foregroundColor: AppColors.inkNavy800,
               ),
               onPressed: () => context.go('/'),
               child: const Text('Go to Home'),

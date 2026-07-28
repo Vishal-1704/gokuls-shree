@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
@@ -105,7 +106,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admit Card'),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
         titleTextStyle: const TextStyle(
@@ -136,7 +137,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade300),
                       boxShadow: [
@@ -210,7 +211,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                         QrImageView(
                           data: _qrPayload,
                           size: 120,
-                          backgroundColor: Colors.white,
+                          backgroundColor: AppColors.textPrimary,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -245,7 +246,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                           label: const Text('Print'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),

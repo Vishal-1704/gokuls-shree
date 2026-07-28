@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,11 +67,13 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
       final sessionId = session['id']?.toString() ?? nonce;
 
       // 2. Set discoverable Bluetooth name to "GOKUL_[session_id]" if supported natively
-      try {
-        _originalBluetoothName = await _platform.invokeMethod<String>('getBluetoothName');
-        await _platform.invokeMethod('setBluetoothName', {'name': 'GOKUL_$sessionId'});
-      } catch (e) {
-        debugPrint('Platform Bluetooth renaming not supported: $e');
+      if (!kIsWeb) {
+        try {
+          _originalBluetoothName = await _platform.invokeMethod<String>('getBluetoothName');
+          await _platform.invokeMethod('setBluetoothName', {'name': 'GOKUL_$sessionId'});
+        } catch (e) {
+          debugPrint('Platform Bluetooth renaming not supported: $e');
+        }
       }
 
       setState(() {
@@ -126,7 +129,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
       decoration: BoxDecoration(
         color: AppColors.inkNavy800,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -152,7 +155,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
                       const SizedBox(width: 6),
                       Text(
                         _formatTime(_secondsRemaining),
-                        style: AppTypography.mono.copyWith(color: Colors.redAccent, fontSize: 12),
+                        style: AppTypography.bodySm.copyWith(color: Colors.redAccent, fontSize: 12),
                       ),
                     ],
                   ),
@@ -161,7 +164,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
           ),
           const SizedBox(height: 20),
           if (!_isBroadcasting) ...[
-            const Icon(Icons.bluetooth_audio_rounded, size: 64, color: Colors.white24),
+            const Icon(Icons.bluetooth_audio_rounded, size: 64, color: AppColors.textMuted),
             const SizedBox(height: 16),
             Text(
               _statusText,
@@ -172,7 +175,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.textPrimary,
               ),
               onPressed: _startBroadcasting,
               child: const Text('START SESSION BROADCAST'),
@@ -181,7 +184,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: QrImageView(
@@ -199,7 +202,7 @@ class _TeacherBleBroadcasterState extends ConsumerState<TeacherBleBroadcaster> {
             const SizedBox(height: 12),
             Text(
               'BLE Local Name: GOKUL_$_sessionId',
-              style: AppTypography.mono.copyWith(color: AppColors.goldShine, fontSize: 12),
+              style: AppTypography.bodySm.copyWith(color: AppColors.goldShine, fontSize: 12),
             ),
             const SizedBox(height: 24),
             OutlinedButton(

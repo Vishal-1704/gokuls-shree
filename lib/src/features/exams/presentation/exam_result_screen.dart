@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -105,7 +106,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                 return Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -239,7 +240,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.textPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

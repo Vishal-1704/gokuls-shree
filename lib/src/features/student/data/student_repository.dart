@@ -74,26 +74,13 @@ class StudentRepository {
       final dateOnly =
           '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-      try {
-        await _supabaseService.markSmartAttendance(
-          studentId: studentId,
-          source: 'manual_tap',
-          status: 'present',
-          confidenceScore: 1,
-          meta: {'marked_from': 'student_dashboard', 'date': dateOnly},
-        );
-        return 'Attendance marked successfully';
-      } catch (_) {
-        // Fallback for legacy schemas.
-      }
-
-      await supabase.from('student_attendance').insert({
-        'student_id': studentId,
-        'date': dateOnly,
-        'status': 'present',
-        'marked_at': DateTime.now().toIso8601String(),
-      });
-
+      await _supabaseService.markSmartAttendance(
+        studentId: studentId,
+        source: 'manual_tap',
+        status: 'present',
+        confidenceScore: 1,
+        meta: {'marked_from': 'student_dashboard', 'date': dateOnly},
+      );
       return 'Attendance marked successfully';
     } catch (e) {
       final msg = e.toString().toLowerCase();

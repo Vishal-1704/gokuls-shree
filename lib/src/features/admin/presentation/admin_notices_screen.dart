@@ -78,14 +78,14 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
               const SizedBox(height: 24),
               TextFormField(
                 controller: _titleController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: _inputDecoration('Notice Title', Icons.title),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _contentController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: _inputDecoration('Content', Icons.description),
                 maxLines: 4,
               ),
@@ -93,7 +93,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
                 dropdownColor: AppColors.inkNavy700,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 items: ['General', 'Holiday', 'Exam', 'Urgent']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
@@ -145,7 +145,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: Colors.white54),
+      labelStyle: const TextStyle(color: AppColors.textMuted),
       prefixIcon: Icon(icon, color: AppColors.goldCta),
       filled: true,
       fillColor: AppColors.inkNavy700,
@@ -173,7 +173,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.goldCta))
           : _notices.isEmpty
-          ? Center(child: Text('No notices posted yet.', style: AppTypography.bodyLg.copyWith(color: Colors.white54)))
+          ? Center(child: Text('No notices posted yet.', style: AppTypography.bodyLg.copyWith(color: AppColors.textMuted)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _notices.length,
@@ -188,7 +188,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
                     color: AppColors.inkNavy800,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isUrgent ? Colors.red.withOpacity(0.3) : AppColors.divider.withOpacity(0.1),
+                      color: isUrgent ? Colors.red.withOpacity(0.3) : AppColors.divider10,
                     ),
                   ),
                   child: ListTile(
@@ -204,7 +204,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 8),
-                        Text(notice['content'] ?? '', style: AppTypography.bodyMd.copyWith(color: Colors.white70)),
+                        Text(notice['content'] ?? '', style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary)),
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -252,8 +252,8 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.inkNavy800,
-        title: const Text('Delete Notice', style: TextStyle(color: Colors.white)),
-        content: const Text('This will permanently remove the notice.', style: TextStyle(color: Colors.white70)),
+        title: const Text('Delete Notice', style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text('This will permanently remove the notice.', style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(

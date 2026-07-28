@@ -14,16 +14,16 @@ class TeacherStudentsScreen extends ConsumerWidget {
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         backgroundColor: AppColors.inkNavy800,
-        title: const Text('Students', style: TextStyle(color: Colors.white)),
+        title: const Text('Students', style: TextStyle(color: AppColors.textPrimary)),
         actions: [
-          IconButton(icon: const Icon(Icons.search_rounded, color: Colors.white70), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.search_rounded, color: AppColors.textSecondary), onPressed: () {}),
         ],
       ),
       body: studentsAsync.when(
         data: (students) {
           if (students.isEmpty) {
             return const Center(
-              child: Text('No students found for your branch', style: TextStyle(color: Colors.white70)),
+              child: Text('No students found for your branch', style: TextStyle(color: AppColors.textSecondary)),
             );
           }
 
@@ -45,9 +45,9 @@ class TeacherStudentsScreen extends ConsumerWidget {
                     backgroundColor: Colors.green.withOpacity(0.2),
                     child: Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(color: Colors.greenAccent)),
                   ),
-                  title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  title: Text(name, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                   subtitle: Text('$regNo • $courseName',
-                      style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -67,9 +67,9 @@ class TeacherStudentsScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Colors.white70)),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.textSecondary)),
         error: (error, _) => Center(
-          child: Text('Unable to load students: $error', style: const TextStyle(color: Colors.white70)),
+          child: Text('Unable to load students: $error', style: const TextStyle(color: AppColors.textSecondary)),
         ),
       ),
     );

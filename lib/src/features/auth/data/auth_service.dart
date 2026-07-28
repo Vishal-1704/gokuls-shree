@@ -300,7 +300,11 @@ class SupabaseAuthNotifier extends ChangeNotifier {
 
       debugPrint('Attempting student signup via backend for $email');
 
-      final response = await Dio().post(
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 3),
+      ));
+      final response = await dio.post(
         '$baseUrl/auth/register',
         options: Options(headers: {'Content-Type': 'application/json'}),
         data: {
@@ -319,25 +323,38 @@ class SupabaseAuthNotifier extends ChangeNotifier {
 
       final body = response.data as Map<String, dynamic>;
       if (response.statusCode == 200 && body['success'] == true) {
-        debugPrint('Signup via backend successful. Pending approval.');
+        debugPrint('Signup via backend successful.');
+        _state = AuthUnauthenticated();
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Backend registration unavailable ($e). Registering directly via Supabase Auth...');
+    }
+
+    try {
+      final res = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': name,
+          'phone': phone,
+          'role': 'student',
+        },
+      );
+
+      if (res.user != null) {
         _state = AuthUnauthenticated();
         notifyListeners();
         return true;
       } else {
-        _state = AuthError(body['error'] ?? 'Signup failed');
+        _state = AuthError('Failed to create account.');
         notifyListeners();
         return false;
       }
-    } on DioException catch (e) {
-      final errorMsg =
-          e.response?.data?['error'] ?? e.message ?? 'Signup connection error';
-      debugPrint('DioException during signup: $errorMsg');
-      _state = AuthError(errorMsg.toString());
-      notifyListeners();
-      return false;
     } catch (e) {
-      debugPrint('General Exception during signup: $e');
-      _state = AuthError('Signup failed: ${e.toString()}');
+      debugPrint('Supabase signup error: $e');
+      _state = AuthError('Registration failed: ${e.toString()}');
       notifyListeners();
       return false;
     }

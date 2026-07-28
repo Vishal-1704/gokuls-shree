@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 // lib/src/features/documents/services/marksheet_service.dart
 // Native client-side marksheet PDF generation bypassing Puppeteer.
 
@@ -446,7 +447,7 @@ class MarksheetService {
         style: pw.TextStyle(
           font: font,
           fontSize: isHeader ? 8 : 9,
-          color: isHeader ? PdfColors.white : PdfColors.black,
+          color: isHeader ? PdfAppColors.textPrimary : PdfColors.black,
         ),
       ),
     );

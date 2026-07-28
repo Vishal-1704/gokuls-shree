@@ -52,11 +52,11 @@ class MarksheetViewerScreen extends StatelessWidget {
               
               // ── Student Info Area ──
               _buildStudentInfo(student, course),
-              const Divider(color: Colors.white12, height: 1),
+              const Divider(color: AppColors.divider, height: 1),
               
               // ── Marks Table ──
               _buildMarksTable(subjects),
-              const Divider(color: Colors.white12, height: 1),
+              const Divider(color: AppColors.divider, height: 1),
               
               // ── Summary Area ──
               _buildSummary(obtainedMarks, totalMarks, percentage, grade, result),
@@ -99,7 +99,7 @@ class MarksheetViewerScreen extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
-                        color: Colors.white70,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -111,7 +111,7 @@ class MarksheetViewerScreen extends StatelessWidget {
           Text(
             'STATEMENT OF MARKS',
             style: AppTypography.headingSm.copyWith(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.bold,
               letterSpacing: 2,
             ),
@@ -150,7 +150,7 @@ class MarksheetViewerScreen extends StatelessWidget {
               style: AppTypography.bodySm.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600),
             ),
           ),
-          const Text(':  ', style: TextStyle(color: Colors.white70)),
+          const Text(':  ', style: TextStyle(color: AppColors.textSecondary)),
           Expanded(
             child: Text(
               value,
@@ -171,7 +171,7 @@ class MarksheetViewerScreen extends StatelessWidget {
           1: FlexColumnWidth(2),
           2: FlexColumnWidth(2),
         },
-        border: TableBorder.all(color: Colors.white10, width: 1, borderRadius: BorderRadius.circular(8)),
+        border: TableBorder.all(color: AppColors.divider10, width: 1, borderRadius: BorderRadius.circular(8)),
         children: [
           // Table Header
           TableRow(
@@ -235,7 +235,7 @@ class MarksheetViewerScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.inkNavy700,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.divider10),
         ),
         child: Column(
           children: [
@@ -287,7 +287,7 @@ class MarksheetViewerScreen extends StatelessWidget {
       children: [
         Text(label, style: AppTypography.labelSm.copyWith(color: AppColors.textMuted)),
         const SizedBox(height: 4),
-        Text(value, style: AppTypography.headingSm.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text(value, style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -319,7 +319,7 @@ class MarksheetViewerScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Hash: SHA256-${marksheetId.hashCode.toRadixString(16).toUpperCase()}',
-                  style: AppTypography.mono.copyWith(color: AppColors.textMuted, fontSize: 9),
+                  style: AppTypography.bodySm.copyWith(color: AppColors.textMuted, fontSize: 9),
                 ),
               ],
             ),
@@ -327,7 +327,7 @@ class MarksheetViewerScreen extends StatelessWidget {
           const SizedBox(width: 16),
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
             child: QrImageView(
               data: 'https://gokulshreeschool.com/verify/$marksheetId',
               version: QrVersions.auto,

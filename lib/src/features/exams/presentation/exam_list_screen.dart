@@ -505,7 +505,7 @@ class _ExamCard extends StatelessWidget {
                   alignment: Alignment.center,
                   child: const Icon(
                     Icons.assignment,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     size: 26,
                   ),
                 ),

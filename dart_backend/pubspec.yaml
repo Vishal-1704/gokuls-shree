@@ -1,0 +1,20 @@
+name: gokul_shree_backend
+description: Gokul Shree School Management System — Dart Backend (shelf)
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  shelf_cors_headers: ^0.1.5
+  http: ^1.2.1
+  crypto: ^3.0.3
+  dotenv: ^4.1.0
+  pdf: ^3.10.8
+  qr: ^3.0.1
+
+dev_dependencies:
+  lints: ^3.0.0

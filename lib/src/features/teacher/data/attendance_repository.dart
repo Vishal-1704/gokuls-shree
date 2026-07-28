@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
+import '../../../core/providers/session_provider.dart';
+import '../../../core/models/user_session.dart';
 
 /// Repository for attendance and enrollment operations
 class AttendanceRepository {
@@ -247,3 +249,146 @@ final studentEnrollmentsProvider =
       final repo = ref.read(attendanceRepositoryProvider);
       return repo.getStudentEnrollments(studentId);
     });
+
+/// Provider for the logged-in teacher's employee profile
+final teacherEmployeeProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = ref.watch(sessionProvider);
+  if (session == null || session.role != UserRole.teacher) return null;
+
+  try {
+    final response = await supabase
+        .from('employees')
+        .select('*, branches(name)')
+        .eq('profile_id', session.profileId)
+        .maybeSingle();
+
+    if (response == null) {
+      return {
+        'name': session.name,
+        'email': session.email,
+        'designation': 'Faculty',
+        'department': 'General',
+        'doj': '',
+        'contact': '',
+        'address': '',
+        'basic_salary': 0.0,
+        'hra': 0.0,
+        'da': 0.0,
+        'other_allowance': 0.0,
+        'pf_account_no': '',
+        'pan_no': '',
+        'esi_no': '',
+        'causal_leave': 0,
+        'status': 1,
+        'branches': {'name': 'Branch'},
+      };
+    }
+
+    return response;
+  } catch (e) {
+    return {
+      'name': session.name,
+      'email': session.email,
+      'designation': 'Faculty',
+      'department': 'General',
+      'doj': '',
+      'contact': '',
+      'address': '',
+      'basic_salary': 0.0,
+      'hra': 0.0,
+      'da': 0.0,
+      'other_allowance': 0.0,
+      'pf_account_no': '',
+      'pan_no': '',
+      'esi_no': '',
+      'causal_leave': 0,
+      'status': 1,
+      'branches': {'name': 'Branch'},
+    };
+  }
+});
+
+/// Provider for subjects taught by the teacher
+final teacherSubjectsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final session = ref.watch(sessionProvider);
+  if (session == null || session.role != UserRole.teacher) return [];
+
+  try {
+    final response = await supabase
+        .from('subjects')
+        .select('*, courses(title)')
+        .eq('branch_id', session.branchId ?? 1)
+        .eq('status', 1);
+
+    return List<Map<String, dynamic>>.from(response);
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Provider for today's student attendance rate in the branch
+final teacherStudentAttendanceStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final session = ref.watch(sessionProvider);
+  if (session == null || session.role != UserRole.teacher) return {};
+
+  try {
+    final students = await supabase
+        .from('students')
+        .select('id')
+        .eq('branch_id', session.branchId ?? 1)
+        .eq('status', 1);
+
+    final studentIds = students.map((s) => s['id'] as int).toList();
+    if (studentIds.isEmpty) {
+      return {
+        'total_students': 0,
+        'marked_today': 0,
+        'present_today': 0,
+        'absent_today': 0,
+        'pending_today': 0,
+        'attendance_rate': 0.0,
+      };
+    }
+
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final attendance = await supabase
+        .from('student_attendance')
+        .select()
+        .inFilter('student_id', studentIds)
+        .eq('attendance_date', todayStr);
+
+    int present = 0;
+    int absent = 0;
+    for (var att in attendance) {
+      final status = att['status']?.toString().toLowerCase();
+      if (status == 'present' || status == 'p' || status == 'late' || status == 'l') {
+        present++;
+      } else {
+        absent++;
+      }
+    }
+
+    final marked = attendance.length;
+    final total = studentIds.length;
+    final pending = total - marked;
+    final rate = marked > 0 ? (present / marked) * 100 : 100.0;
+
+    return {
+      'total_students': total,
+      'marked_today': marked,
+      'present_today': present,
+      'absent_today': absent,
+      'pending_today': pending,
+      'attendance_rate': rate,
+    };
+  } catch (e) {
+    return {
+      'total_students': 0,
+      'marked_today': 0,
+      'present_today': 0,
+      'absent_today': 0,
+      'pending_today': 0,
+      'attendance_rate': 0.0,
+    };
+  }
+});

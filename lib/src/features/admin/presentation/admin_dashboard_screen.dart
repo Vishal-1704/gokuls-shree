@@ -6,6 +6,7 @@ import 'package:gokul_shree_app/src/features/admin/presentation/admin_panel_scre
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_dashboard_home.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_qr_scanner_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_student_directory_screen.dart';
+import 'package:gokul_shree_app/src/core/widgets/responsive_container.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -29,7 +30,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
-      body: SafeArea(child: _widgetOptions.elementAt(_selectedIndex)),
+      body: SafeArea(child: ResponsiveContainer(padding: EdgeInsets.zero, child: _widgetOptions.elementAt(_selectedIndex))),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.inkNavy800,

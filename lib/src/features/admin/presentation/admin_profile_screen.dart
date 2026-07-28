@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,10 +28,10 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.textPrimary,
       appBar: AppBar(
         title: const Text('Admin Profile'),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.textPrimary,
         elevation: 0,
         foregroundColor: Colors.black,
         actions: [
@@ -81,7 +82,7 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
                       ),
                       child: const Icon(
                         Icons.camera_alt,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         size: 20,
                       ),
                     ),
@@ -162,7 +163,7 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
         filled: !_isEditing || !enabled,
         fillColor: (!_isEditing || !enabled)
             ? Colors.grey.shade50
-            : Colors.white,
+            : AppColors.textPrimary,
       ),
     );
   }

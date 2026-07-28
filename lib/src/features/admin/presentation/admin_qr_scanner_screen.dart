@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -55,7 +56,7 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
 
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.textPrimary,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.all(24),
@@ -113,7 +114,7 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
               ),
               child: const Text(
                 'Done',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
               ),
             ),
           ),
@@ -148,19 +149,19 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.flash_on, color: Colors.white),
+                    icon: const Icon(Icons.flash_on, color: AppColors.textPrimary),
                     onPressed: () => _controller.toggleTorch(),
                   ),
                   const Text(
                     'Scan QR Code',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.cameraswitch, color: Colors.white),
+                    icon: const Icon(Icons.cameraswitch, color: AppColors.textPrimary),
                     onPressed: () => _controller.switchCamera(),
                   ),
                 ],
@@ -175,7 +176,7 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: AppColors.textPrimary.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -199,14 +200,14 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? AppColors.textPrimary : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.black : Colors.white,
+            color: isSelected ? Colors.black : AppColors.textPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),

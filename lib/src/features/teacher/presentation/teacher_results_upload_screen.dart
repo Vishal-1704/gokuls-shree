@@ -98,15 +98,15 @@ class _TeacherResultsUploadScreenState
     final studentsFuture = ref.watch(adminStudentsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: Text(
           'Upload Marks & Results',
-          style: AppTypography.headingMd.copyWith(color: Colors.white),
+          style: AppTypography.headingMd.copyWith(color: AppColors.textPrimary),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -121,14 +121,14 @@ class _TeacherResultsUploadScreenState
                 children: [
                   DropdownButtonFormField<String>(
                     value: _selectedStudentId,
-                    dropdownColor: const Color(0xFF1A0A2E),
-                    style: const TextStyle(color: Colors.white),
+                    dropdownColor: AppColors.inkNavy800,
+                    style: const TextStyle(color: AppColors.textPrimary),
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Select Student',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      prefixIcon: Icon(Icons.person_search_outlined, color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                      labelStyle: TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: Icon(Icons.person_search_outlined, color: AppColors.textMuted),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
                     items: students
@@ -138,7 +138,7 @@ class _TeacherResultsUploadScreenState
                             child: Text(
                               '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: AppColors.textPrimary),
                             ),
                           ),
                         )
@@ -149,12 +149,12 @@ class _TeacherResultsUploadScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _examController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Exam Name',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      prefixIcon: Icon(Icons.assignment_outlined, color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                      labelStyle: TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: Icon(Icons.assignment_outlined, color: AppColors.textMuted),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
@@ -164,12 +164,12 @@ class _TeacherResultsUploadScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _subjectController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Subject Name',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      prefixIcon: Icon(Icons.menu_book_outlined, color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                      labelStyle: TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: Icon(Icons.menu_book_outlined, color: AppColors.textMuted),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
@@ -182,12 +182,12 @@ class _TeacherResultsUploadScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _obtainedController,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: AppColors.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'Obtained Marks',
-                            labelStyle: TextStyle(color: Colors.white70),
-                            prefixIcon: Icon(Icons.score_outlined, color: Colors.white54),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                            labelStyle: TextStyle(color: AppColors.textSecondary),
+                            prefixIcon: Icon(Icons.score_outlined, color: AppColors.textMuted),
+                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                           ),
                           keyboardType: TextInputType.number,
@@ -205,12 +205,12 @@ class _TeacherResultsUploadScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _totalController,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: AppColors.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'Total Marks',
-                            labelStyle: TextStyle(color: Colors.white70),
-                            prefixIcon: Icon(Icons.straighten_outlined, color: Colors.white54),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                            labelStyle: TextStyle(color: AppColors.textSecondary),
+                            prefixIcon: Icon(Icons.straighten_outlined, color: AppColors.textMuted),
+                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                           ),
                           keyboardType: TextInputType.number,
@@ -229,12 +229,12 @@ class _TeacherResultsUploadScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _gradeController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Grade (Optional)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      prefixIcon: Icon(Icons.workspace_premium_outlined, color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                      labelStyle: TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: Icon(Icons.workspace_premium_outlined, color: AppColors.textMuted),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
                   ),
@@ -242,12 +242,12 @@ class _TeacherResultsUploadScreenState
                   TextFormField(
                     controller: _notesController,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Notes (Optional)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      prefixIcon: Icon(Icons.notes_outlined, color: Colors.white54),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12)),
+                      labelStyle: TextStyle(color: AppColors.textSecondary),
+                      prefixIcon: Icon(Icons.notes_outlined, color: AppColors.textMuted),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
                   ),
@@ -258,7 +258,7 @@ class _TeacherResultsUploadScreenState
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.goldCta,
-                        foregroundColor: const Color(0xFF070D18),
+                        foregroundColor: AppColors.textPrimary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: _isSubmitting ? null : _submit,
@@ -266,7 +266,7 @@ class _TeacherResultsUploadScreenState
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF070D18)),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textPrimary),
                             )
                           : const Icon(Icons.upload_rounded),
                       label: Text(

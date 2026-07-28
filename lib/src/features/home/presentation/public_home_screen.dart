@@ -1,10 +1,11 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';
 
-const Color _pageBg = Color(0xFF020B1D);
+const Color _pageBg = AppColors.inkNavy800;
 const Color _surfaceCard = Color(0xFF0A1E3D);
 const Color _surfaceCardAlt = Color(0xFF0D2448);
 const Color _textPrimary = Color(0xFFF4F7FF);
@@ -42,12 +43,12 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined, color: _textSecondary),
-            selectedIcon: const Icon(Icons.home, color: Color(0xFF1B2130)),
+            selectedIcon: const Icon(Icons.home, color: AppColors.inkNavy800),
             label: 'Home',
           ),
           NavigationDestination(
             icon: const Icon(Icons.school_outlined, color: _textSecondary),
-            selectedIcon: const Icon(Icons.school, color: Color(0xFF1B2130)),
+            selectedIcon: const Icon(Icons.school, color: AppColors.inkNavy800),
             label: 'Academics',
           ),
         ],
@@ -92,7 +93,7 @@ class _HomeTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0B2753), Color(0xFF061834)],
+                colors: [AppColors.inkNavy800, Color(0xFF061834)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -107,7 +108,7 @@ class _HomeTab extends StatelessWidget {
                   width: _brandLogoSize,
                   height: _brandLogoSize,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -145,7 +146,7 @@ class _HomeTab extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: AppColors.textPrimary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
@@ -213,7 +214,7 @@ class _HomeTab extends StatelessWidget {
 
           // 3. Testimonials Section
           Container(
-            color: const Color(0xFF05142B),
+            color: AppColors.inkNavy800,
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,7 +310,7 @@ class _HomeTab extends StatelessWidget {
                 onPressed: () => context.push('/login'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _highlight,
-                  foregroundColor: const Color(0xFF1B2130),
+                  foregroundColor: AppColors.inkNavy800,
                   elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -414,7 +415,7 @@ class _AcademicsTab extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.textPrimary,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -500,7 +501,7 @@ class _AcademicsTab extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.textPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -664,7 +665,7 @@ class _AcademicsTab extends StatelessWidget {
                 onPressed: () => _openExamPortal(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _highlight,
-                  foregroundColor: const Color(0xFF1B2130),
+                  foregroundColor: AppColors.inkNavy800,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -696,7 +697,7 @@ class _ProgramCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _surfaceCardAlt,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.25),

@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
@@ -199,7 +200,7 @@ class CertificateService {
                   ),
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-                    color: PdfColors.white,
+                    color: PdfAppColors.textPrimary,
                     borderRadius: const pw.BorderRadius.all(
                       pw.Radius.circular(4),
                     ),

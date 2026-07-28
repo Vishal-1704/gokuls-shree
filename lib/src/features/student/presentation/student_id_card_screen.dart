@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/providers/session_provider.dart';
+import '../../../core/models/user_session.dart';
 
 class StudentIdCardScreen extends ConsumerWidget {
   const StudentIdCardScreen({super.key});
@@ -20,11 +21,11 @@ class StudentIdCardScreen extends ConsumerWidget {
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         backgroundColor: AppColors.inkNavy800,
-        title: const Text('My ID Card', style: TextStyle(color: Colors.white)),
+        title: const Text('My ID Card', style: TextStyle(color: AppColors.textPrimary)),
         actions: [
           profileAsync.when(
             data: (profile) => IconButton(
-              icon: const Icon(Icons.download_rounded, color: Colors.white70),
+              icon: const Icon(Icons.download_rounded, color: AppColors.textSecondary),
               onPressed: () => _downloadCard(context, profile, session),
             ),
             loading: () => const SizedBox.shrink(),
@@ -47,12 +48,12 @@ class StudentIdCardScreen extends ConsumerWidget {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1A3A5C), Color(0xFF0A1E35)],
+                      colors: [AppColors.inkNavy700, AppColors.inkNavy900],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFF5CC45), width: 1.5),
+                    border: Border.all(color: AppColors.goldCta, width: 1.5),
                     boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 20, offset: const Offset(0, 8))],
                   ),
                   child: Column(children: [
@@ -60,7 +61,7 @@ class StudentIdCardScreen extends ConsumerWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFF5CC45),
+                        color: AppColors.goldCta,
                         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
                       ),
                       child: Row(children: [
@@ -68,15 +69,15 @@ class StudentIdCardScreen extends ConsumerWidget {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0E1E33),
+                            color: AppColors.inkNavy800,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.school_rounded, color: Color(0xFFF5CC45), size: 20),
+                          child: const Icon(Icons.school_rounded, color: AppColors.goldCta, size: 20),
                         ),
                         const SizedBox(width: 10),
                         const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('GOKUL SHREE', style: TextStyle(color: Color(0xFF0E1E33), fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text('School of Mgmt & Technology', style: TextStyle(color: Color(0xFF1A3A5C), fontSize: 9)),
+                          Text('GOKUL SHREE', style: TextStyle(color: AppColors.inkNavy800, fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('School of Mgmt & Technology', style: TextStyle(color: AppColors.inkNavy700, fontSize: 9)),
                         ]),
                       ]),
                     ),
@@ -87,18 +88,18 @@ class StudentIdCardScreen extends ConsumerWidget {
                           width: 80,
                           height: 90,
                           decoration: BoxDecoration(
-                            color: Colors.white12,
+                            color: AppColors.divider,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFF5CC45), width: 1),
+                            border: Border.all(color: AppColors.goldCta, width: 1),
                           ),
-                          child: const Icon(Icons.person_rounded, color: Colors.white38, size: 48),
+                          child: const Icon(Icons.person_rounded, color: AppColors.textMuted, size: 48),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(
                               (session?.name ?? profile['name'] ?? 'Student Name').toString(),
-                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
                             _IdRow('Reg No.', regNo),
@@ -112,18 +113,18 @@ class StudentIdCardScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: const BoxDecoration(
-                        border: Border(top: BorderSide(color: Colors.white12)),
+                        border: Border(top: BorderSide(color: AppColors.divider)),
                       ),
                       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
                           child: QrImageView(data: qrPayload, version: QrVersions.auto, size: 84),
                         ),
                         const SizedBox(width: 10),
                         const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Scan to verify', style: TextStyle(color: Colors.white54, fontSize: 11)),
-                          Text('gokulshreeschool.com', style: TextStyle(color: Color(0xFFF5CC45), fontSize: 11)),
+                          Text('Scan to verify', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                          Text('gokulshreeschool.com', style: TextStyle(color: AppColors.goldCta, fontSize: 11)),
                         ]),
                       ]),
                     ),
@@ -134,8 +135,8 @@ class StudentIdCardScreen extends ConsumerWidget {
                   icon: const Icon(Icons.download_rounded),
                   label: const Text('Download ID Card'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF5CC45),
-                    foregroundColor: const Color(0xFF0E1E33),
+                    backgroundColor: AppColors.goldCta,
+                    foregroundColor: AppColors.inkNavy800,
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -147,7 +148,7 @@ class StudentIdCardScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
         error: (error, _) => Center(
-          child: Text('Unable to load student profile: $error', style: const TextStyle(color: Colors.white70)),
+          child: Text('Unable to load student profile: $error', style: const TextStyle(color: AppColors.textSecondary)),
         ),
       ),
     );
@@ -238,8 +239,8 @@ class _IdRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Row(children: [
-      Text('$label: ', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-      Text(value, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+      Text('$label: ', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+      Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600)),
     ]),
   );
 }

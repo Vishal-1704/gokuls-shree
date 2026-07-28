@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:typed_data';
@@ -92,7 +93,7 @@ class MarksheetPdfGenerator {
         margin: pw.EdgeInsets.all(0),
         build: (pw.Context context) {
           return pw.Container(
-            color: PdfColors.white,
+            color: PdfAppColors.textPrimary,
             child: pw.Column(
               children: [
                 // Header with enrollment and serial no
@@ -674,7 +675,7 @@ class MarksheetPdfGenerator {
             style: pw.TextStyle(
               fontSize: 10,
               fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
+              color: PdfAppColors.textPrimary,
             ),
           ),
           pw.Text(
@@ -682,7 +683,7 @@ class MarksheetPdfGenerator {
             style: pw.TextStyle(
               fontSize: 14,
               fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
+              color: PdfAppColors.textPrimary,
             ),
           ),
         ],

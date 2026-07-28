@@ -88,7 +88,7 @@ class _MyDocumentsScreenState extends ConsumerState<MyDocumentsScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.inkNavy800, Color(0xFF1E293B)],
+          colors: [AppColors.inkNavy800, AppColors.inkNavy700],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.goldCta.withOpacity(0.2)),
@@ -158,7 +158,7 @@ class _MyDocumentsScreenState extends ConsumerState<MyDocumentsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.divider.withOpacity(0.1)),
+        side: BorderSide(color: AppColors.divider10),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -32,15 +32,15 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
       appBar: AppBar(
         title: const Text(
           'Academics',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.inkNavy800,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.goldCta,
-          unselectedLabelColor: Colors.white54,
+          unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.goldCta,
           tabs: const [
             Tab(text: 'Calendar'),
@@ -58,7 +58,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
         ),
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
         error: (error, _) => Center(
-          child: Text('Unable to load academics: $error', style: const TextStyle(color: Colors.white70)),
+          child: Text('Unable to load academics: $error', style: const TextStyle(color: AppColors.textSecondary)),
         ),
       ),
     );
@@ -67,7 +67,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
   Widget _buildWorkList(List<Map<String, dynamic>> items, String emptyLabel) {
     if (items.isEmpty) {
       return Center(
-        child: Text('No $emptyLabel items available', style: const TextStyle(color: Colors.white70)),
+        child: Text('No $emptyLabel items available', style: const TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -83,7 +83,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF112A16),
+            color: AppColors.inkNavy900,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -121,7 +121,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                     Text(
                       item['type'] == 'exam' ? 'Exam' : 'Notice',
                       style: TextStyle(
-                        color: Colors.white54,
+                        color: AppColors.textMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -130,7 +130,7 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -141,10 +141,10 @@ class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
                         Icon(
                           Icons.calendar_today,
                           size: 12,
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                         ),
                         const SizedBox(width: 4),
-                        Text(due, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                        Text(due, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
                       ],
                     ),
                   ],

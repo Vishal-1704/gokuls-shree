@@ -160,7 +160,7 @@ class _AdminDocumentApprovalScreenState extends ConsumerState<AdminDocumentAppro
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.textPrimary,
                         ),
                         onPressed: () => _approve(type, item['id']),
                         icon: const Icon(Icons.check, size: 18),

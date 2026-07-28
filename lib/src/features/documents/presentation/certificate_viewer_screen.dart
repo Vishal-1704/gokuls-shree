@@ -72,7 +72,7 @@ class CertificateViewerScreen extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.5,
-                        color: Colors.white70,
+                        color: AppColors.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -101,7 +101,7 @@ class CertificateViewerScreen extends StatelessWidget {
                       style: AppTypography.displayMd.copyWith(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         letterSpacing: 1.5,
                       ),
                       textAlign: TextAlign.center,
@@ -136,21 +136,21 @@ class CertificateViewerScreen extends StatelessWidget {
                                     'Director Sign',
                                     style: TextStyle(
                                       fontFamily: 'cursive',
-                                      color: Colors.white54,
+                                      color: AppColors.textMuted,
                                       fontSize: 14,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                            Container(width: 120, height: 1, color: Colors.white30),
+                            Container(width: 120, height: 1, color: AppColors.textMuted),
                             const SizedBox(height: 4),
                             Text('DIRECTOR', style: AppTypography.labelSm.copyWith(color: AppColors.textMuted)),
                           ],
                         ),
                         Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
                           child: QrImageView(
                             data: 'https://gokulshreeschool.com/verify/cert/$certNo',
                             version: QrVersions.auto,
@@ -161,7 +161,7 @@ class CertificateViewerScreen extends StatelessWidget {
                     ),
                     
                     const SizedBox(height: 32),
-                    const Divider(color: Colors.white10),
+                    const Divider(color: AppColors.divider10),
                     const SizedBox(height: 16),
                     
                     Row(
@@ -219,7 +219,7 @@ class CertificateViewerScreen extends StatelessWidget {
       children: [
         Text(label, style: AppTypography.labelSm.copyWith(fontSize: 8, color: AppColors.textMuted)),
         const SizedBox(height: 2),
-        Text(value, style: AppTypography.mono.copyWith(fontSize: 10, color: Colors.white70)),
+        Text(value, style: AppTypography.bodySm.copyWith(fontSize: 10, color: AppColors.textSecondary)),
       ],
     );
   }

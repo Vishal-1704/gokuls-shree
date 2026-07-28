@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -138,14 +139,14 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
               children: [
                 Icon(
                   isTimeWarning ? Icons.warning_rounded : Icons.timer,
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   size: 16,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   _formatTime(_remainingSeconds),
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     fontFamily: 'monospace',
@@ -252,7 +253,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
@@ -303,7 +304,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                           color: isSelected
                                               ? AppTheme.primaryColor
                                                     .withOpacity(0.08)
-                                              : Colors.white,
+                                              : AppColors.textPrimary,
                                           border: Border.all(
                                             color: isSelected
                                                 ? AppTheme.primaryColor
@@ -346,7 +347,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                                   ? const Icon(
                                                       Icons.check,
                                                       size: 18,
-                                                      color: Colors.white,
+                                                      color: AppColors.textPrimary,
                                                     )
                                                   : Text(
                                                       optLabel,
@@ -390,7 +391,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.06),
@@ -432,7 +433,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                   _currentQuestionIndex < questions.length - 1
                                   ? AppTheme.primaryColor
                                   : Colors.green,
-                              foregroundColor: Colors.white,
+                              foregroundColor: AppColors.textPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -503,7 +504,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                   children: [
                     const Icon(
                       Icons.warning_amber_rounded,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -511,7 +512,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                       child: Text(
                         "⚠️ App switch detected! ($_switchCounts/3 — auto-submit at 3)",
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -570,7 +571,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.textPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

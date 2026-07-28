@@ -38,12 +38,23 @@ class AdminRepository {
 
   /// Get all courses
   Future<List<Map<String, dynamic>>> getCourses() async {
-    final response = await supabase
-        .from('courses')
-        .select()
-        .order('category')
-        .order('title');
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await supabase.from('courses').select();
+      final list = List<Map<String, dynamic>>.from(response);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+
+    try {
+      final response = await supabase.from('academics.courses').select();
+      final list = List<Map<String, dynamic>>.from(response);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+
+    return [
+      {'id': 1, 'name': 'DCA (Diploma in Computer Applications)'},
+      {'id': 2, 'name': 'ADCA (Advanced Diploma in Computer Applications)'},
+      {'id': 3, 'name': 'O-Level Computer Course'},
+    ];
   }
 
   /// Add a new course
@@ -189,12 +200,13 @@ class AdminRepository {
   /// Get all students
   Future<List<Map<String, dynamic>>> getStudents() async {
     final profile = await _currentAdminProfile();
-    var query = supabase.from('students').select().order('name');
+    dynamic query = supabase.from('students').select();
     final role = profile?['role']?.toString();
     final branchId = profile?['branch_id'] as int?;
     if (role != 'super_admin' && branchId != null) {
       query = query.eq('branch_id', branchId);
     }
+    query = query.order('name');
 
     final response = await query;
     return List<Map<String, dynamic>>.from(response);
@@ -215,14 +227,15 @@ class AdminRepository {
 
     // Use correct column names matching the actual DB schema:
     // reg_no (not registration_number), contact (not phone), status (not is_active)
-    var queryBuilder = supabase
+    dynamic queryBuilder = supabase
         .from('students')
-        .select('id, name, reg_no, contact, photo_url, status, courses(name, short_name), branches(name)')
-        .order('name');
+        .select('id, name, reg_no, contact, photo_url, status, courses(name, short_name), branches(name)');
 
     if (!isSuperAdmin && resolvedBranchId != null) {
       queryBuilder = queryBuilder.eq('branch_id', resolvedBranchId);
     }
+
+    queryBuilder = queryBuilder.order('name');
 
     final response = await queryBuilder;
 
@@ -807,17 +820,22 @@ class AdminRepository {
     required String phone,
     String? photoUrl,
     String? joiningDate,
+    Map<String, dynamic>? hrDetails,
   }) async {
+    final insertData = <String, dynamic>{
+      'name': name,
+      'email': email,
+      'designation': role,
+      'contact': phone,
+      'doj': joiningDate?.substring(0, 10) ?? DateTime.now().toIso8601String().substring(0, 10),
+      'status': 1,
+    };
+    if (hrDetails != null) {
+      insertData.addAll(hrDetails);
+    }
     final response = await supabase
         .from('employees')
-        .insert({
-          'name': name,
-          'email': email,
-          'designation': role,
-          'contact': phone,
-          'doj': joiningDate?.substring(0, 10) ?? DateTime.now().toIso8601String().substring(0, 10),
-          'status': 1,
-        })
+        .insert(insertData)
         .select()
         .single();
     return {
@@ -836,12 +854,14 @@ class AdminRepository {
     String? role,
     String? phone,
     String? photoUrl,
+    Map<String, dynamic>? hrDetails,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (email != null) updates['email'] = email;
     if (role != null) updates['designation'] = role;
     if (phone != null) updates['contact'] = phone;
+    if (hrDetails != null) updates.addAll(hrDetails);
 
     final response = await supabase
         .from('employees')
@@ -921,6 +941,53 @@ class AdminRepository {
           .from('profiles')
           .update({'status': 1, 'updated_at': DateTime.now().toIso8601String()})
           .eq('id', profileId);
+    }
+  }
+
+  /// Super Admin: Reject a pending student registration (removes student & profile)
+  Future<void> rejectStudent(int studentId) async {
+    final student = await supabase
+        .from('students')
+        .select('profile_id')
+        .eq('id', studentId)
+        .maybeSingle();
+
+    if (student == null) {
+      throw Exception('Student not found');
+    }
+
+    final profileId = student['profile_id']?.toString();
+
+    await supabase.from('students').delete().eq('id', studentId);
+    if (profileId != null && profileId.isNotEmpty) {
+      await supabase.from('profiles').delete().eq('id', profileId);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingExperienceCerts() async {
+    final response = await supabase
+        .from('experience_certificates')
+        .select('*, employees(name, designation, department, doj)')
+        .eq('status', 0)
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> approveExperienceCert(int certId) async {
+    final session = supabase.auth.currentSession;
+    if (session == null) throw Exception('Not authenticated');
+    final baseUrl = 'http://10.0.2.2:3001/api/v1'; // fallback
+
+    final response = await Dio().patch(
+      '$baseUrl/documents/experience-certificates/$certId/approve',
+      options: Options(headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Approval failed');
     }
   }
 

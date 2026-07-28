@@ -24,11 +24,12 @@ class _SuperAdminApprovalsScreenState
   List<Map<String, dynamic>> _pendingStudents = [];
   List<Map<String, dynamic>> _pendingMarksheets = [];
   List<Map<String, dynamic>> _pendingCertificates = [];
+  List<Map<String, dynamic>> _pendingExperienceCerts = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadAll();
   }
 
@@ -46,16 +47,19 @@ class _SuperAdminApprovalsScreenState
       final results = await Future.wait([
         repo.getPendingStudents(),
         repo.getPendingDocuments(),
+        repo.getPendingExperienceCerts(),
       ]);
 
       final students = results[0] as List<Map<String, dynamic>>;
       final docs = results[1] as Map<String, List<Map<String, dynamic>>>;
+      final expCerts = results[2] as List<Map<String, dynamic>>;
 
       if (!mounted) return;
       setState(() {
         _pendingStudents = students;
         _pendingMarksheets = docs['marksheets']!;
         _pendingCertificates = docs['certificates']!;
+        _pendingExperienceCerts = expCerts;
         _isLoading = false;
       });
     } catch (e) {
@@ -86,6 +90,18 @@ class _SuperAdminApprovalsScreenState
       }
     } catch (e) {
       if (mounted) _showError('Rejection failed: $e');
+    }
+  }
+
+  Future<void> _approveExperienceCert(int id) async {
+    try {
+      await ref.read(adminRepositoryProvider).approveExperienceCert(id);
+      if (mounted) {
+        _showSuccess('Experience Certificate Approved & Issued!');
+        _loadAll();
+      }
+    } catch (e) {
+      if (mounted) _showError('Approval Failed: $e');
     }
   }
 
@@ -143,7 +159,7 @@ class _SuperAdminApprovalsScreenState
         return Container(
           height: MediaQuery.of(context).size.height * modalHeight,
           decoration: const BoxDecoration(
-            color: Color(0xFF160829),
+            color: AppColors.inkNavy700,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
               top: BorderSide(color: AppColors.goldCta, width: 1.5),
@@ -165,16 +181,16 @@ class _SuperAdminApprovalsScreenState
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(color: Colors.white10),
+              const Divider(color: AppColors.divider10),
               const SizedBox(height: 12),
               Expanded(
                 child: SingleChildScrollView(
@@ -292,7 +308,7 @@ class _SuperAdminApprovalsScreenState
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.textPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -329,7 +345,7 @@ class _SuperAdminApprovalsScreenState
               label,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white54,
+                color: AppColors.textMuted,
                 fontSize: 14,
               ),
             ),
@@ -337,7 +353,7 @@ class _SuperAdminApprovalsScreenState
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
             ),
           ),
         ],
@@ -353,17 +369,17 @@ class _SuperAdminApprovalsScreenState
         _pendingCertificates.length;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0D0520),
+        backgroundColor: AppColors.inkNavy900,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1A0A2E),
+          backgroundColor: AppColors.inkNavy800,
           elevation: 0,
           title: Row(
             children: [
               const Text(
                 'Pending Approvals',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
               ),
               if (totalPending > 0) ...[
                 const SizedBox(width: 8),
@@ -379,7 +395,7 @@ class _SuperAdminApprovalsScreenState
                   child: Text(
                     '$totalPending',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -390,7 +406,7 @@ class _SuperAdminApprovalsScreenState
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
               onPressed: _loadAll,
               tooltip: 'Refresh',
             ),
@@ -399,11 +415,12 @@ class _SuperAdminApprovalsScreenState
             controller: _tabController,
             indicatorColor: AppColors.goldCta,
             labelColor: AppColors.goldCta,
-            unselectedLabelColor: Colors.white54,
+            unselectedLabelColor: AppColors.textMuted,
             tabs: [
               Tab(text: 'Students (${_pendingStudents.length})'),
               Tab(text: 'Marksheets (${_pendingMarksheets.length})'),
               Tab(text: 'Certificates (${_pendingCertificates.length})'),
+              Tab(text: 'Exp. Certs (${_pendingExperienceCerts.length})'),
             ],
           ),
         ),
@@ -417,6 +434,7 @@ class _SuperAdminApprovalsScreenState
                   _buildStudentList(),
                   _buildDocList('marksheet', _pendingMarksheets),
                   _buildDocList('certificate', _pendingCertificates),
+                  _buildExpCertList(),
                 ],
               ),
       ),
@@ -467,6 +485,47 @@ class _SuperAdminApprovalsScreenState
               onApprove: () => _approveStudent(id, name),
               onReject: () => _rejectStudent(id, name),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildExpCertList() {
+    if (_pendingExperienceCerts.isEmpty) {
+      return _emptyState(
+        icon: Icons.workspace_premium_outlined,
+        label: 'No pending experience certificates',
+        sub: 'All requests have been reviewed.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      color: AppColors.goldCta,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _pendingExperienceCerts.length,
+        itemBuilder: (context, i) {
+          final cert = _pendingExperienceCerts[i];
+          final emp = cert['employees'] as Map<String, dynamic>?;
+          final name = emp?['name'] ?? 'Unknown';
+          final reqDate = cert['request_date'] ?? '';
+          final id = cert['id'] as int;
+
+          return _ApprovalCard(
+            avatarLabel: name[0],
+            title: name,
+            subtitle: 'Req Date: ${reqDate.length > 10 ? reqDate.substring(0,10) : reqDate}',
+            details: [
+              'Designation: ${emp?['designation'] ?? 'N/A'}',
+              'Dept: ${emp?['department'] ?? 'N/A'}',
+              'Joined: ${emp?['doj'] ?? 'N/A'}',
+            ],
+            badge: 'PENDING',
+            badgeColor: Colors.orange,
+            onApprove: () => _approveExperienceCert(id),
+            approveBtnLabel: 'Approve & Issue',
+            onViewDetails: () {},
           );
         },
       ),
@@ -534,12 +593,12 @@ class _SuperAdminApprovalsScreenState
           const SizedBox(height: 16),
           Text(
             label,
-            style: AppTypography.bodyLg.copyWith(color: Colors.white54),
+            style: AppTypography.bodyLg.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 8),
           Text(
             sub,
-            style: AppTypography.bodySm.copyWith(color: Colors.white38),
+            style: AppTypography.bodySm.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
@@ -600,7 +659,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF1A0A2E),
+      color: AppColors.inkNavy800,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -632,13 +691,13 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       Text(
                         widget.title,
                         style: AppTypography.headingSm.copyWith(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       Text(
                         widget.subtitle,
                         style: AppTypography.labelMd.copyWith(
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -666,13 +725,13 @@ class _ApprovalCardState extends State<_ApprovalCard> {
             ),
             // Details
             if (widget.details.isNotEmpty) ...[
-              const Divider(height: 20, color: Colors.white10),
+              const Divider(height: 20, color: AppColors.divider10),
               ...widget.details.map(
                 (d) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     d,
-                    style: AppTypography.bodySm.copyWith(color: Colors.white60),
+                    style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -719,7 +778,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.textPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),

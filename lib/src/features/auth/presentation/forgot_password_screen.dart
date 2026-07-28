@@ -165,13 +165,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   child: TextFormField(
                     controller: _mobileController,
                     keyboardType: TextInputType.phone,
-                    style: AppTypography.mono.copyWith(letterSpacing: 1.5),
+                    style: AppTypography.bodyMd.copyWith(letterSpacing: 1.5),
                     decoration: InputDecoration(
                       labelText: 'Mobile Number / Reg No / Email',
                       hintText: '9876543210 or GOKUL0181121',
                       prefixIcon: const Icon(Icons.phone_android),
                       prefixText: '+91 ',
-                      prefixStyle: AppTypography.mono.copyWith(color: AppColors.textMuted),
+                      prefixStyle: AppTypography.bodyMd.copyWith(color: AppColors.textMuted),
                       filled: true,
                       fillColor: AppColors.inkNavy800,
                       border: OutlineInputBorder(

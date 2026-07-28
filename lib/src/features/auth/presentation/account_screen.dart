@@ -121,7 +121,7 @@ class AccountScreen extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
-                  colors: [Color(0xFF1E293B), AppColors.inkNavy900],
+                  colors: [AppColors.inkNavy700, AppColors.inkNavy900],
                 ),
               ),
             ),
@@ -271,8 +271,8 @@ class AccountScreen extends ConsumerWidget {
             context: context,
             builder: (ctx) => AlertDialog(
               backgroundColor: AppColors.inkNavy800,
-              title: const Text('Logout', style: TextStyle(color: Colors.white)),
-              content: const Text('Are you sure you want to sign out?', style: TextStyle(color: Colors.white70)),
+              title: const Text('Logout', style: TextStyle(color: AppColors.textPrimary)),
+              content: const Text('Are you sure you want to sign out?', style: TextStyle(color: AppColors.textSecondary)),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                 ElevatedButton(

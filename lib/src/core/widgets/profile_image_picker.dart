@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -289,11 +290,11 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: AppColors.textPrimary, width: 2),
               ),
               child: const Icon(
                 Icons.camera_alt,
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 size: 16,
               ),
             ),
@@ -310,7 +311,7 @@ class _ProfileImagePickerState extends ConsumerState<ProfileImagePicker> {
               ),
               child: const Center(
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   strokeWidth: 2,
                 ),
               ),

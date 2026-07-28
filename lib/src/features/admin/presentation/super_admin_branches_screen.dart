@@ -109,13 +109,13 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0A2E),
-        title: const Text('Delete Branch?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete branch "${branch['name']}"?\nThis action cannot be undone.', style: const TextStyle(color: Colors.white70)),
+        backgroundColor: AppColors.inkNavy800,
+        title: const Text('Delete Branch?', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete branch "${branch['name']}"?\nThis action cannot be undone.', style: const TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -160,20 +160,20 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
     final branchesFuture = ref.watch(branchesProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: Text(
           'Manage Branches',
-          style: AppTypography.headingMd.copyWith(color: Colors.white),
+          style: AppTypography.headingMd.copyWith(color: AppColors.textPrimary),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
             onPressed: () => ref.invalidate(branchesProvider),
           ),
         ],
@@ -191,7 +191,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
             data: (branches) {
               if (branches.isEmpty) {
                 return const Center(
-                  child: Text('No branches found', style: TextStyle(color: Colors.white54)),
+                  child: Text('No branches found', style: TextStyle(color: AppColors.textMuted)),
                 );
               }
 
@@ -203,11 +203,11 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                   final isActive = branch['status'] == true;
 
                   return Card(
-                    color: const Color(0xFF1A0A2E),
+                    color: AppColors.inkNavy800,
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: isActive ? Colors.green.withOpacity(0.3) : Colors.white10),
+                      side: BorderSide(color: isActive ? Colors.green.withOpacity(0.3) : AppColors.divider10),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -217,8 +217,8 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                           Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: isActive ? Colors.green.withOpacity(0.2) : Colors.white10,
-                                child: Icon(Icons.school, color: isActive ? Colors.green : Colors.white38),
+                                backgroundColor: isActive ? Colors.green.withOpacity(0.2) : AppColors.divider10,
+                                child: Icon(Icons.school, color: isActive ? Colors.green : AppColors.textMuted),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -227,11 +227,11 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                   children: [
                                     Text(
                                       branch['name'] ?? 'Unnamed Branch',
-                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
                                     Text(
                                       'Code: ${branch['code'] ?? 'N/A'}',
-                                      style: const TextStyle(color: Colors.white54, fontSize: 13),
+                                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                                     ),
                                   ],
                                 ),
@@ -253,9 +253,9 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                           if (branch['owner_name'] != null && branch['owner_name'].toString().isNotEmpty) ...[
                             Row(
                               children: [
-                                const Icon(Icons.person_outline, size: 14, color: Colors.white54),
+                                const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
-                                Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -263,9 +263,9 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                           if (branch['contact_phone'] != null && branch['contact_phone'].toString().isNotEmpty) ...[
                             Row(
                               children: [
-                                const Icon(Icons.phone_outlined, size: 14, color: Colors.white54),
+                                const Icon(Icons.phone_outlined, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
-                                Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -274,16 +274,16 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.location_on_outlined, size: 14, color: Colors.white54),
+                                const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Address: ${branch['address']}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                  child: Text('Address: ${branch['address']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                                 ),
                               ],
                             ),
                           ],
                           const SizedBox(height: 12),
-                          const Divider(color: Colors.white10),
+                          const Divider(color: AppColors.divider10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
@@ -315,7 +315,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
             },
             loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
             error: (e, _) => Center(
-              child: Text('Error loading branches: $e', style: const TextStyle(color: Colors.white70)),
+              child: Text('Error loading branches: $e', style: const TextStyle(color: AppColors.textSecondary)),
             ),
           ),
           if (_isLoading)
@@ -373,9 +373,9 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
     final isEdit = widget.branch != null;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A0A2E),
+      backgroundColor: AppColors.inkNavy800,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(isEdit ? 'Edit Branch' : 'Create Branch', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      title: Text(isEdit ? 'Edit Branch' : 'Create Branch', style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -384,11 +384,11 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Branch Name',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -396,11 +396,11 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _codeCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Branch Code',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -408,22 +408,22 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ownerCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Owner Name (Optional)',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _phoneCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Phone (Optional)',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
                 keyboardType: TextInputType.phone,
@@ -431,19 +431,19 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _addressCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Address (Optional)',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Status (Active)', style: TextStyle(color: Colors.white70, fontSize: 15)),
+                title: const Text('Status (Active)', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
                 value: _status,
                 activeColor: AppColors.goldCta,
                 onChanged: (v) => setState(() => _status = v),
@@ -455,12 +455,12 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.goldCta,
-            foregroundColor: const Color(0xFF070D18),
+            foregroundColor: AppColors.textPrimary,
           ),
           onPressed: () {
             if (!_formKey.currentState!.validate()) return;

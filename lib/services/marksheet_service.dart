@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:pdf/pdf.dart';
@@ -81,7 +82,7 @@ class _MC {
   static const purple = PdfColor.fromInt(0xFF4d0a65);
   static const brightRed = PdfColor.fromInt(0xFFed2123);
   static const black = PdfColors.black;
-  static const white = PdfColors.white;
+  static const white = PdfAppColors.textPrimary;
   static const green = PdfColor.fromInt(0xFF15803d);
   static const lightGreen = PdfColor.fromInt(0xFFf0fff4);
   static const greenBorder = PdfColor.fromInt(0xFF15803d);
@@ -683,7 +684,7 @@ class MarksheetService {
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey400, width: 1.5),
         borderRadius: pw.BorderRadius.circular(3),
-        color: PdfColors.white,
+        color: PdfAppColors.textPrimary,
       ),
       child: pw.Center(
         child: pw.Text(
@@ -772,7 +773,7 @@ class MarksheetService {
                 size: const PdfPoint(22, 22),
                 painter: (canvas, size) {
                   canvas
-                    ..setStrokeColor(PdfColors.white)
+                    ..setStrokeColor(PdfAppColors.textPrimary)
                     ..setLineWidth(2.8)
                     ..setLineCap(PdfLineCap.round)
                     ..setLineJoin(PdfLineJoin.round)

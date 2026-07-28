@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -81,7 +82,7 @@ class MenuScreen extends ConsumerWidget {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.textPrimary,
                       minimumSize: const Size(double.infinity, 40),
                     ),
                     onPressed: () {

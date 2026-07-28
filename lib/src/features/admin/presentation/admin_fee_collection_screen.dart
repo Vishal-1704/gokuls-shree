@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -91,7 +92,7 @@ class _AdminFeeCollectionScreenState
       backgroundColor: Colors.grey[50], // Light background
       appBar: AppBar(
         title: const Text('Collect Fee', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.textPrimary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -106,7 +107,7 @@ class _AdminFeeCollectionScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -184,7 +185,7 @@ class _AdminFeeCollectionScreenState
                     color: AppTheme.primaryColor,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.textPrimary,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -210,7 +211,7 @@ class _AdminFeeCollectionScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -295,13 +296,13 @@ class _AdminFeeCollectionScreenState
                     elevation: 2,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: AppColors.textPrimary)
                       : const Text(
                           'Collect Fee',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                 ),

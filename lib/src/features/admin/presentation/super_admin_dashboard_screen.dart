@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 // lib/src/features/admin/presentation/super_admin_dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,17 +15,17 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
     final session = ref.watch(sessionProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${session?.name ?? 'Super Admin'} 🔐',
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const Text('Super Admin · Full Access', style: TextStyle(color: Colors.purpleAccent, fontSize: 11)),
         ]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_rounded, color: Colors.white70),
+            icon: const Icon(Icons.notifications_rounded, color: AppColors.textSecondary),
             onPressed: () => context.push('/super-admin/approvals'),
           ),
         ],
@@ -66,7 +67,7 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           const Text('Super Admin Actions',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _ActionCard(
             icon: Icons.verified_rounded,
@@ -146,7 +147,7 @@ class _AdminStat extends StatelessWidget {
       Icon(icon, color: color, size: 24),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
       ]),
     ]),
   );
@@ -158,18 +159,18 @@ class _ActionCard extends StatelessWidget {
   final VoidCallback onTap; final String? badge;
   @override
   Widget build(BuildContext context) => Card(
-    color: const Color(0xFF1A0A2E),
+    color: AppColors.inkNavy800,
     margin: const EdgeInsets.only(bottom: 10),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.2))),
     child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: CircleAvatar(backgroundColor: color.withOpacity(0.2), child: Icon(icon, color: color)),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      title: Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
       trailing: badge != null
           ? CircleAvatar(radius: 13, backgroundColor: Colors.orange,
-              child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)))
-          : const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
+              child: Text(badge!, style: const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.bold)))
+          : const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
       onTap: onTap,
     ),
   );

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_qr_scanner.dart';
+import 'package:gokul_shree_app/src/features/student/presentation/widgets/digital_id_card.dart';
+import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_notice_board.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:gokul_shree_app/src/core/widgets/responsive_container.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -21,7 +25,9 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
       body: SafeArea(
-        child: RefreshIndicator(
+        child: ResponsiveContainer(
+          padding: EdgeInsets.zero,
+          child: RefreshIndicator(
           onRefresh: () async => setState(() {}),
           child: CustomScrollView(
             slivers: [
@@ -44,7 +50,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDigitalIDCard(profile),
+                          DigitalIDCard(data: profile),
                           const SizedBox(height: 24),
                           
                           _buildSectionTitle('Academic Progress'),
@@ -54,7 +60,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                           const SizedBox(height: 24),
                           _buildSectionTitle('Notice Board'),
                           const SizedBox(height: 12),
-                          _buildNoticeBoard(repo),
+                          StudentNoticeBoard(repo: repo),
                           
                           const SizedBox(height: 24),
                           _buildQuickActions(),
@@ -69,8 +75,9 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAppBar() {
     return SliverAppBar(
@@ -90,76 +97,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     );
   }
 
-  Widget _buildDigitalIDCard(Map<String, dynamic> data) {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [AppColors.inkNavy800, Color(0xFF1E293B)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
-        ),
-        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 20, offset: const Offset(0, 10))],
-        border: Border.all(color: AppColors.goldCta.withOpacity(0.2)),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20, top: -20,
-            child: Icon(Icons.school_rounded, size: 150, color: Colors.white.withOpacity(0.03)),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(data['name']?.toUpperCase() ?? 'STUDENT', style: AppTypography.headingMd.copyWith(letterSpacing: 1.5)),
-                      const SizedBox(height: 4),
-                      Text(data['class_section'] ?? 'Class/Course', style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
-                      const Spacer(),
-                      _buildIDDetail('REG NO', data['reg_no'] ?? 'N/A'),
-                      const SizedBox(height: 8),
-                      _buildIDDetail('SESSION', '2024-25'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-                      child: QrImageView(
-                        data: 'STU-${data['id']}',
-                        version: QrVersions.auto,
-                        size: 80.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('SCAN FOR PROFILE', style: AppTypography.labelSm.copyWith(fontSize: 8, color: AppColors.goldCta)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildIDDetail(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTypography.labelSm.copyWith(fontSize: 9, color: AppColors.textMuted)),
-        Text(value, style: AppTypography.bodyMd.copyWith(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-      ],
-    );
-  }
 
   Widget _buildAttendanceAndFees(StudentRepository repo) {
     return Row(
@@ -222,50 +160,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     );
   }
 
-  Widget _buildNoticeBoard(StudentRepository repo) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: repo.getNotices(),
-      builder: (context, snap) {
-        final notices = snap.data ?? [];
-        if (notices.isEmpty) return _buildEmptyNotice();
-        
-        return Column(
-          children: notices.take(2).map((n) => _buildNoticeTile(n)).toList(),
-        );
-      },
-    );
-  }
 
-  Widget _buildNoticeTile(Map<String, dynamic> notice) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.inkNavy800.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider.withOpacity(0.1)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.goldCta.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.campaign_rounded, color: AppColors.goldCta, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(notice['title'] ?? 'Notice', style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.bold)),
-                Text(notice['content'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildQuickActions() {
     return Column(
@@ -294,7 +189,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: AppColors.inkNavy800, borderRadius: BorderRadius.circular(16)),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: AppColors.textPrimary, size: 24),
             ),
             const SizedBox(height: 8),
             Text(label, style: AppTypography.labelMd.copyWith(fontSize: 11)),
@@ -309,5 +204,4 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
   }
 
   Widget _buildLoading() => const Center(child: CircularProgressIndicator(color: AppColors.goldCta));
-  Widget _buildEmptyNotice() => Center(child: Text('No active notices', style: AppTypography.bodySm.copyWith(color: AppColors.textMuted)));
 }

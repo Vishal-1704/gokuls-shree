@@ -44,7 +44,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Access Denied: Not an Admin Account',
-                    style: AppTypography.bodyMd.copyWith(color: Colors.white)),
+                    style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary)),
                 backgroundColor: AppColors.danger,
               ),
             );
@@ -56,7 +56,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(authState.message,
-                  style: AppTypography.bodyMd.copyWith(color: Colors.white)),
+                  style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary)),
               backgroundColor: AppColors.danger,
             ),
           );

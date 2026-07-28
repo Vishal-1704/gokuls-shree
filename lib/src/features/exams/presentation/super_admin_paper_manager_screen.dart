@@ -89,17 +89,17 @@ class _SuperAdminPaperManagerScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: const Text('Delete Paper Set?',
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           'This will permanently delete "${paper['title']}" and ALL its questions. This cannot be undone.',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -136,26 +136,26 @@ class _SuperAdminPaperManagerScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Exam Paper Manager',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
             Text('Create & manage question papers',
-                style: TextStyle(color: Colors.white38, fontSize: 12)),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
           ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             onPressed: _loadPaperSets,
           ),
         ],
@@ -194,13 +194,13 @@ class _SuperAdminPaperManagerScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.quiz_outlined, size: 64, color: Colors.white12),
+          Icon(Icons.quiz_outlined, size: 64, color: AppColors.divider),
           const SizedBox(height: 16),
           Text('No paper sets yet',
-              style: AppTypography.headingSm.copyWith(color: Colors.white38)),
+              style: AppTypography.headingSm.copyWith(color: AppColors.textMuted)),
           const SizedBox(height: 8),
           Text('Tap + New Paper to create your first exam',
-              style: AppTypography.bodySm.copyWith(color: Colors.white24)),
+              style: AppTypography.bodySm.copyWith(color: AppColors.textMuted)),
         ],
       ),
     );
@@ -232,12 +232,12 @@ class _PaperSetCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A0A2E),
+        color: AppColors.inkNavy800,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isActive
               ? Colors.green.withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.06),
+              : AppColors.textPrimary.withValues(alpha: 0.06),
         ),
       ),
       child: Column(
@@ -253,12 +253,12 @@ class _PaperSetCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isActive
                         ? Colors.green.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.04),
+                        : AppColors.textPrimary.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.quiz_rounded,
-                    color: isActive ? Colors.green : Colors.white38,
+                    color: isActive ? Colors.green : AppColors.textMuted,
                     size: 24,
                   ),
                 ),
@@ -270,14 +270,14 @@ class _PaperSetCard extends StatelessWidget {
                       Text(
                         paper['title'] ?? 'Untitled',
                         style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                             fontWeight: FontWeight.bold,
                             fontSize: 15),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         courseName,
-                        style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                       ),
                     ],
                   ),
@@ -318,7 +318,7 @@ class _PaperSetCard extends StatelessWidget {
           ),
 
           // Actions
-          const Divider(color: Colors.white10, height: 1),
+          const Divider(color: AppColors.divider10, height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
@@ -426,10 +426,10 @@ class _CreatePaperSetDialogState extends State<_CreatePaperSetDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A0A2E),
+      backgroundColor: AppColors.inkNavy800,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Create New Paper Set',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
       content: Form(
         key: _formKey,
         child: Column(
@@ -476,7 +476,7 @@ class _CreatePaperSetDialogState extends State<_CreatePaperSetDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -520,22 +520,22 @@ class _DialogField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       keyboardType: keyboard,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: Colors.white54),
-        hintStyle: const TextStyle(color: Colors.white24),
+        labelStyle: const TextStyle(color: AppColors.textMuted),
+        hintStyle: const TextStyle(color: AppColors.textMuted),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.white12),
+          borderSide: const BorderSide(color: AppColors.divider),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.white12),
+          borderSide: const BorderSide(color: AppColors.divider),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -639,17 +639,17 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: const Text('Delete Question?',
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           'Q${q['question_number']}: ${(q['question_text'] as String? ?? '').substring(0, (q['question_text'] as String? ?? '').length.clamp(0, 60))}...',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -674,24 +674,24 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.paperTitle,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 15)),
             Text('${_questions.length} question(s)',
-                style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
           ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -710,15 +710,15 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.help_outline_rounded,
-                          size: 64, color: Colors.white12),
+                          size: 64, color: AppColors.divider),
                       const SizedBox(height: 16),
                       Text('No questions yet',
                           style: AppTypography.headingSm
-                              .copyWith(color: Colors.white38)),
+                              .copyWith(color: AppColors.textMuted)),
                       const SizedBox(height: 8),
                       Text('Tap + Add Question to begin',
                           style: AppTypography.bodySm
-                              .copyWith(color: Colors.white24)),
+                              .copyWith(color: AppColors.textMuted)),
                     ],
                   ),
                 )
@@ -732,9 +732,9 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                     final opts = {'A': q['option_a'], 'B': q['option_b'], 'C': q['option_c'], 'D': q['option_d']};
                     return Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A0A2E),
+                        color: AppColors.inkNavy800,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.06)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -765,7 +765,7 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                                   child: Text(
                                     q['question_text'] ?? '',
                                     style: const TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.textPrimary,
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14),
                                   ),
@@ -786,12 +786,12 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                                   decoration: BoxDecoration(
                                     color: isCorrect
                                         ? Colors.green.withValues(alpha: 0.15)
-                                        : Colors.white.withValues(alpha: 0.04),
+                                        : AppColors.textPrimary.withValues(alpha: 0.04),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                       color: isCorrect
                                           ? Colors.green.withValues(alpha: 0.5)
-                                          : Colors.white.withValues(alpha: 0.08),
+                                          : AppColors.textPrimary.withValues(alpha: 0.08),
                                     ),
                                   ),
                                   child: Row(
@@ -808,7 +808,7 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                                         style: TextStyle(
                                           color: isCorrect
                                               ? Colors.green
-                                              : Colors.white70,
+                                              : AppColors.textSecondary,
                                           fontSize: 12,
                                           fontWeight: isCorrect
                                               ? FontWeight.bold
@@ -821,7 +821,7 @@ class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> 
                               }).toList(),
                             ),
                           ),
-                          const Divider(color: Colors.white10, height: 1),
+                          const Divider(color: AppColors.divider10, height: 1),
                           Row(
                             children: [
                               const SizedBox(width: 8),
@@ -910,7 +910,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
     return Dialog(
-      backgroundColor: const Color(0xFF1A0A2E),
+      backgroundColor: AppColors.inkNavy800,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
@@ -924,7 +924,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
               Text(
                 isEdit ? 'Edit Question' : 'Add Question',
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
               ),
@@ -957,19 +957,19 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? Colors.green
-                                : Colors.white.withValues(alpha: 0.08),
+                                : AppColors.textPrimary.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: isSelected
                                   ? Colors.green
-                                  : Colors.white24,
+                                  : AppColors.textMuted,
                             ),
                           ),
                           child: Center(
                             child: Text(
                               letter,
                               style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.white54,
+                                color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -980,27 +980,27 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                       Expanded(
                         child: TextFormField(
                           controller: ctrl,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                           decoration: InputDecoration(
                             hintText: 'Option $letter',
-                            hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                             filled: true,
                             fillColor: isSelected
                                 ? Colors.green.withValues(alpha: 0.08)
-                                : Colors.white.withValues(alpha: 0.04),
+                                : AppColors.textPrimary.withValues(alpha: 0.04),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 10),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                  color: isSelected ? Colors.green : Colors.white12),
+                                  color: isSelected ? Colors.green : AppColors.divider),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
                                   color: isSelected
                                       ? Colors.green.withValues(alpha: 0.4)
-                                      : Colors.white12),
+                                      : AppColors.divider),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -1034,10 +1034,10 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 14, color: Colors.white38),
+                    const Icon(Icons.info_outline, size: 14, color: AppColors.textMuted),
                     const SizedBox(width: 6),
                     Text('Tap a letter circle to mark the correct answer',
-                        style: AppTypography.bodySm.copyWith(color: Colors.white38, fontSize: 11)),
+                        style: AppTypography.bodySm.copyWith(color: AppColors.textMuted, fontSize: 11)),
                   ],
                 ),
               ),
@@ -1049,7 +1049,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel',
-                        style: TextStyle(color: Colors.white38)),
+                        style: TextStyle(color: AppColors.textMuted)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(

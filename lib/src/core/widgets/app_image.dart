@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -200,12 +201,12 @@ class CourseImage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white, size: 48),
+          Icon(icon, color: AppColors.textPrimary, size: 48),
           const SizedBox(height: 8),
           Text(
             category,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),

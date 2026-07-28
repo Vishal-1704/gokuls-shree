@@ -19,6 +19,10 @@ import '../features/exams/routing/exams_routes.dart';
 import '../features/student/routing/student_routes.dart';
 import '../features/teacher/routing/teacher_routes.dart';
 import '../features/admin/routing/admin_routes.dart';
+import '../features/super_admin_app/routing/super_admin_routes.dart';
+import '../features/courses/presentation/courses_screen.dart';
+import '../features/public/presentation/public_home_screen.dart';
+import '../core/widgets/role_shell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROUTER PROVIDER
@@ -34,8 +38,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final path = state.uri.path;
 
       final publicPaths = ['/', '/login', '/forgot-password',
-        '/contact', '/centre-finder', '/verify'];
-      final isPublic = publicPaths.any((p) => path == p || path.startsWith('/verify/'));
+        '/contact', '/centre-finder', '/verify', '/courses'];
+      final isPublic = publicPaths.any((p) => path == p || path.startsWith('/verify/') || path == '/courses');
 
       // Not logged in → redirect to login
       if (!loggedIn) {
@@ -59,16 +63,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ...ExamsRoutes.routes,
       ...StudentRoutes.standaloneRoutes,
       ...AdminRoutes.standaloneRoutes,
+      ...SuperAdminRoutes.standaloneRoutes,
       ...TeacherRoutes.standaloneRoutes,
+      
+      GoRoute(
+        path: '/courses',
+        builder: (context, state) => const CoursesScreen(),
+      ),
 
-      // Fallback or Public Home
-      GoRoute(path: '/', builder: (c, s) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
+      // Public Home
+      GoRoute(
+        path: '/', 
+        builder: (context, state) => const PublicHomeScreen(),
+      ),
 
       // ══════════════════════════════════════════════════
       // STUDENT SHELL — bottom nav: Dashboard | Exams | Docs | Profile
       // ══════════════════════════════════════════════════
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _RoleShell(
+        builder: (context, state, shell) => RoleShell(
           shell: shell,
           role: UserRole.student,
           tabs: const [
@@ -85,7 +98,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // TEACHER SHELL
       // ══════════════════════════════════════════════════
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _RoleShell(
+        builder: (context, state, shell) => RoleShell(
           shell: shell,
           role: UserRole.teacher,
           tabs: const [
@@ -102,7 +115,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // BRANCH ADMIN SHELL
       // ══════════════════════════════════════════════════
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _RoleShell(
+        builder: (context, state, shell) => RoleShell(
           shell: shell,
           role: UserRole.branchAdmin,
           tabs: const [
@@ -120,7 +133,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // SUPER ADMIN SHELL
       // ══════════════════════════════════════════════════
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _RoleShell(
+        builder: (context, state, shell) => RoleShell(
           shell: shell,
           role: UserRole.superAdmin,
           tabs: const [
@@ -131,142 +144,43 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.person_rounded,               text: 'Profile'),
           ],
         ),
-        branches: AdminRoutes.superAdminBranches,
+        branches: SuperAdminRoutes.branches,
       ),
     ],
   );
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROLE SHELL WIDGET — shared bottom nav bar with role-specific tabs
-// ─────────────────────────────────────────────────────────────────────────────
-class _RoleShell extends ConsumerStatefulWidget {
-  const _RoleShell({
-    required this.shell,
-    required this.role,
-    required this.tabs,
-  });
-  final StatefulNavigationShell shell;
-  final UserRole role;
-  final List<GButton> tabs;
-
-  @override
-  ConsumerState<_RoleShell> createState() => _RoleShellState();
-}
-
-class _RoleShellState extends ConsumerState<_RoleShell> {
-  DateTime? _lastBack;
-  final List<int> _history = [0];
-
-  void _go(int index) {
-    setState(() => _history.add(index));
-    widget.shell.goBranch(index,
-        initialLocation: index == widget.shell.currentIndex);
-  }
-
-  void _onPop(bool didPop) {
-    if (didPop) return;
-    if (_history.length > 1) {
-      _history.removeLast();
-      setState(() {});
-      widget.shell.goBranch(_history.last, initialLocation: false);
-      return;
-    }
-    final now = DateTime.now();
-    if (_lastBack == null || now.difference(_lastBack!) > const Duration(seconds: 2)) {
-      _lastBack = now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Press back again to exit'), duration: Duration(seconds: 2)),
-      );
-    } else {
-      SystemNavigator.pop();
-    }
-  }
-
-  // Nav bar color per role
-  Color get _navBg {
-    switch (widget.role) {
-      case UserRole.superAdmin:  return const Color(0xFF1A0A2E); // deep purple
-      case UserRole.branchAdmin: return const Color(0xFF0A1628); // deep blue
-      case UserRole.teacher:     return const Color(0xFF0A2010); // deep green
-      default:                   return const Color(0xFF0E1E33); // ink navy (student)
-    }
-  }
-
-  Color get _activeColor => const Color(0xFFF5CC45); // gold CTA — same for all roles
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: _onPop,
-      child: Scaffold(
-        body: widget.shell,
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: _navBg,
-            border: Border(top: BorderSide(color: Colors.white12, width: 0.5)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: GNav(
-                gap: 6,
-                iconSize: 22,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                duration: const Duration(milliseconds: 250),
-                tabBackgroundColor: _activeColor,
-                activeColor: const Color(0xFF070D18),
-                color: Colors.white54,
-                tabs: widget.tabs,
-                selectedIndex: widget.shell.currentIndex,
-                onTabChange: _go,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// _RoleShell extracted to core/widgets/role_shell.dart
 
 bool _isAllowedRouteForRole(UserSession session, String path) {
-  final allowedPaths = <String>{
-    session.homeRoute,
-    if (session.role == UserRole.student) ...<String>{
-      '/fee-status',
-      '/results',
-      '/attendance',
-      '/id-card',
-    },
-    if (session.role == UserRole.teacher) ...<String>{
-      '/teacher/attendance',
-      '/teacher/students',
-      '/teacher/upload-results',
-    },
-    if (session.role == UserRole.branchAdmin) ...<String>{
-      '/admin/add-student',
-      '/admin/dues-report',
-      '/admin/marksheet-generator',
-      '/admin/results-entry',
-      '/admin/exam-scheduler',
-      '/admin/study-material',
-      '/admin/branch-registration',
-      '/admin/franchise-setup',
-    },
-    if (session.role == UserRole.superAdmin) ...<String>{
-      '/admin/add-student',
-      '/admin/branch-registration',
-      '/admin/dues-report',
-      '/admin/marksheet-generator',
-      '/super-admin/approvals',
-      '/super-admin/branches',
-      '/super-admin/reports',
-      '/super-admin/profile',
-      '/super-admin/reset-password',
-      '/super-admin/paper-manager',
-    },
-  };
+  if (session.role == UserRole.superAdmin) return true;
+  if (path == session.homeRoute) return true;
 
-  return allowedPaths.contains(path);
+  switch (session.role) {
+    case UserRole.student:
+      if (path.startsWith('/student')) return true;
+      final allowed = {'/fee-status', '/results', '/attendance', '/id-card', '/courses'};
+      return allowed.contains(path);
+
+    case UserRole.teacher:
+      if (path.startsWith('/teacher')) return true;
+      return false;
+
+    case UserRole.branchAdmin:
+      if (path.startsWith('/branch-admin')) return true;
+      final allowed = {
+        '/admin/add-student',
+        '/admin/dues-report',
+        '/admin/marksheet-generator',
+        '/admin/results-entry',
+        '/admin/exam-scheduler',
+        '/admin/study-material',
+        '/admin/branch-registration',
+        '/admin/franchise-setup',
+      };
+      return allowed.contains(path);
+
+    default:
+      return false;
+  }
 }

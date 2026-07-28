@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:flutter/foundation.dart';
 
 class StudentAttendanceScreen extends ConsumerWidget {
   const StudentAttendanceScreen({super.key});
@@ -14,7 +15,7 @@ class StudentAttendanceScreen extends ConsumerWidget {
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         backgroundColor: AppColors.inkNavy800,
-        title: const Text('My Attendance', style: TextStyle(color: Colors.white)),
+        title: const Text('My Attendance', style: TextStyle(color: AppColors.textPrimary)),
       ),
       body: attendanceAsync.when(
         data: (records) {
@@ -29,7 +30,7 @@ class StudentAttendanceScreen extends ConsumerWidget {
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF1A3A5C), Color(0xFF0E2A47)]),
+                gradient: const LinearGradient(colors: [AppColors.inkNavy700, AppColors.inkNavy900]),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
@@ -41,7 +42,7 @@ class StudentAttendanceScreen extends ConsumerWidget {
             Expanded(
               child: records.isEmpty
                   ? const Center(
-                      child: Text('No attendance records found', style: TextStyle(color: Colors.white70)),
+                      child: Text('No attendance records found', style: TextStyle(color: AppColors.textSecondary)),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -64,15 +65,15 @@ class StudentAttendanceScreen extends ConsumerWidget {
                         final date = r['date']?.toString() ?? 'N/A';
                         final day = date.length >= 3 ? date.substring(0, 3) : 'Day';
                         return Card(
-                          color: const Color(0xFF152D4D),
+                          color: AppColors.inkNavy800,
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: color.withOpacity(0.2),
                               child: Text(day, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
                             ),
-                            title: Text(date, style: const TextStyle(color: Colors.white)),
-                            subtitle: Text('Marked as ${r['status']?.toString() ?? 'N/A'}', style: const TextStyle(color: Colors.white54)),
+                            title: Text(date, style: const TextStyle(color: AppColors.textPrimary)),
+                            subtitle: Text('Marked as ${r['status']?.toString() ?? 'N/A'}', style: const TextStyle(color: AppColors.textMuted)),
                             trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
@@ -89,10 +90,35 @@ class StudentAttendanceScreen extends ConsumerWidget {
             ),
           ]);
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Colors.white70)),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.textSecondary)),
         error: (error, _) => Center(
-          child: Text('Unable to load attendance: $error', style: const TextStyle(color: Colors.white70)),
+          child: Text('Unable to load attendance: $error', style: const TextStyle(color: AppColors.textSecondary)),
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.inkNavy900,
+              title: const Text('Scan Attendance', style: TextStyle(color: AppColors.textPrimary)),
+              content: const Text(
+                'Smart Attendance (BLE + QR) requires native hardware access (Bluetooth & Camera).\n\n'
+                'Please build and run the app on a physical Android or iOS device to test this feature.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Got it', style: TextStyle(color: AppColors.goldCta)),
+                ),
+              ],
+            ),
+          );
+        },
+        backgroundColor: AppColors.goldCta,
+        icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.inkNavy900),
+        label: const Text('Scan Attendance', style: TextStyle(color: AppColors.inkNavy900, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -104,6 +130,6 @@ class _AttStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(children: [
     Text(value, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.bold)),
-    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+    Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
   ]);
 }

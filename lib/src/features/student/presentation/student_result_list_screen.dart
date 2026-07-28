@@ -236,7 +236,7 @@ class StudentResultListScreen extends ConsumerWidget {
             backgroundColor: Colors.green,
             action: SnackBarAction(
               label: 'OPEN',
-              textColor: Colors.white,
+              textColor: AppColors.textPrimary,
               onPressed: () {
                 // Open file logic could go here (e.g. open_file package)
                 // For now just show path

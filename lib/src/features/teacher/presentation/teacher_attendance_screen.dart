@@ -4,6 +4,7 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
+import 'package:flutter/foundation.dart';
 
 class TeacherAttendanceScreen extends ConsumerStatefulWidget {
   const TeacherAttendanceScreen({super.key});
@@ -73,11 +74,11 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
 
         await supabase.from('student_attendance').upsert({
           'student_id': id,
-          'date': dateOnly,
+          'attendance_date': dateOnly,
           'status': status,
           'marked_at': DateTime.now().toIso8601String(),
           'marked_by': supabase.auth.currentUser?.id,
-        }, onConflict: 'student_id,date');
+        }, onConflict: 'student_id,attendance_date');
       }
 
       if (mounted) {
@@ -104,6 +105,27 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
     }
   }
 
+  void _showBleBroadcaster() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.inkNavy900,
+        title: const Text('Smart Attendance', style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+          'Smart Attendance (BLE + QR) requires native hardware access (Bluetooth & Camera).\n\n'
+          'Please build and run the app on a physical Android or iOS device to test this feature.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it', style: TextStyle(color: AppColors.goldCta)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,7 +136,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Mark Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(_selectedClass, style: AppTypography.bodySm.copyWith(color: Colors.white70)),
+            Text(_selectedClass, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
           ],
         ),
         actions: [
@@ -135,6 +157,12 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
           _buildBottomAction(),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showBleBroadcaster,
+        backgroundColor: AppColors.goldCta,
+        icon: const Icon(Icons.bluetooth_audio_rounded, color: AppColors.inkNavy900),
+        label: const Text('Smart Roll Call', style: TextStyle(color: AppColors.inkNavy900, fontWeight: FontWeight.bold)),
+      ),
     );
   }
 
@@ -142,8 +170,8 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF112A16),
-        border: Border(bottom: BorderSide(color: Colors.white10)),
+        color: AppColors.inkNavy900,
+        border: Border(bottom: BorderSide(color: AppColors.divider10)),
       ),
       child: Row(
         children: [
@@ -205,13 +233,13 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.success,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.textPrimary,
           minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         onPressed: _isLoading ? null : _saveAttendance,
         child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const CircularProgressIndicator(color: AppColors.textPrimary)
             : const Text('SUBMIT ATTENDANCE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
@@ -329,7 +357,7 @@ class _StatusSelector extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textMuted,
+            color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
             fontWeight: FontWeight.bold,
           ),
         ),

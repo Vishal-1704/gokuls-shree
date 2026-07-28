@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -107,7 +108,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                 preferredSize: const Size.fromHeight(3),
                 child: LinearProgressIndicator(
                   value: _loadingProgress / 100,
-                  backgroundColor: Colors.white24,
+                  backgroundColor: AppColors.textMuted,
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     AppTheme.secondaryColor,
                   ),

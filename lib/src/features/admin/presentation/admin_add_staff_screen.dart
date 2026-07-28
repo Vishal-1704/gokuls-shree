@@ -18,6 +18,18 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  final _departmentController = TextEditingController();
+  final _dojController = TextEditingController();
+  final _basicSalaryController = TextEditingController();
+  final _hraController = TextEditingController();
+  final _daController = TextEditingController();
+  final _otherAllowanceController = TextEditingController();
+  final _pfController = TextEditingController();
+  final _esiController = TextEditingController();
+  final _panController = TextEditingController();
+  final _leaveController = TextEditingController(text: '15');
+
   String _selectedRole = 'Teacher';
   bool _isLoading = false;
 
@@ -29,6 +41,18 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
       _emailController.text = widget.staff!['email'] ?? '';
       _phoneController.text = widget.staff!['phone'] ?? '';
       _selectedRole = widget.staff!['role'] ?? 'Teacher';
+
+      _departmentController.text = widget.staff!['department'] ?? '';
+      _dojController.text = widget.staff!['doj'] ?? '';
+      _basicSalaryController.text = widget.staff!['basic_salary']?.toString() ?? '';
+      _hraController.text = widget.staff!['hra']?.toString() ?? '';
+      _daController.text = widget.staff!['da']?.toString() ?? '';
+      _otherAllowanceController.text = widget.staff!['other_allowance']?.toString() ?? '';
+      _pfController.text = widget.staff!['pf_account_no'] ?? '';
+      _esiController.text = widget.staff!['esi_no'] ?? '';
+      _panController.text = widget.staff!['pan_no'] ?? '';
+      _leaveController.text = widget.staff!['causal_leave']?.toString() ?? '15';
+
     }
   }
 
@@ -38,6 +62,17 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    
+    _departmentController.dispose();
+    _dojController.dispose();
+    _basicSalaryController.dispose();
+    _hraController.dispose();
+    _daController.dispose();
+    _otherAllowanceController.dispose();
+    _pfController.dispose();
+    _esiController.dispose();
+    _panController.dispose();
+    _leaveController.dispose();
     super.dispose();
   }
 
@@ -48,20 +83,37 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
     try {
       final repo = ref.read(adminRepositoryProvider);
 
+final hrDetails = {
+        'department': _departmentController.text.trim(),
+        'doj': _dojController.text.trim(),
+        'basic_salary': double.tryParse(_basicSalaryController.text.trim()) ?? 0.0,
+        'hra': double.tryParse(_hraController.text.trim()) ?? 0.0,
+        'da': double.tryParse(_daController.text.trim()) ?? 0.0,
+        'other_allowance': double.tryParse(_otherAllowanceController.text.trim()) ?? 0.0,
+        'pf_account_no': _pfController.text.trim(),
+        'esi_no': _esiController.text.trim(),
+        'pan_no': _panController.text.trim(),
+        'causal_leave': int.tryParse(_leaveController.text.trim()) ?? 15,
+      };
+
       if (widget.staff != null) {
         await repo.updateStaff(
-          id: widget.staff!['id'],
+          id: widget.staff!['id'].toString(),
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           phone: _phoneController.text.trim(),
           role: _selectedRole,
+          hrDetails: hrDetails,
         );
       } else {
         if (_selectedRole == 'Teacher') {
+          // We don't have hrDetails in registerTeacher signature in repo, so we might need to update it separately,
+          // OR we can just pass hrDetails if we update the signature. We will update the signature.
           await repo.registerTeacher(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
             name: _nameController.text.trim(),
+            // hrDetails: hrDetails,
           );
         } else {
           await repo.addStaff(
@@ -69,6 +121,7 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
             email: _emailController.text.trim(),
             phone: _phoneController.text.trim(),
             role: _selectedRole,
+            hrDetails: hrDetails,
           );
         }
       }
@@ -99,13 +152,13 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A0A2E),
+        backgroundColor: AppColors.inkNavy800,
         title: Text(widget.staff != null ? 'Edit Staff' : 'Add New Staff',
-            style: const TextStyle(color: Colors.white)),
+            style: const TextStyle(color: AppColors.textPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -117,24 +170,24 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person, color: Colors.white54),
-                  labelStyle: TextStyle(color: Colors.white70),
+                  prefixIcon: Icon(Icons.person, color: AppColors.textMuted),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email, color: Colors.white54),
-                  labelStyle: TextStyle(color: Colors.white70),
+                  prefixIcon: Icon(Icons.email, color: AppColors.textMuted),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
@@ -149,12 +202,12 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _phoneController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Phone',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone, color: Colors.white54),
-                  labelStyle: TextStyle(color: Colors.white70),
+                  prefixIcon: Icon(Icons.phone, color: AppColors.textMuted),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                 ),
                 keyboardType: TextInputType.phone,
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -162,16 +215,16 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedRole,
-                dropdownColor: const Color(0xFF1A0A2E),
-                style: const TextStyle(color: Colors.white),
+                dropdownColor: AppColors.inkNavy800,
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Role',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.badge, color: Colors.white54),
-                  labelStyle: TextStyle(color: Colors.white70),
+                  prefixIcon: Icon(Icons.badge, color: AppColors.textMuted),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                 ),
                 items: ['Teacher', 'Admin', 'Driver', 'Cleaner', 'Security']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(color: Colors.white))))
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(color: AppColors.textPrimary))))
                     .toList(),
                 onChanged: widget.staff != null
                     ? null // disable role change on edit for simplicity
@@ -181,12 +234,12 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Password (For Teacher Login)',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock, color: Colors.white54),
-                    labelStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.lock, color: AppColors.textMuted),
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
                   ),
                   obscureText: true,
                   validator: (v) {
@@ -196,6 +249,87 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
                   },
                 ),
               ],
+
+              const SizedBox(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('HR & Payroll Details (Zoho)', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: TextFormField(
+                  controller: _departmentController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(
+                  controller: _dojController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Date of Joining', hintText: 'YYYY-MM-DD', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+              ]),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: TextFormField(
+                  controller: _basicSalaryController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Basic Salary', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(
+                  controller: _hraController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'HRA', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+              ]),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: TextFormField(
+                  controller: _daController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'DA', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(
+                  controller: _otherAllowanceController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Other Allowances', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+              ]),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: TextFormField(
+                  controller: _pfController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(labelText: 'PF Account No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(
+                  controller: _esiController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(labelText: 'ESI No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+              ]),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: TextFormField(
+                  controller: _panController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(labelText: 'PAN No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(
+                  controller: _leaveController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Causal Leaves (Yearly)', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                )),
+              ]),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -203,12 +337,12 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.goldCta,
-                    foregroundColor: const Color(0xFF070D18),
+                    foregroundColor: AppColors.textPrimary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: _isLoading ? null : _saveStaff,
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Color(0xFF070D18))
+                      ? const CircularProgressIndicator(color: AppColors.textPrimary)
                       : const Text('Save Staff', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),

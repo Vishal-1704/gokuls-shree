@@ -170,11 +170,11 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                               children: [
                                 const Text(
                                   'Setup Required',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
                                 ),
                                 Text(
                                   'Please complete your franchise details to start.',
-                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                                  style: TextStyle(color: AppColors.textPrimary.withOpacity(0.7), fontSize: 13),
                                 ),
                               ],
                             ),
@@ -481,7 +481,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: AppColors.textPrimary.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
             ),

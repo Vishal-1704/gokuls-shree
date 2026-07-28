@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class CustomButton extends StatelessWidget {
@@ -20,9 +21,9 @@ class CustomButton extends StatelessWidget {
       height: 50,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF5CC45),
-          foregroundColor: const Color(0xFF070D18),
-          disabledBackgroundColor: const Color(0xFFF5CC45).withOpacity(0.5),
+          backgroundColor: AppColors.goldCta,
+          foregroundColor: AppColors.textPrimary,
+          disabledBackgroundColor: AppColors.goldCta.withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -35,7 +36,7 @@ class CustomButton extends StatelessWidget {
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF070D18)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
                 ),
               )
             : Row(

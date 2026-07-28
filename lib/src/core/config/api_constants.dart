@@ -7,5 +7,5 @@ class ApiConstants {
   static const String apiKey = "ThIsCoD3HeLpsT0cOnNeCtW1ThM0b!l34pPr";
 
   // Toggle this to FALSE when the backend is ready
-  static const bool useMock = true;
+  static const bool useMock = false;
 }

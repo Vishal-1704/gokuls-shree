@@ -1,7 +1,7 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gokul_shree_app/src/core/data/mock_repository.dart';
 import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
@@ -40,7 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -155,19 +155,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _showSearchResults(query.trim());
   }
 
-  void _showSearchResults(String query) {
-    final mockRepo = ref.read(mockRepositoryProvider);
-    final courses = mockRepo.getCourses();
-
-    // Filter courses by search query
-    final matchingCourses = courses
+  Future<void> _showSearchResults(String query) async {
+    final response = await ref.read(supabaseServiceProvider).getCourses();
+    final matchingCourses = response
         .where(
           (course) =>
-              course.title.toLowerCase().contains(query.toLowerCase()) ||
-              course.category.toLowerCase().contains(query.toLowerCase()),
+              (course['title']?.toString() ?? '').toLowerCase().contains(query.toLowerCase()) ||
+              (course['category']?.toString() ?? '').toLowerCase().contains(query.toLowerCase()),
         )
         .toList();
 
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -337,7 +335,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: 56,
                         height: 56,
                         decoration: const BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           shape: BoxShape.circle,
                         ),
                         child: ClipOval(
@@ -357,14 +355,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Text(
                             'Welcome back,',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: AppColors.textSecondary,
                               fontSize: 14,
                             ),
                           ),
                           Text(
                             userName,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -375,7 +373,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       IconButton(
                         icon: const Icon(
                           Icons.notifications_outlined,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                         onPressed: () {},
                       ),
@@ -389,18 +387,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppColors.textPrimary.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.school, color: Colors.white, size: 16),
+                        const Icon(Icons.school, color: AppColors.textPrimary, size: 16),
                         const SizedBox(width: 8),
                         Text(
                           courseName,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -529,7 +527,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Text(
                                 'Gokul Shree',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -537,7 +535,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Text(
                                 'School of Management',
                                 style: TextStyle(
-                                  color: Colors.white70,
+                                  color: AppColors.textSecondary,
                                   fontSize: 11,
                                 ),
                               ),
@@ -548,7 +546,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       IconButton(
                         icon: const Icon(
                           Icons.notifications_outlined,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                         onPressed: () {},
                       ),
@@ -557,13 +555,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 24),
                   const Text(
                     'Hello,',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Future Leader',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -577,7 +575,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       hintText: 'Search courses...',
-                      fillColor: Colors.white,
+                      fillColor: AppColors.textPrimary,
                       filled: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -672,7 +670,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             noticesAsync.when(
               data: (notices) {
                 if (notices.isEmpty) {
-                  return _buildNoticesListFromMock(ref);
+                  return const Center(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No notices currently available.', style: TextStyle(color: AppColors.textMuted)),
+                  );
                 }
                 return _buildNoticesListFromSupabase(notices);
               },
@@ -682,7 +683,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (_, __) => _buildNoticesListFromMock(ref),
+              error: (_, __) => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No notices currently available.', style: TextStyle(color: AppColors.textMuted)),
+                ),
+              ),
             ),
             const SizedBox(height: 32),
           ],
@@ -731,32 +737,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: noticesAsync.when(
                 data: (notices) {
                   if (notices.isEmpty) {
-                    // Fallback to mock if empty (or show empty state)
-                    final mockRepo = ref.read(mockRepositoryProvider);
-                    final mockNotices = mockRepo.getLatestNotices();
-                    return ListView.builder(
-                      controller: scrollController,
-                      itemCount: mockNotices.length,
-                      itemBuilder: (context, index) {
-                        final notice = mockNotices[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: AppTheme.secondaryColor,
-                              child: Icon(Icons.campaign, color: Colors.white),
-                            ),
-                            title: Text(notice.title),
-                            subtitle: Text(
-                              '${notice.date.day}/${notice.date.month}/${notice.date.year}',
-                            ),
-                          ),
-                        );
-                      },
-                    );
+                    return const Center(child: Text('No notices available'));
                   }
                   return ListView.builder(
                     controller: scrollController,
@@ -771,7 +752,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: ListTile(
                           leading: const CircleAvatar(
                             backgroundColor: AppTheme.secondaryColor,
-                            child: Icon(Icons.campaign, color: Colors.white),
+                            child: Icon(Icons.campaign, color: AppColors.textPrimary),
                           ),
                           title: Text(
                             notice['title'] as String? ?? 'Notice',
@@ -799,7 +780,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Center(child: Text('Error: $e')),
+                error: (_, __) => const Center(child: Text('No notices available')),
               ),
             ),
           ],

@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class CustomTextField extends StatefulWidget {
@@ -42,18 +43,18 @@ class _CustomTextFieldState extends State<CustomTextField> {
       keyboardType: widget.keyboardType,
       obscureText: widget.isPassword ? _obscureText : false,
       maxLines: widget.isPassword ? 1 : widget.maxLines,
-      style: const TextStyle(color: Colors.white, fontSize: 16),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle: const TextStyle(color: Colors.white54),
+        labelStyle: const TextStyle(color: AppColors.textMuted),
         hintText: widget.hint,
-        hintStyle: const TextStyle(color: Colors.white30),
-        prefixIcon: widget.icon != null ? Icon(widget.icon, color: const Color(0xFFF5CC45)) : null,
+        hintStyle: const TextStyle(color: AppColors.textMuted),
+        prefixIcon: widget.icon != null ? Icon(widget.icon, color: AppColors.goldCta) : null,
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
                   _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  color: Colors.white54,
+                  color: AppColors.textMuted,
                 ),
                 onPressed: () {
                   setState(() {
@@ -66,15 +67,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
         fillColor: const Color(0xFF14243B),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white10),
+          borderSide: const BorderSide(color: AppColors.divider10),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white10),
+          borderSide: const BorderSide(color: AppColors.divider10),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFF5CC45), width: 1.5),
+          borderSide: const BorderSide(color: AppColors.goldCta, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

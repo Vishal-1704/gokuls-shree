@@ -269,7 +269,7 @@ class _ExamInstructionsScreenState
                         width: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                       )
                     : const Icon(Icons.play_arrow_rounded),

@@ -35,7 +35,7 @@ class AppTheme {
         secondary: AppColors.goldShine,
         onSecondary: AppColors.inkNavy900,
         error: AppColors.danger,
-        onError: Colors.white,
+        onError: AppColors.textPrimary,
         surface: AppColors.inkNavy800,
         onSurface: AppColors.textPrimary,
       ),
