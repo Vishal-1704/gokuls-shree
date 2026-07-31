@@ -1,4 +1,3 @@
-import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 // lib/src/features/documents/services/marksheet_service.dart
 // Native client-side marksheet PDF generation bypassing Puppeteer.
 
@@ -7,7 +6,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:gokul_shree_app/src/core/services/api_client.dart';
 
 class SubjectResult {
   final String name;
@@ -22,12 +20,6 @@ class SubjectResult {
 }
 
 class MarksheetService {
-  final ApiClient _apiClient;
-
-  // Utilize the apiClient if provided, otherwise default to a new instance.
-  MarksheetService({ApiClient? apiClient})
-    : _apiClient = apiClient ?? ApiClient();
-
   /// Natively generates the Marksheet PDF client-side using the `pdf` package.
   /// Bypasses Puppeteer server dependency.
   Future<Uint8List> generateMarksheet({
@@ -447,7 +439,7 @@ class MarksheetService {
         style: pw.TextStyle(
           font: font,
           fontSize: isHeader ? 8 : 9,
-          color: isHeader ? PdfAppColors.textPrimary : PdfColors.black,
+          color: isHeader ? PdfColors.white : PdfColors.black,
         ),
       ),
     );

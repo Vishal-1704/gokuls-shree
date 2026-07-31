@@ -249,6 +249,15 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     await signIn(email: loginId, password: password);
   }
 
+  /// Re-fetch the current user's profile row (e.g. after an admin approves
+  /// a pending registration) without a full sign-out/sign-in cycle.
+  Future<void> refreshProfile() async {
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      await _loadProfile(user);
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     try {

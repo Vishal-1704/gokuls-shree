@@ -15,6 +15,25 @@ migrate_working_dir/
 # Environment files (contain secrets)
 .env
 *.env.local
+
+# GCP / Firebase service account keys — never commit these
+firebase-deployer-key.json
+*serviceAccountKey*.json
+*-service-account*.json
+.firebase/
+
+# Claude Code local tool config — not part of the project
+.claude/
+
+# One-off DB scripts with a live pooler connection string hardcoded in —
+# rotate the password before ever committing a version of this file
+apply_schema.py
+
+# Supabase CLI binaries — huge, and installable via `npm i -g supabase` /
+# the official installer instead of committing to the repo
+supabase.exe
+supabase-go.exe
+supabase.tar.gz
 # IntelliJ related
 *.iml
 *.ipr

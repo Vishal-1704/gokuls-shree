@@ -10,7 +10,14 @@ import '../models/user_session.dart';
 /// requireAuth — validates JWT, loads profile, checks status and role.
 /// On success: passes Request with context['session'] = UserSession
 /// On failure: returns 401/403 immediately (never calls inner)
-Middleware requireAuth() {
+///
+/// [allowPending] — when true, skips the "account must be active (status=1)"
+/// and "branch assigned" checks. ONLY use this on self-identity routes
+/// (/auth/login, /auth/me, /auth/logout) so a not-yet-approved account can
+/// see its own basic profile. Every other route must keep the default
+/// (false) so a pending account's token cannot reach real branch/student
+/// data — the approval gate is enforced here, not just hidden in the UI.
+Middleware requireAuth({bool allowPending = false}) {
   return (Handler inner) {
     return (Request request) async {
       try {
@@ -52,7 +59,7 @@ Middleware requireAuth() {
 
         // ── Check 4: Account active (status must be exactly 1) ───────────
         // BUG-6 FIX: use != 1, not == 0 (catches null, 2, etc.)
-        if (profile['status'] != 1) {
+        if (!allowPending && profile['status'] != 1) {
           print('🚨 Auth: Inactive account profileId=${profile['id']} role=${profile['role']}');
           return _json(403, {
             'error': 'Your account is inactive or suspended. Contact administrator.',
@@ -67,8 +74,10 @@ Middleware requireAuth() {
         }
 
         // ── Check 6: Branch assigned for non-super-admin ─────────────────
+        // Skipped for allowPending — a freshly registered student may not
+        // have picked/been assigned a branch yet.
         final branchId = profile['branch_id'] as int?;
-        if (role != 'super_admin' && branchId == null) {
+        if (!allowPending && role != 'super_admin' && branchId == null) {
           return _json(403, {
             'error': 'No branch assigned to your account. Contact super admin.',
           });

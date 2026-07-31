@@ -38,6 +38,8 @@ class UserSession {
   final int?     branchId;
   final String?  accessToken;
   final List<String> permissions;
+  /// Raw `profiles.status` value. 1 = approved/active, 0 = pending approval.
+  final int status;
 
   const UserSession({
     required this.profileId,
@@ -48,7 +50,13 @@ class UserSession {
     this.branchId,
     this.accessToken,
     this.permissions = const [],
+    this.status = 1,
   });
+
+  /// Whether an admin has approved this account. Newly self-registered
+  /// students start at status=0 and can log in, but see a pending-approval
+  /// screen instead of real data until a branch/super admin approves them.
+  bool get isApproved => status == 1;
 
   /// Check if the user has a specific permission.
   /// Super Admin automatically has all permissions.
@@ -74,6 +82,7 @@ class UserSession {
       branchId:    user['branch_id'] as int?,
       accessToken: json['access_token']?.toString(),
       permissions: List<String>.from(user['permissions'] ?? []),
+      status: (user['status'] as int?) ?? 1,
     );
   }
 

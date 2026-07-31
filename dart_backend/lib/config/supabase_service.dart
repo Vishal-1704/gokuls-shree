@@ -272,10 +272,11 @@ class SupabaseService {
   }) async {
     final headers = Map<String, String>.from(_serviceHeaders);
     headers['Prefer'] = 'resolution=merge-duplicates,return=representation';
-    headers['on_conflict'] = onConflict;
 
+    final uri = Uri.parse('$_supabaseUrl/rest/v1/$table')
+        .replace(queryParameters: {'on_conflict': onConflict});
     final res = await http.post(
-      Uri.parse('$_supabaseUrl/rest/v1/$table'),
+      uri,
       headers: headers,
       body: jsonEncode(rows),
     );

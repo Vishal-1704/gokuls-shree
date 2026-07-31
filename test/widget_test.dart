@@ -45,6 +45,9 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
   Future<void> signOut() async {}
 
   @override
+  Future<void> refreshProfile() async {}
+
+  @override
   Future<bool> signUp({
     required String email,
     required String password,

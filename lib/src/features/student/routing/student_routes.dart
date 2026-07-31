@@ -7,6 +7,7 @@ import '../presentation/student_fee_status_screen.dart';
 import '../presentation/student_result_list_screen.dart';
 import '../presentation/student_attendance_screen.dart';
 import '../presentation/student_id_card_screen.dart';
+import '../presentation/student_pending_approval_screen.dart';
 
 class StudentRoutes {
   static List<StatefulShellBranch> get branches => [
@@ -25,6 +26,10 @@ class StudentRoutes {
   ];
 
   static List<GoRoute> get standaloneRoutes => [
+    GoRoute(
+      path: '/student/pending-approval',
+      builder: (c, s) => const StudentPendingApprovalScreen(),
+    ),
     GoRoute(path: '/fee-status', builder: (c, s) => const StudentFeeStatusScreen()),
     GoRoute(path: '/results', builder: (c, s) => const StudentResultListScreen()),
     GoRoute(path: '/attendance', builder: (c, s) => const StudentAttendanceScreen()),

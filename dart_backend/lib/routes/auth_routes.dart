@@ -142,22 +142,27 @@ Router buildAuthRouter() {
 
       final profile = profiles.first;
 
-      // BUG-6 FIX: use != 1 (not == 0) — catches null, suspended, etc.
-      if (profile['status'] != 1) {
-        return _json(403, {'error': 'Account is inactive or not found'});
-      }
+      // Login is allowed for any existing profile, approved or pending —
+      // the client shows a "pending approval" screen for status != 1.
+      // Every other endpoint still hard-requires status == 1, so a pending
+      // account's token cannot pull real branch/student/fee/etc. data.
+      final approved = profile['status'] == 1;
 
       return _json(200, {
         'success': true,
         'access_token': accessToken,
         'refresh_token': refreshToken,
+        'approved': approved,
         'user': {
           'id':          profile['id'],
           'role':        profile['role'],
           'name':        profile['full_name'],
           'branch_id':   profile['branch_id'],
           'email':       user['email'],
-          'permissions': profile['permissions'] ?? [],
+          'status':      profile['status'],
+          // Withhold permissions until approved — nothing for the client
+          // to act on, even if it ignores the `approved` flag.
+          'permissions': approved ? (profile['permissions'] ?? []) : [],
         },
       });
     } catch (e) {
@@ -226,11 +231,14 @@ Router buildAuthRouter() {
   });
 
   // ── Get current user profile ──────────────────────────────────────────────
+  // allowPending: a not-yet-approved account must still be able to see its
+  // own identity so the app can render a "pending approval" screen.
   router.get('/me', Pipeline()
-      .addMiddleware(requireAuth())
+      .addMiddleware(requireAuth(allowPending: true))
       .addHandler((Request req) async {
     try {
       final session = req.context['session'] as UserSession;
+      final approved = session.profile['status'] == 1;
       Map<String, dynamic> extraData = {};
 
       if (session.role == roleStudent) {
@@ -257,7 +265,9 @@ Router buildAuthRouter() {
           'id': session.profileId, 'role': session.role,
           'name': session.fullName, 'branch_id': session.branchId,
           'email': session.profile['email'],
-          'permissions': session.profile['permissions'] ?? [],
+          'status': session.profile['status'],
+          'approved': approved,
+          'permissions': approved ? (session.profile['permissions'] ?? []) : [],
         },
         ...extraData,
       });
@@ -287,8 +297,9 @@ Router buildAuthRouter() {
   });
 
   // ── Logout ────────────────────────────────────────────────────────────────
+  // allowPending: a pending account must still be able to log out.
   router.post('/logout', Pipeline()
-      .addMiddleware(requireAuth())
+      .addMiddleware(requireAuth(allowPending: true))
       .addHandler((Request req) async {
     try {
       final token = req.context['token'] as String;

@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "task-433706"
+  },
+  "targets": {
+    "task-433706": {
+      "hosting": {
+        "gokulshree-app": ["gokulshree-app"]
+      }
+    }
+  }
+}

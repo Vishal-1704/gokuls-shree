@@ -156,11 +156,9 @@ class _SessionWatchdogState extends ConsumerState<SessionWatchdog>
     if (session == null) return;
 
     try {
-      // Quick /auth/me call to verify token is still valid server-side
-      // If 401/403 → clear session → router redirects to /
-      // This prevents suspended accounts from staying logged in
-      // (Implementation: use your ApiClient to call /auth/me)
-      // For now just check if session exists
+      // TODO: call GET /auth/me on the Dart backend to verify the token is
+      // still valid server-side (401/403 → sign out), so a suspended
+      // account doesn't stay logged in until its local token expires.
     } catch (_) {
       ref.read(supabaseAuthNotifierProvider).signOut();
     }

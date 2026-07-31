@@ -1,9 +1,15 @@
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 
-/// In-app WebView screen for displaying web content
+/// In-app WebView screen for displaying web content.
+///
+/// On web there's no registered webview_flutter implementation (and most
+/// third-party sites block iframe embedding via X-Frame-Options anyway), so
+/// this opens the URL in a new browser tab instead of embedding it.
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String title;
@@ -15,14 +21,23 @@ class InAppWebViewScreen extends StatefulWidget {
 }
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   bool _isLoading = true;
   int _loadingProgress = 0;
 
   @override
   void initState() {
     super.initState();
-    _initWebView();
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openInNewTab());
+    } else {
+      _initWebView();
+    }
+  }
+
+  Future<void> _openInNewTab() async {
+    await launchUrl(Uri.parse(widget.url), webOnlyWindowName: '_blank');
+    if (mounted) Navigator.of(context).pop();
   }
 
   void _initWebView() {
@@ -56,25 +71,31 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final controller = _controller!;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _controller.reload(),
+            onPressed: () => controller.reload(),
           ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
                 case 'back':
-                  if (await _controller.canGoBack()) {
-                    _controller.goBack();
+                  if (await controller.canGoBack()) {
+                    controller.goBack();
                   }
                   break;
                 case 'forward':
-                  if (await _controller.canGoForward()) {
-                    _controller.goForward();
+                  if (await controller.canGoForward()) {
+                    controller.goForward();
                   }
                   break;
               }
@@ -116,7 +137,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               )
             : null,
       ),
-      body: WebViewWidget(controller: _controller),
+      body: WebViewWidget(controller: controller),
     );
   }
 }

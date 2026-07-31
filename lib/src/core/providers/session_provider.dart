@@ -22,6 +22,7 @@ class SessionNotifier extends Notifier<UserSession?> {
           email: profile['email']?.toString() ?? user.email ?? '',
           branchId: profile['branch_id'] as int?,
           permissions: List<String>.from(profile['permissions'] ?? []),
+          status: (profile['status'] as int?) ?? 0,
         );
       }
     }
