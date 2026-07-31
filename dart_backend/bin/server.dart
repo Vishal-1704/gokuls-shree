@@ -95,6 +95,14 @@ void main() async {
   router.mount('$apiBase/auth/mock/',  buildMockAuthRouter().call);
   router.mount('$apiBase/mock/',       buildMockAuthRouter().call);
 
+  // ── CORS preflight ────────────────────────────────────────────────────────
+  // corsMiddleware only adds headers to whatever response comes back — it
+  // does not answer OPTIONS preflight requests itself. Without this, every
+  // preflight falls through to the 404 handler below; browsers treat a
+  // non-2xx preflight response as a failure and block the real request
+  // entirely (invisible on mobile, since only browsers send preflights).
+  router.options('/<ignored|.*>', (Request req) => Response.ok(''));
+
   // ── 404 handler ───────────────────────────────────────────────────────────
   router.all('/<ignored|.*>', (Request req) {
     return Response.notFound(
