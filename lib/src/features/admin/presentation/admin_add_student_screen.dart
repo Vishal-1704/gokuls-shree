@@ -232,11 +232,16 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
                 labelText: 'Course *',
                 border: OutlineInputBorder(),
               ),
+              dropdownColor: Colors.white,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
               value: _courseId,
               items: courses.map((course) {
                 return DropdownMenuItem<String>(
                   value: course['id'].toString(),
-                  child: Text(course['name'] ?? 'Unknown Course'),
+                  child: Text(
+                    course['name'] ?? 'Unknown Course',
+                    style: const TextStyle(color: Colors.black87),
+                  ),
                 );
               }).toList(),
               onChanged: (val) => setState(() => _courseId = val),
