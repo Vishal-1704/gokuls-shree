@@ -581,23 +581,24 @@ class AdminRepository {
       }
 
       return {
-        'todays_collection': todaysCollection > 0 ? todaysCollection : 45200,
-        'collection_growth': 12,
-        'present_students': (totalStudents * 0.94).round(),
-        'total_students': totalStudents > 0 ? totalStudents : 900,
-        'attendance_rate': 94,
-        'pending_enquiries': pendingEnquiries > 0 ? pendingEnquiries : 12,
+        'todays_collection': todaysCollection,
+        'collection_growth': 0,
+        'present_students': 0,
+        'total_students': totalStudents,
+        'attendance_rate': 0,
+        'pending_enquiries': pendingEnquiries,
         'new_enquiries': pendingEnquiries > 0,
       };
-    } catch (_) {
+    } catch (e) {
+      print("Error fetching dashboard stats: $e");
       return {
-        'todays_collection': 45200,
-        'collection_growth': 12,
-        'present_students': 845,
-        'total_students': 900,
-        'attendance_rate': 94,
-        'pending_enquiries': 12,
-        'new_enquiries': true,
+        'todays_collection': 0,
+        'collection_growth': 0,
+        'present_students': 0,
+        'total_students': 0,
+        'attendance_rate': 0,
+        'pending_enquiries': 0,
+        'new_enquiries': false,
       };
     }
   }

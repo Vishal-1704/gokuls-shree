@@ -205,46 +205,37 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             SizedBox(
                               width: (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
-                                value: '0',
-                                label: 'MARKSHEET',
-                                icon: Icons.pie_chart,
-                                color: const Color(0xFFF04F69),
+                                value: '${stats['total_students'] ?? 0}',
+                                label: 'TOTAL STUDENTS',
+                                icon: Icons.group,
+                                color: const Color(0xFFF34C68), // Pinkish red
                               ),
                             ),
                             SizedBox(
                               width: (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
-                                value: '${stats['total_students'] ?? 18}',
-                                label: 'STUDENT',
-                                icon: Icons.shopping_bag,
-                                color: const Color(0xFFF34C68),
+                                value: '${stats['present_students'] ?? 0}',
+                                label: 'PRESENT TODAY',
+                                icon: Icons.how_to_reg,
+                                color: const Color(0xFF3498DB), // Blue
                               ),
                             ),
                             SizedBox(
                               width: (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
-                                value: '4',
-                                label: 'PROGRAM',
-                                icon: Icons.pie_chart_outline,
-                                color: const Color(0xFFF39C12),
+                                value: '₹${stats['todays_collection'] ?? 0}',
+                                label: 'FEES TODAY',
+                                icon: Icons.currency_rupee,
+                                color: const Color(0xFF27AE60), // Green
                               ),
                             ),
                             SizedBox(
                               width: (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
-                                value: '${stats['total_courses'] ?? 106}',
-                                label: 'COURSES',
-                                icon: Icons.bar_chart,
-                                color: const Color(0xFF3498DB),
-                              ),
-                            ),
-                            SizedBox(
-                              width: (MediaQuery.of(context).size.width - 60) / 2,
-                              child: _buildVibrantTile(
-                                value: '128',
-                                label: 'SUBJECT',
-                                icon: Icons.person_add,
-                                color: const Color(0xFFF1C40F),
+                                value: '${stats['pending_enquiries'] ?? 0}',
+                                label: 'ENQUIRIES',
+                                icon: Icons.help_outline,
+                                color: const Color(0xFFF39C12), // Orange
                               ),
                             ),
                           ],
