@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 class CertificateViewerScreen extends StatelessWidget {
@@ -58,7 +59,7 @@ class CertificateViewerScreen extends StatelessWidget {
                     const Icon(Icons.workspace_premium_rounded, color: AppColors.goldCta, size: 64),
                     const SizedBox(height: 16),
                     Text(
-                      'GOKULSHREE SCHOOL',
+                      '${EnvConfig.shortName.toUpperCase()} SCHOOL',
                       style: AppTypography.displayLg.copyWith(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
@@ -152,7 +153,7 @@ class CertificateViewerScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
                           child: QrImageView(
-                            data: 'https://gokulshreeschool.com/verify/cert/$certNo',
+                            data: '${EnvConfig.verifyBaseUrl}/cert/$certNo',
                             version: QrVersions.auto,
                             size: 64.0,
                           ),

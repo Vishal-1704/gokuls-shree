@@ -4,6 +4,7 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -17,6 +18,9 @@ class AdminMarksheetGeneratorScreen extends ConsumerStatefulWidget {
 
 class _AdminMarksheetGeneratorScreenState
     extends ConsumerState<AdminMarksheetGeneratorScreen> {
+  int? _branchId;
+  int? _courseId;
+  String? _year;
   String? _studentId;
   bool _isPreparing = false;
 
@@ -44,7 +48,7 @@ class _AdminMarksheetGeneratorScreenState
           ),
           pw.SizedBox(height: 8),
           pw.Text('Student: ${student['name'] ?? 'Unknown'}'),
-          pw.Text('Reg No: ${student['registration_number'] ?? '-'}'),
+          pw.Text('Reg No: ${student['reg_no'] ?? '-'}'),
           pw.Text(
             'Total: ${obtained.toStringAsFixed(0)} / ${total.toStringAsFixed(0)} (${percent.toStringAsFixed(2)}%)',
           ),
@@ -103,7 +107,7 @@ class _AdminMarksheetGeneratorScreenState
         ),
         content: Text(
           'Student: ${student['name'] ?? 'Unknown'}\n'
-          'Reg No: ${student['registration_number'] ?? '-'}\n'
+          'Reg No: ${student['reg_no'] ?? '-'}\n'
           'Subjects: ${rows.length}\n'
           'Total: ${obtained.toStringAsFixed(0)} / ${total.toStringAsFixed(0)}\n'
           'Percentage: ${percent.toStringAsFixed(2)}%',
@@ -122,6 +126,8 @@ class _AdminMarksheetGeneratorScreenState
   @override
   Widget build(BuildContext context) {
     final studentsAsync = ref.watch(adminStudentsProvider);
+    final branchesAsync = ref.watch(branchesProvider);
+    final coursesAsync = ref.watch(adminCoursesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
@@ -142,10 +148,45 @@ class _AdminMarksheetGeneratorScreenState
           ),
         ),
         data: (students) {
+          final branches = branchesAsync.value ?? [];
+          final courses = coursesAsync.value ?? [];
+          
+          // Generate unique years from the student data based on 'doj' (date of joining) or just fallback to generic
+          final yearsSet = <String>{};
+          for (final s in students) {
+             if (s['doj'] != null) {
+                try {
+                  final year = DateTime.parse(s['doj'].toString()).year.toString();
+                  yearsSet.add(year);
+                } catch(_) {}
+             }
+          }
+          final years = yearsSet.toList()..sort();
+
+          // Filter logic
+          var filteredStudents = <Map<String, dynamic>>[];
+          final hasFilter = _branchId != null || _courseId != null || _year != null;
+          
+          if (hasFilter) {
+            filteredStudents = students;
+            if (_branchId != null) {
+               filteredStudents = filteredStudents.where((s) => s['branch_id']?.toString() == _branchId.toString()).toList();
+            }
+            if (_courseId != null) {
+               filteredStudents = filteredStudents.where((s) => s['course_id']?.toString() == _courseId.toString()).toList();
+            }
+            if (_year != null) {
+               filteredStudents = filteredStudents.where((s) {
+                   if (s['doj'] == null) return false;
+                   try {
+                       return DateTime.parse(s['doj'].toString()).year.toString() == _year;
+                   } catch(_) { return false; }
+               }).toList();
+            }
+          }
+
           final selectedStudent = students
-              .where((s) {
-                return s['id']?.toString() == _studentId;
-              })
+              .where((s) => s['id']?.toString() == _studentId)
               .cast<Map<String, dynamic>>()
               .toList();
 
@@ -154,13 +195,94 @@ class _AdminMarksheetGeneratorScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Filters Row
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width < 600 ? double.infinity : (MediaQuery.of(context).size.width - 64) / 3,
+                      child: DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        value: _branchId,
+                        dropdownColor: AppColors.inkNavy800,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Branch',
+                          labelStyle: TextStyle(color: AppColors.textMuted),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('All Branches')),
+                          ...branches.map((b) => DropdownMenuItem<int>(
+                              value: b['id'], 
+                              child: Text(b['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
+                          ))
+                        ],
+                        onChanged: (v) => setState(() { _branchId = v; _studentId = null; }),
+                      ),
+                    ),
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width < 600 ? double.infinity : (MediaQuery.of(context).size.width - 64) / 3,
+                      child: DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        value: _courseId,
+                        dropdownColor: AppColors.inkNavy800,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Course',
+                          labelStyle: TextStyle(color: AppColors.textMuted),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int>(value: null, child: Text('All Courses')),
+                          ...courses.map((c) => DropdownMenuItem<int>(
+                              value: c['id'], 
+                              child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
+                          ))
+                        ],
+                        onChanged: (v) => setState(() { _courseId = v; _studentId = null; }),
+                      ),
+                    ),
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width < 600 ? double.infinity : (MediaQuery.of(context).size.width - 64) / 3,
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _year,
+                        dropdownColor: AppColors.inkNavy800,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Year',
+                          labelStyle: TextStyle(color: AppColors.textMuted),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(value: null, child: Text('All Years')),
+                          ...years.map((y) => DropdownMenuItem<String>(
+                              value: y, 
+                              child: Text(y),
+                          ))
+                        ],
+                        onChanged: (v) => setState(() { _year = v; _studentId = null; }),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _studentId,
+                  dropdownColor: AppColors.inkNavy800,
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Select Student',
+                    labelStyle: TextStyle(color: AppColors.textMuted),
                     prefixIcon: Icon(Icons.person_search_outlined),
                   ),
-                  items: students
+                  hint: Text(
+                    hasFilter ? 'Select a student' : 'Select Branch, Course, and Year first...',
+                    style: TextStyle(
+                      color: hasFilter ? AppColors.textMuted : Colors.orangeAccent,
+                    ),
+                  ),
+                  items: filteredStudents
                       .map(
                         (s) => DropdownMenuItem<String>(
                           value: s['id'].toString(),
@@ -170,7 +292,7 @@ class _AdminMarksheetGeneratorScreenState
                         ),
                       )
                       .toList(),
-                  onChanged: (v) => setState(() => _studentId = v),
+                  onChanged: hasFilter ? (v) => setState(() => _studentId = v) : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (_studentId != null && selectedStudent.isNotEmpty)

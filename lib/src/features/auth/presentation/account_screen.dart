@@ -4,7 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
+import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
+import 'package:gokul_shree_app/src/features/teacher/presentation/widgets/teacher_employment_details.dart';
+import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -35,60 +41,113 @@ class AccountScreen extends ConsumerWidget {
                       value: authState.user.email ?? 'N/A',
                     ),
                     const SizedBox(height: 12),
-                    if (isStudent)
+                    if (isStudent) ...[
                       _buildInfoCard(
-                        icon: Icons.badge_outlined,
-                        label: 'Registration Number',
-                        value: authState.studentData?['reg_no'] ?? 'Pending',
+                        icon: Icons.school_outlined,
+                        label: 'Course',
+                        value: authState.studentData?['course'] ?? 'Pending',
                       ),
-                    const SizedBox(height: 24),
-                  ],
-                  
-                  _buildSectionHeader('App Settings'),
-                  const SizedBox(height: 12),
-                  _buildMenuTile(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    subtitle: 'Manage alerts and updates',
-                    onTap: () {},
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.security_rounded,
-                    title: 'Security',
-                    subtitle: 'Password and biometric login',
-                    onTap: () {},
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.language_rounded,
-                    title: 'Language',
-                    subtitle: 'English (US)',
-                    onTap: () {},
-                  ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.class_outlined,
+                              label: 'Class/Section',
+                              value: authState.studentData?['class_section'] ?? 'N/A',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.badge_outlined,
+                              label: 'Reg. Number',
+                              value: authState.studentData?['reg_no'] ?? 'Pending',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (isStudent) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('Financial Overview'),
+                      const SizedBox(height: 16),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final feeAsync = ref.watch(studentFeeStatusProvider);
+                          return feeAsync.when(
+                            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+                            error: (e, _) => Text('Error loading fees: $e', style: const TextStyle(color: AppColors.danger)),
+                            data: (fees) {
+                              final totalPaid = fees
+                                  .where((f) => f['status'] == 'paid')
+                                  .fold<num>(0, (sum, item) => sum + (item['amount'] as num));
+                              final totalPending = fees
+                                  .where((f) => f['status'] != 'paid')
+                                  .fold<num>(0, (sum, item) => sum + (item['amount'] as num));
+                              
+                              // Mocking course fee / tuition fee breakdown based on totals
+                              final totalCourseFee = totalPaid + totalPending;
 
-                  const SizedBox(height: 24),
-                  _buildSectionHeader('Support & Legal'),
-                  const SizedBox(height: 12),
-                  _buildMenuTile(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Help Center',
-                    subtitle: 'FAQs and support chat',
-                    onTap: () {},
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.policy_outlined,
-                    title: 'Privacy Policy',
-                    subtitle: 'How we handle your data',
-                    onTap: () {},
-                  ),
-                  _buildMenuTile(
-                    icon: Icons.info_outline_rounded,
-                    title: 'About App',
-                    subtitle: 'Version 2.0.4 (Hardened)',
-                    onTap: () {},
-                  ),
+                              return Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildFinancialStat('Total Paid', '₹$totalPaid', AppColors.success)),
+                                      const SizedBox(width: 16),
+                                      Expanded(child: _buildFinancialStat('Total Overdue', '₹$totalPending', AppColors.warning)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildMenuTile(
+                                    icon: Icons.receipt_long_rounded,
+                                    title: 'Detailed Fee Status',
+                                    subtitle: 'Total Course Fee: ₹$totalCourseFee',
+                                    onTap: () => context.push('/fee-status'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ],
 
                   const SizedBox(height: 40),
-                  _buildLogoutButton(context, ref),
+                  
+                    if (userRole == 'teacher') ...[
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('Employment Details'),
+                      const SizedBox(height: 16),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final empAsync = ref.watch(teacherEmployeeProfileProvider);
+                          return empAsync.when(
+                            data: (emp) => Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.inkNavy800,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.divider.withOpacity(0.2)),
+                              ),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.inkNavy700,
+                                  child: Icon(Icons.work_outline_rounded, color: AppColors.goldCta),
+                                ),
+                                title: const Text('View Employment Details', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                                subtitle: const Text('Salary, attendance, and department info', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 16),
+                                onTap: () => context.push('/teacher/employment-details', extra: emp),
+                              ),
+                            ),
+                            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+                            error: (e, _) => Text('Error loading profile: ', style: const TextStyle(color: AppColors.danger)),
+                          );
+                        },
+                      ),
+                    ],
+_buildLogoutButton(context, ref),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -111,6 +170,38 @@ class AccountScreen extends ConsumerWidget {
       expandedHeight: 240,
       pinned: true,
       backgroundColor: AppColors.inkNavy800,
+      actions: [
+        if (state is AuthAuthenticated && role == 'student')
+          IconButton(
+            icon: const Icon(Icons.qr_code_2, color: AppColors.textPrimary),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.inkNavy800,
+                  title: const Text('Digital Profile QR', style: TextStyle(color: AppColors.textPrimary)),
+                  content: Container(
+                    width: 250,
+                    height: 250,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                    child: QrImageView(
+                      data: 'STU-${state.user.id}',
+                      version: QrVersions.auto,
+                      size: 200.0,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close', style: TextStyle(color: AppColors.goldCta)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -158,7 +249,16 @@ class AccountScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(name, style: AppTypography.headingLg),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    name,
+                    style: AppTypography.headingMd.copyWith(color: AppColors.textPrimary),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -192,6 +292,25 @@ class AccountScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildFinancialStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.inkNavy800,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTypography.labelMd.copyWith(color: AppColors.textMuted)),
+          const SizedBox(height: 8),
+          Text(value, style: AppTypography.headingMd.copyWith(color: color)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoCard({required IconData icon, required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -204,13 +323,20 @@ class AccountScreen extends ConsumerWidget {
         children: [
           Icon(icon, color: AppColors.textMuted, size: 20),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTypography.labelMd.copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 2),
-              Text(value, style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.w600)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTypography.labelMd.copyWith(color: AppColors.textMuted)),
+                const SizedBox(height: 2),
+                Text(
+                  value, 
+                  style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ],
+            ),
           ),
         ],
       ),

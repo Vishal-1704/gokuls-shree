@@ -7,14 +7,14 @@ import 'package:gokul_shree_app/src/features/documents/data/document_repository.
 import 'marksheet_viewer_screen.dart';
 import 'certificate_viewer_screen.dart';
 
-class MyDocumentsScreen extends ConsumerStatefulWidget {
-  const MyDocumentsScreen({super.key});
+class MyDocumentsBody extends ConsumerStatefulWidget {
+  const MyDocumentsBody({super.key});
 
   @override
-  ConsumerState<MyDocumentsScreen> createState() => _MyDocumentsScreenState();
+  ConsumerState<MyDocumentsBody> createState() => _MyDocumentsBodyState();
 }
 
-class _MyDocumentsScreenState extends ConsumerState<MyDocumentsScreen> {
+class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _marksheets = [];
   List<Map<String, dynamic>> _certificates = [];
@@ -49,37 +49,39 @@ class _MyDocumentsScreenState extends ConsumerState<MyDocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.inkNavy900,
-      appBar: AppBar(
-        backgroundColor: AppColors.inkNavy800,
-        title: const Text('My Documents'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadDocuments),
-        ],
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.goldCta));
+    }
+    
+    return RefreshIndicator(
+      color: AppColors.goldCta,
+      onRefresh: _loadDocuments,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderCard(),
+            const SizedBox(height: 24),
+            _buildSectionTitle('Admit Cards', 0),
+            const SizedBox(height: 12),
+            _buildEmptyState('No admit cards available yet'),
+            
+            const SizedBox(height: 32),
+            _buildSectionTitle('Academic Marksheets', _marksheets.length),
+            const SizedBox(height: 12),
+            ..._marksheets.map((m) => _buildDocCard('Marksheet', m)),
+            if (_marksheets.isEmpty) _buildEmptyState('No marksheets found'),
+            
+            const SizedBox(height: 32),
+            _buildSectionTitle('Certificates', _certificates.length),
+            const SizedBox(height: 12),
+            ..._certificates.map((c) => _buildDocCard('Certificate', c)),
+            if (_certificates.isEmpty) _buildEmptyState('No certificates found'),
+          ],
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.goldCta))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeaderCard(),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Academic Marksheets', _marksheets.length),
-                  const SizedBox(height: 12),
-                  ..._marksheets.map((m) => _buildDocCard('Marksheet', m)),
-                  if (_marksheets.isEmpty) _buildEmptyState('No marksheets found'),
-                  
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Certificates', _certificates.length),
-                  const SizedBox(height: 12),
-                  ..._certificates.map((c) => _buildDocCard('Certificate', c)),
-                  if (_certificates.isEmpty) _buildEmptyState('No certificates found'),
-                ],
-              ),
-            ),
     );
   }
 

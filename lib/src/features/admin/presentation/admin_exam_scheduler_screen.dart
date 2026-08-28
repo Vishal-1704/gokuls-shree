@@ -4,6 +4,8 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
+import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
+import 'package:gokul_shree_app/src/core/models/user_session.dart';
 
 final schedulerCoursesProvider = FutureProvider<List<Map<String, dynamic>>>(
   (ref) => ref.read(adminRepositoryProvider).getCourses(),
@@ -474,10 +476,13 @@ class _AdminExamSchedulerScreenState
   @override
   Widget build(BuildContext context) {
     final paperSetsAsync = ref.watch(adminPaperSetsProvider);
+    final sessionAsync = ref.watch(sessionProvider);
+    final isBranchAdmin = sessionAsync?.role == UserRole.branchAdmin;
+    final titleText = isBranchAdmin ? 'Test Scheduler' : 'Exam Scheduler';
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
-      appBar: AppBar(title: const Text('Exam Scheduler')),
+      appBar: AppBar(title: Text(titleText)),
       body: paperSetsAsync.when(
         data: (paperSets) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -655,7 +660,7 @@ class _AdminExamSchedulerScreenState
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save),
-                    label: Text(_loading ? 'Saving...' : 'Schedule Exam'),
+                    label: Text(_loading ? 'Saving...' : (isBranchAdmin ? 'Schedule Test' : 'Schedule Exam')),
                   ),
                 ),
               ],

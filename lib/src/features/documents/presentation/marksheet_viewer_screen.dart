@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 class MarksheetViewerScreen extends StatelessWidget {
@@ -85,7 +86,7 @@ class MarksheetViewerScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'GOKULSHREE SCHOOL',
+                      '${EnvConfig.shortName.toUpperCase()} SCHOOL',
                       style: AppTypography.displayMd.copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -329,7 +330,7 @@ class MarksheetViewerScreen extends StatelessWidget {
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
             child: QrImageView(
-              data: 'https://gokulshreeschool.com/verify/$marksheetId',
+              data: '${EnvConfig.verifyBaseUrl}/$marksheetId',
               version: QrVersions.auto,
               size: 60.0,
             ),

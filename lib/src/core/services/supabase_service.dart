@@ -133,9 +133,19 @@ class SupabaseService {
 
     final response = await _client
         .from('students')
-        .select('*, courses(title)')
+        .select('*, courses(name, category)')
         .eq('profile_id', userId)
         .maybeSingle();
+        
+    if (response != null && response['id'] != null) {
+      try {
+        final feeSummary = await _client.rpc('get_student_fee_summary', params: {'p_student_id': response['id']});
+        response['fee_summary'] = feeSummary;
+      } catch (e) {
+        response['fee_summary'] = null;
+      }
+    }
+    
     return response;
   }
 
@@ -303,7 +313,7 @@ class SupabaseService {
         .from('fee_payments')
         .select()
         .eq('student_id', userId)
-        .order('due_date', ascending: false);
+        .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 

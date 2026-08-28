@@ -150,7 +150,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ] else ...[
                 // Input State
                 Text(
-                      "Enter your registered mobile number, registration number, or email address. We'll send the reset link to the linked account.",
+                  "Enter your registered email address. We'll send the reset link to your inbox.",
                   style: AppTypography.bodyMd.copyWith(
                     color: AppColors.textSecondary,
                     height: 1.5,
@@ -164,13 +164,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   key: _formKey,
                   child: TextFormField(
                     controller: _mobileController,
-                    keyboardType: TextInputType.phone,
+                    keyboardType: TextInputType.emailAddress,
                     style: AppTypography.bodyMd.copyWith(letterSpacing: 1.5),
                     decoration: InputDecoration(
-                      labelText: 'Mobile Number / Reg No / Email',
-                      hintText: '9876543210 or GOKUL0181121',
-                      prefixIcon: const Icon(Icons.phone_android),
-                      prefixText: '+91 ',
+                      labelText: 'Email Address',
+                      hintText: 'student@gokulshree.com',
+                      prefixIcon: const Icon(Icons.email_outlined),
                       prefixStyle: AppTypography.bodyMd.copyWith(color: AppColors.textMuted),
                       filled: true,
                       fillColor: AppColors.inkNavy800,
@@ -181,10 +180,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Mobile number is required';
+                        return 'Email is required';
                       }
-                      if (value.trim().length < 10) {
-                        return 'Must be at least 10 digits';
+                      if (!value.contains('@')) {
+                        return 'Enter a valid email address';
                       }
                       return null;
                     },

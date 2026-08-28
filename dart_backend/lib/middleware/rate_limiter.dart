@@ -20,8 +20,6 @@ class RateLimiter {
   final String Function(Request req)? keyFn;
 
   final Map<String, _Entry> _store = {};
-  Timer? _cleanupTimer;
-
   RateLimiter({
     required this.window,
     required this.max,
@@ -29,7 +27,7 @@ class RateLimiter {
     this.keyFn,
   }) {
     // Clean up expired entries every 5 minutes
-    _cleanupTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+    Timer.periodic(const Duration(minutes: 5), (_) {
       final now = DateTime.now();
       _store.removeWhere((_, v) => now.isAfter(v.resetAt));
     });

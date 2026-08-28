@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -5,6 +6,23 @@ import 'package:gokul_shree_app/src/core/utils/registration_number_generator.dar
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:gokul_shree_app/src/core/config/env_config.dart';
+
+
+class PhoneLookupResult {
+  final bool isDuplicate;
+  final bool isFound;
+  final bool hasAuthAccount;
+  final String? email;
+  final String? role;
+
+  PhoneLookupResult({
+    required this.isDuplicate,
+    required this.isFound,
+    required this.hasAuthAccount,
+    this.email,
+    this.role,
+  });
+}
 
 // ============================================
 // AUTH STATES
@@ -77,12 +95,16 @@ class SupabaseAuthNotifier extends ChangeNotifier {
           .from('profiles')
           .select()
           .eq('auth_uid', user.id)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 3));
 
       _state = AuthAuthenticated(user, profile);
     } catch (e) {
       debugPrint('⚠️ Failed to load profile: $e');
-      _state = AuthAuthenticated(user, null);
+      _state = AuthError('Network Error. Could not load profile. Please check your connection.');
+      try {
+        await _client.auth.signOut(); // Force clear bad session
+      } catch (_) {}
     }
     notifyListeners();
   }
@@ -113,44 +135,84 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<String?> _resolveEmailForIdentifier(String identifier) async {
-    final cleanId = identifier.trim();
-    if (cleanId.isEmpty) return null;
-    if (cleanId.contains('@')) return cleanId;
 
+  Future<PhoneLookupResult> checkPhoneNumber(String phone) async {
     try {
-      final profile = await _client
-          .from('profiles')
-          .select('email')
-          .eq('contact', cleanId)
-          .maybeSingle();
-      final profileEmail = profile?['email']?.toString().trim();
-      if (profileEmail != null && profileEmail.isNotEmpty) {
-        return profileEmail;
-      }
-    } catch (_) {}
-
-    try {
-      final student = await _client
-          .from('students')
-          .select('email')
-          .eq('reg_no', cleanId)
-          .maybeSingle();
-      final studentEmail = student?['email']?.toString().trim();
-      if (studentEmail != null && studentEmail.isNotEmpty) {
-        return studentEmail;
-      }
-    } catch (_) {}
-
-    return '$cleanId@gokulshree.local';
+      final response = await _client
+          .rpc('lookup_user_by_phone', params: {'p_phone': phone.trim()})
+          .timeout(const Duration(seconds: 5));
+      return PhoneLookupResult(
+        isDuplicate: response['isDuplicate'] ?? false,
+        isFound: response['isFound'] ?? false,
+        hasAuthAccount: response['hasAuthAccount'] ?? false,
+        email: response['email'],
+        role: response['role'],
+      );
+    } on TimeoutException {
+      debugPrint('Error: checkPhoneNumber timed out');
+      throw Exception('Network timeout. Please check your internet connection.');
+    } catch (e) {
+      debugPrint('Error looking up phone number: $e');
+      throw Exception('Failed to look up phone number. Please try again.');
+    }
   }
 
+  /// Register a user for the first time via phone number
+  Future<void> registerWithPhone({
+    required String phone,
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    _state = AuthLoading();
+    notifyListeners();
+
+    try {
+      // 1. Sign up the user (this creates auth.users)
+      final authResponse = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'name': name.trim(),
+          'display_name': name.trim(),
+          'phone': phone.trim(),
+        },
+      );
+
+      if (authResponse.user == null) {
+        _state = AuthError('Registration failed.');
+        notifyListeners();
+        return;
+      }
+
+      // 2. Link auth user to entity
+      final linkResponse = await _client.rpc('link_auth_user_to_entity', params: {
+        'p_phone': phone.trim(),
+        'p_auth_uid': authResponse.user!.id,
+        'p_email': email.trim(),
+        'p_name': name.trim(),
+      });
+
+      if (linkResponse['success'] == true) {
+        await _loadProfile(authResponse.user!);
+      } else {
+        _state = AuthError('Failed to link account: ');
+        notifyListeners();
+      }
+    } on AuthException catch (e) {
+      _state = AuthError(e.message);
+      notifyListeners();
+    } catch (e) {
+      _state = AuthError('Registration error: ');
+      notifyListeners();
+    }
+  }
   /// Send OTP to Email
   Future<void> sendEmailOtp({required String email}) async {
     _state = AuthLoading();
     notifyListeners();
 
-    if (email.endsWith('@gokulshree.local')) {
+    if (email.endsWith('@${EnvConfig.authEmailDomain}')) {
       _state = AuthError(
         'OTP login is not supported for mobile numbers (requires a configured SMS gateway). Please use Password login or enter a valid email address.',
       );
@@ -202,43 +264,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// Sign in with mobile number (maps to internal email) or direct email
-  Future<void> signInWithMobile({
-    required String identifier,
-    required String password,
-  }) async {
-    _state = AuthLoading();
-    notifyListeners();
 
-    try {
-      final email = await _resolveEmailForIdentifier(identifier);
-      if (email == null || email.isEmpty) {
-        _state = AuthError(
-          'Please enter a valid mobile number, registration number, or email.',
-        );
-        notifyListeners();
-        return;
-      }
-
-      final response = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (response.user != null) {
-        await _loadProfile(response.user!);
-      } else {
-        _state = AuthError('Login failed. Invalid credentials.');
-        notifyListeners();
-      }
-    } on AuthException catch (e) {
-      _state = AuthError(e.message);
-      notifyListeners();
-    } catch (e) {
-      _state = AuthError('Login failed: ${e.toString()}');
-      notifyListeners();
-    }
-  }
 
   /// Admin login
   Future<void> adminLogin({
@@ -272,14 +298,21 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   }
 
   /// Reset password
-  Future<bool> resetPassword(String email) async {
+  Future<bool> resetPassword(String identifier) async {
     try {
-      final resolvedEmail = await _resolveEmailForIdentifier(email);
-      if (resolvedEmail == null || resolvedEmail.isEmpty) {
+      String? email;
+      if (identifier.contains('@')) {
+        email = identifier;
+      } else {
+        final lookup = await checkPhoneNumber(identifier);
+        email = lookup.email;
+      }
+      
+      if (email == null || email.isEmpty) {
         return false;
       }
 
-      await _client.auth.resetPasswordForEmail(resolvedEmail);
+      await _client.auth.resetPasswordForEmail(email);
       return true;
     } catch (e) {
       return false;

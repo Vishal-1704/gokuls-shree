@@ -8,7 +8,9 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 /// Three tabs: Pending Student Registrations, Pending Marksheets, Pending Certificates.
 /// ONLY super_admin can reach this screen (enforced by router guard).
 class SuperAdminApprovalsScreen extends ConsumerStatefulWidget {
-  const SuperAdminApprovalsScreen({super.key});
+  final int? branchId;
+
+  const SuperAdminApprovalsScreen({super.key, this.branchId});
 
   @override
   ConsumerState<SuperAdminApprovalsScreen> createState() =>
@@ -45,9 +47,9 @@ class _SuperAdminApprovalsScreenState
     try {
       final repo = ref.read(adminRepositoryProvider);
       final results = await Future.wait([
-        repo.getPendingStudents(),
-        repo.getPendingDocuments(),
-        repo.getPendingExperienceCerts(),
+        repo.getPendingStudents(branchId: widget.branchId),
+        repo.getPendingDocuments(branchId: widget.branchId),
+        repo.getPendingExperienceCerts(branchId: widget.branchId),
       ]);
 
       final students = results[0] as List<Map<String, dynamic>>;
@@ -413,6 +415,8 @@ class _SuperAdminApprovalsScreenState
           ],
           bottom: TabBar(
             controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             indicatorColor: AppColors.goldCta,
             labelColor: AppColors.goldCta,
             unselectedLabelColor: AppColors.textMuted,
@@ -610,6 +614,8 @@ class _SuperAdminApprovalsScreenState
             ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppColors.goldCta),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],
@@ -690,8 +696,11 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     children: [
                       Text(
                         widget.title,
-                        style: AppTypography.headingSm.copyWith(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyLg.copyWith(
                           color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
@@ -721,6 +730,29 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                  color: AppColors.inkNavy700,
+                  onSelected: (val) {
+                    if (val == 'details') {
+                      widget.onViewDetails();
+                    } else if (val == 'reject' && widget.onReject != null) {
+                      _handle(widget.onReject!);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'details',
+                      child: Text('View Details', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    if (widget.onReject != null)
+                      const PopupMenuItem(
+                        value: 'reject',
+                        child: Text('Reject Request', style: TextStyle(color: Colors.red)),
+                      ),
+                  ],
+                ),
               ],
             ),
             // Details
@@ -746,52 +778,21 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                 ),
               )
             else
-              Row(
-                children: [
-                  if (widget.onReject != null) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red.shade300,
-                          side: BorderSide(color: Colors.red.shade800),
-                        ),
-                        onPressed: () => _handle(widget.onReject!),
-                        icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Reject'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.goldCta,
-                        side: const BorderSide(color: AppColors.goldCta),
-                      ),
-                      onPressed: widget.onViewDetails,
-                      icon: const Icon(Icons.info_outline, size: 16),
-                      label: const Text('Details'),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: AppColors.textPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: AppColors.textPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () => _handle(widget.onApprove),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: Text(
-                        widget.approveBtnLabel,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
+                  onPressed: () => _handle(widget.onApprove),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: Text(widget.approveBtnLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
               ),
           ],
         ),

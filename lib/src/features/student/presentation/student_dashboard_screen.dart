@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_qr_scanner.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/features/student/presentation/widgets/digital_id_card.dart';
 import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_notice_board.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gokul_shree_app/src/core/widgets/responsive_container.dart';
+import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
+import 'package:gokul_shree_app/src/core/services/update_service.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -19,8 +20,18 @@ class StudentDashboardScreen extends ConsumerStatefulWidget {
 
 class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final repo = ref.watch(studentRepositoryProvider);
+    final profileAsync = ref.watch(studentProfileProvider);
+    final isApproved = ref.watch(sessionProvider)?.isApproved ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
@@ -28,56 +39,71 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
         child: ResponsiveContainer(
           padding: EdgeInsets.zero,
           child: RefreshIndicator(
-          onRefresh: () async => setState(() {}),
-          child: CustomScrollView(
-            slivers: [
-              _buildAppBar(),
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverToBoxAdapter(
-                  child: FutureBuilder<Map<String, dynamic>>(
-                    future: repo.getStudentProfile(),
-                    builder: (context, profileSnap) {
-                      if (profileSnap.connectionState == ConnectionState.waiting) return _buildLoading();
-                      if (profileSnap.hasError) {
-                        return Center(
-                          child: Text('Error loading profile: ${profileSnap.error}', 
-                          style: AppTypography.bodySm.copyWith(color: Colors.redAccent)),
-                        );
-                      }
-                      final profile = profileSnap.data ?? {};
-                      
-                      return Column(
+            onRefresh: () async {
+              ref.invalidate(studentProfileProvider);
+              ref.invalidate(studentAttendanceStatsProvider);
+              ref.invalidate(studentFeeSnapshotProvider);
+              ref.invalidate(studentAcademicCalendarProvider);
+            },
+            child: CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverToBoxAdapter(
+                    child: profileAsync.when(
+                      loading: () => _buildLoading(),
+                      error: (err, stack) => Center(
+                        child: Text(
+                          'Error loading profile: $err',
+                          style: AppTypography.bodySm.copyWith(color: Colors.redAccent),
+                        ),
+                      ),
+                      data: (profile) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (!isApproved)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 24),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withOpacity(0.1),
+                                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline_rounded, color: AppColors.warning),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Your account is pending approval by an admin. Some features may not be available.',
+                                      style: AppTypography.bodySm.copyWith(color: AppColors.warning),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           DigitalIDCard(data: profile),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
                           
-                          _buildSectionTitle('Academic Progress'),
-                          const SizedBox(height: 12),
-                          _buildAttendanceAndFees(repo),
+                          _buildSectionTitle('Quick Actions'),
+                          const SizedBox(height: 16),
+                          _buildQuickActionsGrid(context),
                           
-                          const SizedBox(height: 24),
-                          _buildSectionTitle('Notice Board'),
-                          const SizedBox(height: 12),
-                          StudentNoticeBoard(repo: repo),
-                          
-                          const SizedBox(height: 24),
-                          _buildQuickActions(),
                           const SizedBox(height: 100),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildAppBar() {
     return SliverAppBar(
@@ -86,7 +112,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('GOKUL SHREE', style: AppTypography.labelMd.copyWith(color: AppColors.goldCta, letterSpacing: 2)),
+          Text(EnvConfig.shortName.toUpperCase(), style: AppTypography.labelMd.copyWith(color: AppColors.goldCta, letterSpacing: 2)),
           Text('Student Dashboard', style: AppTypography.headingSm),
         ],
       ),
@@ -97,102 +123,66 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     );
   }
 
-
-
-  Widget _buildAttendanceAndFees(StudentRepository repo) {
-    return Row(
+  Widget _buildQuickActionsGrid(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.5,
       children: [
-        Expanded(
-          child: FutureBuilder<Map<String, dynamic>>(
-            future: repo.getAttendanceStats(),
-            builder: (context, snap) {
-              final stats = snap.data ?? {'percentage': 0, 'status': '...'};
-              return _buildSmallCard(
-                title: 'Attendance',
-                value: '${stats['percentage']}%',
-                icon: Icons.calendar_today_rounded,
-                color: Colors.blueAccent,
-                onTap: () => context.push('/attendance'),
-              );
-            }
-          ),
+        _buildActionCard(
+          title: 'Attendance',
+          icon: Icons.calendar_today_rounded,
+          color: Colors.blueAccent,
+          onTap: () => context.push('/attendance'),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: FutureBuilder<Map<String, dynamic>>(
-            future: repo.getFeeSnapshot(),
-            builder: (context, snap) {
-              final snapshot = snap.data ?? {'all_paid': false};
-              final isPaid = snapshot['all_paid'] == true;
-              return _buildSmallCard(
-                title: 'Fee Status',
-                value: isPaid ? 'PAID' : 'DUE',
-                icon: Icons.account_balance_wallet_rounded,
-                color: isPaid ? AppColors.success : Colors.orangeAccent,
-                onTap: () => context.push('/fee-status'),
-              );
-            }
-          ),
+        _buildActionCard(
+          title: 'Fee Status',
+          icon: Icons.account_balance_wallet_rounded,
+          color: AppColors.success,
+          onTap: () => context.push('/fees'),
+        ),
+        _buildActionCard(
+          title: 'Calendar',
+          icon: Icons.event_note_rounded,
+          color: Colors.orangeAccent,
+          onTap: () => context.push('/calendar'),
+        ),
+        _buildActionCard(
+          title: 'Notice Board',
+          icon: Icons.campaign_rounded,
+          color: Colors.purpleAccent,
+          onTap: () => context.push('/notices'),
         ),
       ],
     );
   }
 
-  Widget _buildSmallCard({required String title, required String value, required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildActionCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.inkNavy800,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider10),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 12),
-            Text(title, style: AppTypography.labelMd.copyWith(color: AppColors.textSecondary)),
-            Text(value, style: AppTypography.headingSm.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Quick Actions'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildActionIcon(Icons.assignment_rounded, 'Results', () => context.push('/results')),
-            _buildActionIcon(Icons.description_rounded, 'Documents', () => context.push('/student/docs')),
-            _buildActionIcon(Icons.quiz_rounded, 'Mock Test', () {}),
-            _buildActionIcon(Icons.support_agent_rounded, 'Support', () {}),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionIcon(IconData icon, String label, VoidCallback onTap) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.inkNavy800, borderRadius: BorderRadius.circular(16)),
-              child: Icon(icon, color: AppColors.textPrimary, size: 24),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 8),
-            Text(label, style: AppTypography.labelMd.copyWith(fontSize: 11)),
+            const SizedBox(height: 12),
+            Text(title, style: AppTypography.labelMd.copyWith(color: AppColors.textPrimary)),
           ],
         ),
       ),

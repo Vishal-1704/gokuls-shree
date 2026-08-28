@@ -42,26 +42,12 @@ class DigitalIDCard extends StatelessWidget {
                       const Spacer(),
                       _buildIDDetail('REG NO', data['reg_no'] ?? 'N/A'),
                       const SizedBox(height: 8),
-                      _buildIDDetail('SESSION', '2024-25'),
+                      _buildIDDetail('SESSION', _getCurrentSession()),
                     ],
                   ),
                 ),
                 const SizedBox(width: 16),
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(8)),
-                      child: QrImageView(
-                        data: 'STU-${data['id']}',
-                        version: QrVersions.auto,
-                        size: 80.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('SCAN FOR PROFILE', style: AppTypography.labelSm.copyWith(fontSize: 8, color: AppColors.goldCta)),
-                  ],
-                ),
+                const SizedBox(),
               ],
             ),
           ),
@@ -78,5 +64,16 @@ class DigitalIDCard extends StatelessWidget {
         Text(value, style: AppTypography.bodyMd.copyWith(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
       ],
     );
+  }
+
+  String _getCurrentSession() {
+    final now = DateTime.now();
+    final year = now.year;
+    // Assuming academic session starts in April (4) or later
+    if (now.month >= 4) {
+      return '$year-${(year + 1).toString().substring(2)}';
+    } else {
+      return '${year - 1}-${year.toString().substring(2)}';
+    }
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
+
 
 class TeacherStudentsScreen extends ConsumerWidget {
   const TeacherStudentsScreen({super.key});
@@ -9,6 +11,8 @@ class TeacherStudentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studentsAsync = ref.watch(adminStudentsProvider);
+    final subjectsAsync = ref.watch(teacherSubjectsProvider);
+
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
@@ -20,8 +24,22 @@ class TeacherStudentsScreen extends ConsumerWidget {
         ],
       ),
       body: studentsAsync.when(
-        data: (students) {
-          if (students.isEmpty) {
+        data: (allStudents) {
+          return subjectsAsync.when(
+            data: (subjects) {
+              // Extract course IDs the teacher teaches
+              final teacherCourseIds = subjects.map((s) => s['course_id']).where((id) => id != null).toSet();
+              
+              // Filter students
+              final students = allStudents.where((s) {
+                 final cId = s['course']; // or whatever the course id field is
+                 // If we can't determine, just return all for now to avoid breaking
+                 if (teacherCourseIds.isEmpty) return true; 
+                 return teacherCourseIds.contains(cId);
+              }).toList();
+              
+              if (students.isEmpty) {
+
             return const Center(
               child: Text('No students found for your branch', style: TextStyle(color: AppColors.textSecondary)),
             );
@@ -62,9 +80,84 @@ class TeacherStudentsScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: AppColors.inkNavy800,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                      builder: (context) {
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: AppColors.goldCta.withOpacity(0.2),
+                                    child: Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(color: AppColors.goldCta, fontSize: 20)),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                                        Text('Reg No: $regNo', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              const Text('Course Details', style: TextStyle(color: AppColors.goldCta, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Text(courseName, style: const TextStyle(color: AppColors.textPrimary)),
+                              const SizedBox(height: 16),
+                              
+                              const Text('Performance & Records', style: TextStyle(color: AppColors.goldCta, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.assessment_outlined, color: AppColors.textSecondary),
+                                title: const Text('View Marks & Results', style: TextStyle(color: AppColors.textPrimary)),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+                                onTap: () {
+                                  // Navigate to marks view (mock)
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marks view not available for this student.')));
+                                },
+                              ),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.how_to_reg_outlined, color: AppColors.textSecondary),
+                                title: const Text('Attendance Summary', style: TextStyle(color: AppColors.textPrimary)),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+                                onTap: () {
+                                  // Navigate to attendance view (mock)
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance summary coming soon.')));
+                                },
+                              ),
+                              const SizedBox(height: 32),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               );
             },
+          );
+        },
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.textSecondary)),
+            error: (error, _) => Center(
+              child: Text('Unable to load subjects: $error', style: const TextStyle(color: AppColors.textSecondary)),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.textSecondary)),

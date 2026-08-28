@@ -1,177 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
+import '../../exams/presentation/exam_list_screen.dart';
+import 'student_test_list_screen.dart';
+import 'student_exam_report_screen.dart';
+import '../../documents/presentation/my_documents_screen.dart';
 
 class StudentAcademicsScreen extends ConsumerStatefulWidget {
   const StudentAcademicsScreen({super.key});
 
   @override
-  ConsumerState<StudentAcademicsScreen> createState() =>
-      _StudentAcademicsScreenState();
+  ConsumerState<StudentAcademicsScreen> createState() => _StudentAcademicsScreenState();
 }
 
-class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen>
-    with SingleTickerProviderStateMixin {
+class _StudentAcademicsScreenState extends ConsumerState<StudentAcademicsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final Color _primaryColor = const Color(0xFF135bec);
-  final Color _bgLight = const Color(0xFFf6f6f8);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final calendarAsync = ref.watch(studentAcademicCalendarProvider);
-
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         title: const Text(
-          'Academics',
+          'Academics Hub',
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
         backgroundColor: AppColors.inkNavy800,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.goldCta,
           unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.goldCta,
+          indicatorWeight: 3,
+          isScrollable: true,
           tabs: const [
-            Tab(text: 'Calendar'),
-            Tab(text: 'Updates'),
+            Tab(text: 'Online Tests'),
+            Tab(text: 'Exams'),
+            Tab(text: 'Exam Report'),
+            Tab(text: 'Study Material'),
+            Tab(text: 'Documents'),
           ],
         ),
       ),
-      body: calendarAsync.when(
-        data: (items) => TabBarView(
-          controller: _tabController,
-          children: [
-            _buildWorkList(items.where((item) => item['type'] == 'exam').toList(), 'Academic Calendar'),
-            _buildWorkList(items.where((item) => item['type'] != 'exam').toList(), 'Updates'),
-          ],
-        ),
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
-        error: (error, _) => Center(
-          child: Text('Unable to load academics: $error', style: const TextStyle(color: AppColors.textSecondary)),
-        ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          const _OnlineTestsTab(),
+          const _ExamsTab(),
+          const _ExamReportTab(),
+          const _StudyMaterialTab(),
+          const _DocumentsTab(),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildWorkList(List<Map<String, dynamic>> items, String emptyLabel) {
-    if (items.isEmpty) {
-      return Center(
-        child: Text('No $emptyLabel items available', style: const TextStyle(color: AppColors.textSecondary)),
-      );
-    }
+class _OnlineTestsTab extends StatelessWidget {
+  const _OnlineTestsTab();
+  @override
+  Widget build(BuildContext context) {
+    // Uses the new separated tests screen (to be created)
+    return const StudentTestListGrid(assessmentType: 'test');
+  }
+}
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final title = (item['text'] ?? item['title'] ?? 'Update').toString();
-        final due = (item['date'] ?? 'TBA').toString();
-        final color = item['type'] == 'exam' ? Colors.blue : Colors.orange;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.inkNavy900,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+class _ExamsTab extends StatelessWidget {
+  const _ExamsTab();
+  @override
+  Widget build(BuildContext context) {
+    // Uses the new separated exams screen (to be created)
+    return const StudentTestListGrid(assessmentType: 'exam');
+  }
+}
+
+class _ExamReportTab extends StatelessWidget {
+  const _ExamReportTab();
+  @override
+  Widget build(BuildContext context) {
+    return const StudentExamReportGrid();
+  }
+}
+
+// Removed _AssessmentsTab since it is replaced by Tests and Exams
+
+class _DocumentsTab extends StatelessWidget {
+  const _DocumentsTab();
+  
+  @override
+  Widget build(BuildContext context) {
+    // We use the exact body from MyDocumentsScreen
+    return const MyDocumentsBody();
+  }
+}
+
+class _StudyMaterialTab extends StatelessWidget {
+  const _StudyMaterialTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: AppColors.inkNavy800,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.menu_book_rounded,
+              size: 64,
+              color: AppColors.textMuted,
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    title.isNotEmpty ? title[0] : '?',
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['type'] == 'exam' ? 'Exam' : 'Notice',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(due, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  item['type'] == 'exam' ? 'Exam' : 'Notice',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          const Text(
+            'No Study Material',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          const Text(
+            'Course materials will appear here\nonce uploaded by your teachers.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }

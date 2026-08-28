@@ -8,7 +8,9 @@ import 'package:gokul_shree_app/src/features/admin/presentation/admin_add_staff_
 import 'package:url_launcher/url_launcher.dart';
 
 class AdminStaffDirectoryScreen extends ConsumerStatefulWidget {
-  const AdminStaffDirectoryScreen({super.key});
+  final int? branchId;
+
+  const AdminStaffDirectoryScreen({super.key, this.branchId});
 
   @override
   ConsumerState<AdminStaffDirectoryScreen> createState() =>
@@ -34,7 +36,7 @@ class _AdminStaffDirectoryScreenState
     _loadError = null;
     try {
       final repo = ref.read(adminRepositoryProvider);
-      final data = await repo.getStaff();
+      final data = await repo.getStaff(branchId: widget.branchId);
       if (mounted) {
         setState(() {
           _staffList = data;

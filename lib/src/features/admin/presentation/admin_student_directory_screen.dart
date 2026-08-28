@@ -8,7 +8,9 @@ import 'package:gokul_shree_app/src/features/admin/presentation/admin_fee_collec
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_admit_card_screen.dart';
 
 class AdminStudentDirectoryScreen extends ConsumerStatefulWidget {
-  const AdminStudentDirectoryScreen({super.key});
+  final int? branchId;
+
+  const AdminStudentDirectoryScreen({super.key, this.branchId});
 
   @override
   ConsumerState<AdminStudentDirectoryScreen> createState() =>
@@ -63,6 +65,7 @@ class _AdminStudentDirectoryScreenState
             pageSize: _pageSize,
             query: _searchController.text,
             statusFilter: _statusFilter,
+            branchId: widget.branchId,
           );
 
       if (!mounted) return;
@@ -154,6 +157,13 @@ class _AdminStudentDirectoryScreenState
                 value: 'inactive',
                 child: Text(
                   'Inactive only',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'pending',
+                child: Text(
+                  'Pending Approval',
                   style: TextStyle(color: AppColors.textPrimary),
                 ),
               ),
@@ -271,8 +281,9 @@ class _AdminStudentDirectoryScreenState
                                     Icons.person,
                                     color: AppColors.textSecondary,
                                   ),
-                            onBackgroundImageError: (_, __) =>
-                                const Icon(Icons.person),
+                            onBackgroundImageError: hasPhoto 
+                                ? (_, __) {} 
+                                : null,
                           ),
                           title: Row(
                             children: [

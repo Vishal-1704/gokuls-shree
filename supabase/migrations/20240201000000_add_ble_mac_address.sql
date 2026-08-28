@@ -1,0 +1,2 @@
+ALTER TABLE students ADD COLUMN IF NOT EXISTS ble_mac_address VARCHAR(100) UNIQUE;
+ALTER TABLE student_attendance ADD COLUMN IF NOT EXISTS course_id INT;

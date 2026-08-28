@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
@@ -85,11 +86,11 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _ContactInfoCard(
+            _ContactInfoCard(
               icon: Icons.location_on,
               title: 'Our Campus',
               content:
-                  'Gokul Shree School of Management,\nVaranasi, Uttar Pradesh, India',
+                  '${EnvConfig.addressLine1},\n${EnvConfig.addressLine2}',
             ),
             const SizedBox(height: 12),
             const _ContactInfoCard(
@@ -98,10 +99,10 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
               content: '+91-9628281020',
             ),
             const SizedBox(height: 12),
-            const _ContactInfoCard(
+            _ContactInfoCard(
               icon: Icons.email,
               title: 'Email',
-              content: 'info@gokulshreeschool.com',
+              content: EnvConfig.supportEmail,
             ),
             const SizedBox(height: 32),
             Text(

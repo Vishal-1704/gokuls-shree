@@ -5,6 +5,10 @@ import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 
 class TeacherAttendanceScreen extends ConsumerStatefulWidget {
   const TeacherAttendanceScreen({super.key});
@@ -14,10 +18,17 @@ class TeacherAttendanceScreen extends ConsumerStatefulWidget {
 }
 
 class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScreen> {
-  bool _isLoading = true;
+  bool _isLoading = false;
   List<Map<String, dynamic>> _students = [];
-  final Map<int, String> _attendanceMap = {}; // id -> 'P', 'A', 'L'
-  String _selectedClass = 'DCA - 1st Sem';
+  final Map<int, String> _attendanceMap = {}; // id -> 'P', 'A'
+  
+  bool _isScanning = false;
+  int _scanCount = 0;
+  bool _showManualList = false;
+  
+  StreamSubscription<List<ScanResult>>? _scanSubscription;
+  Timer? _scanTimer;
+  int _scanTimeRemaining = 30;
 
   @override
   void initState() {
@@ -29,15 +40,19 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(adminRepositoryProvider);
-      final list = await repo.getStudents();
-      setState(() {
-        _students = list;
-        // Initialize all as Present by default
-        for (var s in _students) {
-          _attendanceMap[s['id']] = 'P';
-        }
-        _isLoading = false;
-      });
+      final profileId = supabase.auth.currentUser?.id;
+      if (profileId != null) {
+        // Fetch only students enrolled in this teacher's subjects
+        final list = await repo.getStudentsForTeacher(profileId);
+        setState(() {
+          _students = list;
+          // Initialize all as Absent by default (Smart roll call marks them Present)
+          for (var s in _students) {
+            _attendanceMap[s['id']] = 'A';
+          }
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -45,6 +60,86 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
           SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
         );
       }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scanSubscription?.cancel();
+    _scanTimer?.cancel();
+    super.dispose();
+  }
+  
+  Future<void> _startBleScan() async {
+    // Request Permissions
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+    ].request();
+
+    if (statuses.values.any((status) => status.isDenied)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bluetooth & Location permissions are required for Smart Roll Call'), backgroundColor: AppColors.danger),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isScanning = true;
+      _scanTimeRemaining = 30;
+    });
+
+    try {
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 30));
+    } catch (e) {
+      debugPrint("Scan Error: $e");
+    }
+
+    _scanTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_scanTimeRemaining > 0) {
+          _scanTimeRemaining--;
+        } else {
+          _stopBleScan();
+        }
+      });
+    });
+
+    _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
+      for (ScanResult r in results) {
+        final macAddress = r.device.remoteId.str.toLowerCase();
+        
+        // Find if any student matches this MAC
+        for (var student in _students) {
+          final studentMac = (student['ble_mac_address']?.toString() ?? '').toLowerCase();
+          if (studentMac.isNotEmpty && studentMac == macAddress) {
+            // Found a match! Mark them present
+            setState(() {
+              _attendanceMap[student['id']] = 'P';
+            });
+          }
+        }
+      }
+    });
+  }
+
+  void _stopBleScan() {
+    FlutterBluePlus.stopScan();
+    _scanTimer?.cancel();
+    _scanSubscription?.cancel();
+    
+    setState(() {
+      _isScanning = false;
+      _scanCount++;
+    });
+    
+    if (mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Smart Roll Call session ended.'), backgroundColor: AppColors.success),
+       );
     }
   }
 
@@ -65,12 +160,10 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
 
       for (final student in _students) {
         final id = student['id'];
-        final statusCode = _attendanceMap[id] ?? 'P';
+        final statusCode = _attendanceMap[id] ?? 'A';
         final status = statusCode == 'A'
             ? 'absent'
-            : statusCode == 'L'
-                ? 'late'
-                : 'present';
+            : 'present';
 
         await supabase.from('student_attendance').upsert({
           'student_id': id,
@@ -78,67 +171,33 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
           'status': status,
           'marked_at': DateTime.now().toIso8601String(),
           'marked_by': supabase.auth.currentUser?.id,
+          'course_id': student['course'],
         }, onConflict: 'student_id,attendance_date');
       }
 
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Attendance saved to the database.'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text('Attendance saved successfully!'), backgroundColor: AppColors.success),
         );
+        Navigator.pop(context);
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save attendance: $e'),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Failed to save attendance: $e'), backgroundColor: AppColors.danger),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showBleBroadcaster() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.inkNavy900,
-        title: const Text('Smart Attendance', style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
-          'Smart Attendance (BLE + QR) requires native hardware access (Bluetooth & Camera).\n\n'
-          'Please build and run the app on a physical Android or iOS device to test this feature.',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it', style: TextStyle(color: AppColors.goldCta)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        backgroundColor: AppColors.inkNavy800,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Mark Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(_selectedClass, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
-          ],
-        ),
+        title: const Text('Mark Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.inkNavy900,
         actions: [
           IconButton(
             onPressed: _fetchStudents,
@@ -148,20 +207,81 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
       ),
       body: Column(
         children: [
-          _buildQuickActionHeader(),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.success))
-                : _buildStudentList(),
-          ),
-          _buildBottomAction(),
+          if (!_showManualList) _buildSmartRollCallUI(),
+          if (_showManualList) ...[
+            _buildQuickActionHeader(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.success))
+                  : _buildStudentList(),
+            ),
+            _buildBottomAction(),
+          ]
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showBleBroadcaster,
-        backgroundColor: AppColors.goldCta,
-        icon: const Icon(Icons.bluetooth_audio_rounded, color: AppColors.inkNavy900),
-        label: const Text('Smart Roll Call', style: TextStyle(color: AppColors.inkNavy900, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildSmartRollCallUI() {
+    return Expanded(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.bluetooth_searching_rounded, 
+                size: 100, 
+                color: _isScanning ? AppColors.goldCta : AppColors.textMuted
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Smart Roll Call',
+                style: AppTypography.headingLg.copyWith(color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _isScanning 
+                  ? 'Scanning for students... ($_scanTimeRemaining s)\nAutomatically marking them present.'
+                  : 'Tap below to start a 30-second Bluetooth scan for nearby students.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyLg.copyWith(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.goldCta,
+                    foregroundColor: AppColors.inkNavy900,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: _isScanning ? null : _startBleScan,
+                  icon: _isScanning 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.inkNavy900))
+                    : const Icon(Icons.radar_rounded, size: 24),
+                  label: Text(_isScanning ? 'Scanning...' : 'Scan for Attendance', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Manual fallback unlock logic
+              if (_scanCount >= 2 && !_isScanning)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showManualList = true;
+                    });
+                  },
+                  icon: const Icon(Icons.edit_note_rounded, color: AppColors.textPrimary),
+                  label: const Text('Mark Attendance Manually', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                ),
+              if (_scanCount < 2 && _scanCount > 0 && !_isScanning)
+                const Text('Run scan one more time to unlock manual override', style: TextStyle(color: AppColors.warning, fontSize: 12)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -171,7 +291,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.inkNavy900,
-        border: Border(bottom: BorderSide(color: AppColors.divider10)),
+        border: const Border(bottom: BorderSide(color: AppColors.divider10)),
       ),
       child: Row(
         children: [
@@ -199,7 +319,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
 
   Widget _buildStudentList() {
     if (_students.isEmpty) {
-      return Center(child: Text('No students found in this class.', style: AppTypography.bodyLg));
+      return Center(child: Text('No students found in your subjects.', style: AppTypography.bodyLg));
     }
 
     return ListView.builder(
@@ -208,11 +328,12 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
       itemBuilder: (context, index) {
         final student = _students[index];
         final id = student['id'];
-        final status = _attendanceMap[id] ?? 'P';
+        final status = _attendanceMap[id] ?? 'A';
 
+        // Use correct DB columns: reg_no, contact (instead of phone)
         return _AttendanceTile(
           name: student['name'] ?? 'Unknown',
-          reg: student['registration_number'] ?? 'N/A',
+          reg: student['reg_no'] ?? 'N/A',
           photo: student['photo_url'],
           status: status,
           onStatusChanged: (newStatus) {
@@ -226,9 +347,9 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
   Widget _buildBottomAction() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.inkNavy800,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
       ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(

@@ -67,6 +67,23 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
     required String phone,
     String? email,
   }) async {}
+
+  @override
+  Future<PhoneLookupResult> checkPhoneNumber(String phone) async {
+    return PhoneLookupResult(
+      isDuplicate: false,
+      isFound: false,
+      hasAuthAccount: false,
+    );
+  }
+
+  @override
+  Future<void> registerWithPhone({
+    required String phone,
+    required String email,
+    required String password,
+    required String name,
+  }) async {}
 }
 
 void main() {

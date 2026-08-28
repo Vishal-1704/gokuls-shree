@@ -6,8 +6,8 @@ plugins {
 }
 
 android {
-    namespace = "com.gokulshree.gokul_shree_app"
-    compileSdk = 36
+    namespace = "com.vishal.gokulShree_school_of_management_and_technology_pvt_ltd"
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -21,20 +21,27 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.gokulshree.gokul_shree_app"
+        applicationId = "com.vishal.gokulShree_school_of_management_and_technology_pvt_ltd"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = "upload"
+            keyPassword = "gokulshree"
+            storeFile = file("key.jks")
+            storePassword = "gokulshree"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

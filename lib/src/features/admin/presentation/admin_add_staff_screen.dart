@@ -223,7 +223,10 @@ final hrDetails = {
                   prefixIcon: Icon(Icons.badge, color: AppColors.textMuted),
                   labelStyle: TextStyle(color: AppColors.textSecondary),
                 ),
-                items: ['Teacher', 'Admin', 'Driver', 'Cleaner', 'Security']
+                items: {
+                  'Teacher', 'Admin', 'Driver', 'Cleaner', 'Security',
+                  _selectedRole
+                }
                     .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(color: AppColors.textPrimary))))
                     .toList(),
                 onChanged: widget.staff != null

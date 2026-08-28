@@ -75,8 +75,8 @@ class BackendService {
       // Deployed API variants.
       '$websiteBase/api/v1/documents/generate_pdf',
       '$websiteBase/v1/documents/generate_pdf',
-      'https://www.gokulshreeschool.com/api/v1/documents/generate_pdf',
-      'https://www.gokulshreeschool.com/v1/documents/generate_pdf',
+      '${websiteBase.replaceFirst('://', '://www.')}/api/v1/documents/generate_pdf',
+      '${websiteBase.replaceFirst('://', '://www.')}/v1/documents/generate_pdf',
     ];
 
     final normalized = <String>[];

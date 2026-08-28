@@ -4,6 +4,8 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/widgets/custom_button.dart';
 import 'package:gokul_shree_app/src/core/widgets/custom_text_field.dart';
 
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+
 class FranchiseSetupScreen extends ConsumerStatefulWidget {
   const FranchiseSetupScreen({super.key});
 
@@ -82,11 +84,12 @@ class _FranchiseSetupScreenState extends ConsumerState<FranchiseSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
-        title: const Text('Franchise Setup'),
+        title: const Text('Franchise Setup', style: TextStyle(color: Colors.white)),
         elevation: 0,
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -97,13 +100,13 @@ class _FranchiseSetupScreenState extends ConsumerState<FranchiseSetupScreen> {
             children: [
               const Text(
                 'Complete your branch details to start managing students and staff.',
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
               const SizedBox(height: 32),
               CustomTextField(
                 controller: _nameController,
                 label: 'Branch/School Name',
-                hint: 'e.g. Gokul Shree - Madhepura',
+                hint: 'e.g. Your Institute Name - City',
                 icon: Icons.school_outlined,
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),

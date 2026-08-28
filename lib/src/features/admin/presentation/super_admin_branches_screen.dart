@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/branch_dashboard_screen.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
@@ -105,54 +106,13 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
     }
   }
 
-  Future<void> _deleteBranch(Map<String, dynamic> branch) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.inkNavy800,
-        title: const Text('Delete Branch?', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete branch "${branch['name']}"?\nThis action cannot be undone.', style: const TextStyle(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
+  void _showBranchDetails(Map<String, dynamic> branch) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BranchDashboardScreen(branch: branch),
       ),
     );
-
-    if (confirmed != true) return;
-
-    setState(() => _isLoading = true);
-    try {
-      final client = ref.read(supabaseClientProvider);
-      await client.from('branches').delete().eq('id', branch['id']);
-      ref.invalidate(branchesProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Branch deleted successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -247,6 +207,25 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                   style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                                color: AppColors.inkNavy700,
+                                onSelected: (val) {
+                                  if (val == 'edit') _addOrEditBranch(branch: branch);
+                                  if (val == 'toggle') _toggleStatus(branch);
+                                  if (val == 'delete') {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Feature coming soon'), backgroundColor: Colors.orange),
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: AppColors.textPrimary))),
+                                  PopupMenuItem(value: 'toggle', child: Text(isActive ? 'Deactivate' : 'Activate', style: TextStyle(color: isActive ? Colors.orange : Colors.green))),
+                                  const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -255,7 +234,9 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                               children: [
                                 const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
-                                Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                Expanded(
+                                  child: Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -265,7 +246,9 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                               children: [
                                 const Icon(Icons.phone_outlined, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
-                                Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                Expanded(
+                                  child: Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -284,27 +267,17 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                           ],
                           const SizedBox(height: 12),
                           const Divider(color: AppColors.divider10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton.icon(
-                                icon: const Icon(Icons.edit, size: 16, color: Colors.blue),
-                                label: const Text('Edit', style: TextStyle(color: Colors.blue)),
-                                onPressed: () => _addOrEditBranch(branch: branch),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.goldCta,
+                                side: const BorderSide(color: AppColors.goldCta),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                icon: Icon(isActive ? Icons.block : Icons.check_circle_outline, size: 16, color: isActive ? Colors.orange : Colors.green),
-                                label: Text(isActive ? 'Deactivate' : 'Activate', style: TextStyle(color: isActive ? Colors.orange : Colors.green)),
-                                onPressed: () => _toggleStatus(branch),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                                label: const Text('Delete', style: TextStyle(color: Colors.red)),
-                                onPressed: () => _deleteBranch(branch),
-                              ),
-                            ],
+                              onPressed: () => _showBranchDetails(branch),
+                              child: const Text('View Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
                           ),
                         ],
                       ),

@@ -3,6 +3,7 @@ import '../presentation/teacher_dashboard_screen.dart';
 import '../presentation/teacher_attendance_screen.dart';
 import '../presentation/teacher_students_screen.dart';
 import '../presentation/teacher_results_upload_screen.dart';
+import '../presentation/teacher_employment_details_screen.dart';
 import '../../auth/presentation/account_screen.dart';
 
 class TeacherRoutes {
@@ -23,5 +24,12 @@ class TeacherRoutes {
 
   static List<GoRoute> get standaloneRoutes => [
     GoRoute(path: '/teacher/upload-results', builder: (c, s) => const TeacherResultsUploadScreen()),
+    GoRoute(
+      path: '/teacher/employment-details',
+      builder: (context, state) {
+        final emp = state.extra as Map<String, dynamic>?;
+        return TeacherEmploymentDetailsScreen(emp: emp);
+      },
+    ),
   ];
 }

@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,7 +155,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Image.asset(
-                              'assets/images/school_logo.png',
+                              EnvConfig.logoAssetPath,
                               height: 40,
                               errorBuilder: (_, __, ___) =>
                                   const Icon(Icons.school, size: 40),

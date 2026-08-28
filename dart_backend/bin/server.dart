@@ -21,6 +21,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:dotenv/dotenv.dart' as dotenv;
 
+import '../lib/config/institute_config.dart';
 import '../lib/config/supabase_service.dart';
 import '../lib/routes/auth_routes.dart';
 import '../lib/routes/student_routes.dart';
@@ -28,13 +29,19 @@ import '../lib/routes/other_routes.dart';
 import '../lib/routes/documents_routes.dart';
 import '../lib/routes/employees_routes.dart';
 import '../lib/routes/download_routes.dart';
-import '../lib/routes/mock_auth_routes.dart';
 import '../lib/utils/logger.dart';
 
 void main() async {
   AppLogger.init();
-  // Load .env file
-  var env = dotenv.DotEnv(includePlatformEnvironment: true)..load();
+  // Load .env file (gracefully — in Docker containers, env vars come from
+  // the platform, not a .env file on disk)
+  final env = dotenv.DotEnv(includePlatformEnvironment: true);
+  try {
+    env.load();
+  } catch (_) {
+    // .env file doesn't exist in production container — that's fine,
+    // all vars are injected via Cloud Run / Docker env.
+  }
 
   // ── Environment ──────────────────────────────────────────────────────────
   final supabaseUrl    = env['SUPABASE_URL']         ?? '';
@@ -58,6 +65,13 @@ void main() async {
     supabaseUrl: supabaseUrl,
     serviceKey: serviceKey,
     anonKey: anonKey,
+  );
+
+  // ── Init institute branding (white-label — override per deployment) ──────
+  InstituteConfig.init(
+    legalName: env['INSTITUTE_LEGAL_NAME'],
+    shortName: env['INSTITUTE_SHORT_NAME'],
+    verifyBaseUrl: env['VERIFICATION_URL'],
   );
 
   // ── Build CORS handler ────────────────────────────────────────────────────
@@ -92,8 +106,6 @@ void main() async {
   router.mount('$apiBase/documents/',  buildDocumentsRouter().call);
   router.mount('$apiBase/employees/',  buildEmployeesRouter().call);
   router.mount('$apiBase/downloads/',  buildDownloadRouter().call);
-  router.mount('$apiBase/auth/mock/',  buildMockAuthRouter().call);
-  router.mount('$apiBase/mock/',       buildMockAuthRouter().call);
 
   // ── CORS preflight ────────────────────────────────────────────────────────
   // corsMiddleware only adds headers to whatever response comes back — it
@@ -118,7 +130,7 @@ void main() async {
       .addHandler(router.call);
 
   // ── Start server ──────────────────────────────────────────────────────────
-  final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
+  await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
 
   AppLogger.info('\n🚀 Gokul Shree Dart API — Port $port\n'
       '📍 NODE_ENV  : ${env['NODE_ENV'] ?? 'development'}\n'
@@ -152,12 +164,12 @@ Middleware _securityHeaders() {
 
 /// Request logger — Morgan-equivalent
 Middleware _requestLogger() {
+  // Read NODE_ENV once at startup, not per-request
+  final isDev = Platform.environment['NODE_ENV'] != 'production';
   return (Handler inner) => (Request req) async {
     final start = DateTime.now();
     final res   = await inner(req);
     final ms    = DateTime.now().difference(start).inMilliseconds;
-    final env   = dotenv.DotEnv(includePlatformEnvironment: true)..load();
-    final isDev = env['NODE_ENV'] != 'production';
 
     if (isDev) {
       AppLogger.info('[${res.statusCode}] ${req.method} /${req.url.path} — ${ms}ms');

@@ -1,6 +1,7 @@
 // lib/src/features/student/presentation/student_id_card_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -75,9 +76,9 @@ class StudentIdCardScreen extends ConsumerWidget {
                           child: const Icon(Icons.school_rounded, color: AppColors.goldCta, size: 20),
                         ),
                         const SizedBox(width: 10),
-                        const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('GOKUL SHREE', style: TextStyle(color: AppColors.inkNavy800, fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text('School of Mgmt & Technology', style: TextStyle(color: AppColors.inkNavy700, fontSize: 9)),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(EnvConfig.shortName.toUpperCase(), style: const TextStyle(color: AppColors.inkNavy800, fontWeight: FontWeight.bold, fontSize: 13)),
+                          const Text('School of Mgmt & Technology', style: TextStyle(color: AppColors.inkNavy700, fontSize: 9)),
                         ]),
                       ]),
                     ),
@@ -122,9 +123,9 @@ class StudentIdCardScreen extends ConsumerWidget {
                           child: QrImageView(data: qrPayload, version: QrVersions.auto, size: 84),
                         ),
                         const SizedBox(width: 10),
-                        const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Scan to verify', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                          Text('gokulshreeschool.com', style: TextStyle(color: AppColors.goldCta, fontSize: 11)),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Scan to verify', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                          Text(EnvConfig.websiteBaseUrl.replaceFirst(RegExp(r'^https?://'), ''), style: const TextStyle(color: AppColors.goldCta, fontSize: 11)),
                         ]),
                       ]),
                     ),
@@ -171,7 +172,7 @@ class StudentIdCardScreen extends ConsumerWidget {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('GOKUL SHREE', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.Text(EnvConfig.shortName.toUpperCase(), style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 12),
                 pw.Text('Name: ${(session?.name ?? profile['name'] ?? 'Student Name').toString()}'),
                 pw.Text('Reg No: $regNo'),

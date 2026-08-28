@@ -212,6 +212,45 @@ class AdminRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  /// Get students enrolled in courses taught by a specific teacher
+  Future<List<Map<String, dynamic>>> getStudentsForTeacher(String profileId) async {
+    // 1. Get subjects for this teacher
+    final teacherSubjects = await supabase
+        .from('teacher_subjects')
+        .select('subject_id')
+        .eq('teacher_id', profileId);
+        
+    if (teacherSubjects.isEmpty) return [];
+    
+    final subjectIds = teacherSubjects.map((s) => s['subject_id'] as int).toList();
+    
+    // 2. Get course_ids from those subjects
+    final subjectsResponse = await supabase
+        .from('subjects')
+        .select('course_id')
+        .inFilter('id', subjectIds);
+        
+    if (subjectsResponse.isEmpty) return [];
+    
+    // Get unique course IDs
+    final courseIds = subjectsResponse
+        .map((s) => s['course_id'] as int?)
+        .where((id) => id != null)
+        .toSet()
+        .toList();
+        
+    if (courseIds.isEmpty) return [];
+    
+    // 3. Get students in those courses
+    final studentsResponse = await supabase
+        .from('students')
+        .select()
+        .inFilter('course', courseIds)
+        .order('name');
+        
+    return List<Map<String, dynamic>>.from(studentsResponse);
+  }
+
   /// Paginated students list with server-side search and status filter.
   Future<List<Map<String, dynamic>>> getStudentsPaged({
     int page = 1,
@@ -256,7 +295,7 @@ class AdminRepository {
     if (statusFilter == 'active') {
       rows = rows.where((row) => row['status'] == 1).toList();
     } else if (statusFilter == 'inactive') {
-      rows = rows.where((row) => (row['status'] ?? 0) != 1).toList();
+      rows = rows.where((row) => row['status'] == 2).toList();
     } else if (statusFilter == 'pending') {
       rows = rows.where((row) => row['status'] == 0).toList();
     }
@@ -333,6 +372,7 @@ class AdminRepository {
     String? address,
     String? dateOfBirth,
     int? branchId,
+    String? photoUrl,
   }) async {
     final resolvedRegistrationNumber =
         registrationNumber != null && registrationNumber.trim().isNotEmpty
@@ -356,6 +396,7 @@ class AdminRepository {
       'guardian_name': guardianName,
       'address': address,
       'date_of_birth': dateOfBirth,
+      'photo_url': photoUrl,
       'status': status,
       'created_at': DateTime.now().toIso8601String(),
     };
@@ -377,6 +418,7 @@ class AdminRepository {
         'reg_no': resolvedRegistrationNumber,
         'contact': phone,
         'course_id': courseId,
+        'photo_url': photoUrl,
         'status': status,
       };
       if (resolvedBranchId != null) {
@@ -389,6 +431,23 @@ class AdminRepository {
           .select()
           .single();
       return response;
+    }
+  }
+
+  /// Upload a profile photo to Supabase Storage 'avatars' bucket
+  Future<String?> uploadProfilePhoto(String fileName, dynamic fileBytes) async {
+    try {
+      final String path = '${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      await supabase.storage.from('avatars').uploadBinary(
+        path,
+        fileBytes,
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+      );
+      final String publicUrl = supabase.storage.from('avatars').getPublicUrl(path);
+      return publicUrl;
+    } catch (e) {
+      print('Failed to upload photo: $e');
+      return null;
     }
   }
 
@@ -714,12 +773,43 @@ class AdminRepository {
   Future<List<Map<String, dynamic>>> getStudentMarksheetData(
     String studentId,
   ) async {
-    final response = await supabase
-        .from('exam_results')
-        .select('exam_name, subject_name, marks_obtained, total_marks, grade')
-        .eq('student_id', studentId)
-        .order('calculated_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    final responseList = await supabase
+        .from('marksheets')
+        .select('marks')
+        .eq('student_id', int.parse(studentId))
+        .order('created_at', ascending: false)
+        .limit(1);
+
+    if (responseList.isEmpty || responseList.first['marks'] == null) {
+      return [];
+    }
+
+    final response = responseList.first;
+
+    final marksData = response['marks'] as Map<String, dynamic>;
+    final subjects = marksData['subjects'] as List<dynamic>? ?? [];
+    
+    return subjects.map((sub) {
+      final s = sub as Map<String, dynamic>;
+      final obtained = (s['theory'] ?? 0) + (s['practical'] ?? 0) + (s['viva'] ?? 0);
+      final total = s['total_marks'] ?? 100;
+      
+      // Calculate grade
+      final pct = (total > 0) ? (obtained / total) * 100 : 0;
+      String grade = 'F';
+      if (pct >= 90) grade = 'A+';
+      else if (pct >= 80) grade = 'A';
+      else if (pct >= 70) grade = 'B';
+      else if (pct >= 60) grade = 'C';
+      else if (pct >= 50) grade = 'D';
+      
+      return {
+        'subject_name': s['name'] ?? 'Unknown',
+        'marks_obtained': obtained,
+        'total_marks': total,
+        'grade': s['grade'] ?? grade,
+      };
+    }).toList();
   }
 
   Future<Map<String, dynamic>> addStudyMaterial({
@@ -779,7 +869,7 @@ class AdminRepository {
     // Simulate generation
     return {
       'url':
-          'https://www.gokulshreeschool.com/admit_cards/2025/REG$studentId.pdf',
+          '${EnvConfig.websiteBaseUrl.replaceFirst('://', '://www.')}/admit_cards/2025/REG$studentId.pdf',
       'generated_at': DateTime.now().toIso8601String(),
       'status': 'Generated',
     };
@@ -802,8 +892,24 @@ class AdminRepository {
   // ===========================================
 
   /// Get all staff members
-  Future<List<Map<String, dynamic>>> getStaff() async {
-    final response = await supabase.from('employees').select().order('name');
+  Future<List<Map<String, dynamic>>> getStaff({int? branchId}) async {
+    final profile = await _currentAdminProfile();
+    final role = profile?['role']?.toString();
+    final adminBranchId = profile?['branch_id'] as int?;
+
+    dynamic query = supabase.from('employees').select();
+    
+    // Explicit override (e.g. from Super Admin Branch Dashboard)
+    if (branchId != null) {
+      query = query.eq('branch_id', branchId);
+    } 
+    // Otherwise fallback to admin's restricted branch
+    else if (role != 'super_admin' && adminBranchId != null) {
+      query = query.eq('branch_id', adminBranchId);
+    }
+
+    final response = await query.order('name');
+    
     return List<Map<String, dynamic>>.from(response).map((emp) => {
       ...emp,
       'phone': emp['contact'],
@@ -887,18 +993,25 @@ class AdminRepository {
   // ===========================================
 
   /// Super Admin: Get all pending marksheets and certificates
-  Future<Map<String, List<Map<String, dynamic>>>> getPendingDocuments() async {
+  Future<Map<String, List<Map<String, dynamic>>>> getPendingDocuments({int? branchId}) async {
+    dynamic marksheetQuery = supabase
+        .from('marksheets')
+        .select('*, students!inner(name, reg_no, branch_id), courses(name)')
+        .eq('status', 0);
+        
+    dynamic certQuery = supabase
+        .from('certificates')
+        .select('*, students!inner(name, reg_no, branch_id), courses(name)')
+        .eq('status', 0);
+
+    if (branchId != null) {
+      marksheetQuery = marksheetQuery.eq('students.branch_id', branchId);
+      certQuery = certQuery.eq('students.branch_id', branchId);
+    }
+
     final results = await Future.wait([
-      supabase
-          .from('marksheets')
-          .select('*, students(name, reg_no), courses(name)')
-          .eq('status', 0)
-          .order('created_at'),
-      supabase
-          .from('certificates')
-          .select('*, students(name, reg_no), courses(name)')
-          .eq('status', 0)
-          .order('created_at'),
+      marksheetQuery.order('created_at') as Future<dynamic>,
+      certQuery.order('created_at') as Future<dynamic>,
     ]);
 
     return {
@@ -908,12 +1021,17 @@ class AdminRepository {
   }
 
   /// Super Admin: Get pending student registrations (status=0)
-  Future<List<Map<String, dynamic>>> getPendingStudents() async {
-    final response = await supabase
+  Future<List<Map<String, dynamic>>> getPendingStudents({int? branchId}) async {
+    dynamic query = supabase
         .from('students')
         .select('id, name, reg_no, contact, email, doj, courses(name, short_name), branches(name)')
-        .eq('status', 0)
-        .order('created_at');
+        .eq('status', 0);
+        
+    if (branchId != null) {
+      query = query.eq('branch_id', branchId);
+    }
+    
+    final response = await query.order('created_at');
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -964,12 +1082,17 @@ class AdminRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getPendingExperienceCerts() async {
-    final response = await supabase
+  Future<List<Map<String, dynamic>>> getPendingExperienceCerts({int? branchId}) async {
+    dynamic query = supabase
         .from('experience_certificates')
-        .select('*, employees(name, designation, department, doj)')
-        .eq('status', 0)
-        .order('created_at');
+        .select('*, employees!inner(name, designation, department, doj, branch_id)')
+        .eq('status', 0);
+        
+    if (branchId != null) {
+      query = query.eq('employees.branch_id', branchId);
+    }
+
+    final response = await query.order('created_at');
     return List<Map<String, dynamic>>.from(response);
   }
 

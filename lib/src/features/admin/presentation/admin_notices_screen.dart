@@ -60,86 +60,100 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          top: 24, left: 24, right: 24,
-        ),
-        child: Form(
+      builder: (context) {
+        final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+        return PopScope(
+          canPop: !isKeyboardOpen,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            if (isKeyboardOpen) {
+              FocusScope.of(context).unfocus();
+            }
+          },
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              top: 24, left: 24, right: 24,
+            ),
+            child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                isEditing ? 'Edit Notice' : 'Post New Notice',
-                style: AppTypography.headingMd.copyWith(color: AppColors.goldCta),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _titleController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: _inputDecoration('Notice Title', Icons.title),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _contentController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: _inputDecoration('Content', Icons.description),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                dropdownColor: AppColors.inkNavy700,
-                style: const TextStyle(color: AppColors.textPrimary),
-                items: ['General', 'Holiday', 'Exam', 'Urgent']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedCategory = v!),
-                decoration: _inputDecoration('Category', Icons.category),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.goldCta,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  isEditing ? 'Edit Notice' : 'Post New Notice',
+                  style: AppTypography.headingMd.copyWith(color: AppColors.goldCta),
                 ),
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    Navigator.pop(context);
-                    setState(() => _isLoading = true);
-                    try {
-                      final repo = ref.read(adminRepositoryProvider);
-                      if (isEditing) {
-                        await repo.updateNotice(
-                          id: notice['id'],
-                          title: _titleController.text,
-                          content: _contentController.text,
-                          category: _selectedCategory,
-                        );
-                      } else {
-                        await repo.addNotice(
-                          title: _titleController.text,
-                          content: _contentController.text,
-                          category: _selectedCategory,
-                        );
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _titleController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: _inputDecoration('Notice Title', Icons.title),
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contentController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: _inputDecoration('Content', Icons.description),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  dropdownColor: AppColors.inkNavy700,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  items: ['General', 'Holiday', 'Exam', 'Urgent']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategory = v!),
+                  decoration: _inputDecoration('Category', Icons.category),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.goldCta,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.pop(context);
+                      setState(() => _isLoading = true);
+                      try {
+                        final repo = ref.read(adminRepositoryProvider);
+                        if (isEditing) {
+                          await repo.updateNotice(
+                            id: notice['id'],
+                            title: _titleController.text,
+                            content: _contentController.text,
+                            category: _selectedCategory,
+                          );
+                        } else {
+                          await repo.addNotice(
+                            title: _titleController.text,
+                            content: _contentController.text,
+                            category: _selectedCategory,
+                          );
+                        }
+                        _loadNotices();
+                      } catch (e) {
+                        if (mounted) setState(() => _isLoading = false);
                       }
-                      _loadNotices();
-                    } catch (e) {
-                      if (mounted) setState(() => _isLoading = false);
                     }
-                  }
-                },
-                child: Text(isEditing ? 'UPDATE NOTICE' : 'POST NOTICE', style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
+                  },
+                  child: Text(isEditing ? 'UPDATE NOTICE' : 'POST NOTICE', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  },
+);
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {

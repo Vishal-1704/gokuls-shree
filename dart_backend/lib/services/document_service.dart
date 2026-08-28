@@ -6,13 +6,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../config/institute_config.dart';
 
 class DocumentService {
   static final String _assetsDir = 'assets/documents';
-  static final String _signingAuthority =
-      'Gokulshree School Of Management And Technology Private Limited';
-  static final String _verifyBase =
-      String.fromEnvironment('VERIFICATION_URL', defaultValue: 'https://gokulshreeschool.com/verify');
 
   static String _generateDocId(String type, String regNo) {
     final prefix = type == 'marksheet' ? 'MS' : 'CT';
@@ -93,13 +90,10 @@ class DocumentService {
                 pw.SizedBox(width: 10),
                 pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
                   pw.Text(
-                    'Gokulshree School Of Management And Technology',
+                    InstituteConfig.legalName,
                     style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold,
                         color: PdfColors.red700),
                   ),
-                  pw.Text('Private Limited',
-                      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.red700)),
                   pw.Text('Registered Under Companies Act 2013. CIN: U80900UP2021PTC154024',
                       style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey800)),
                   pw.Text('MSME: UDYAM-UP-69-0000812. ISO 9001:2015 Certified.',
@@ -170,7 +164,7 @@ class DocumentService {
               ]),
 
               pw.SizedBox(height: 8),
-              pw.Text('Verify at: www.gokulshreeschool.com | Doc ID: $docId',
+              pw.Text('Verify at: ${InstituteConfig.verifyBaseUrl} | Doc ID: $docId',
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey)),
             ],
           ),
@@ -223,7 +217,7 @@ class DocumentService {
                 ]),
               ]),
               pw.SizedBox(height: 10),
-              pw.Text('Certificate No: $docId | Verify at: www.gokulshreeschool.com',
+              pw.Text('Certificate No: $docId | Verify at: ${InstituteConfig.verifyBaseUrl}',
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey)),
             ],
           ),
@@ -260,7 +254,7 @@ class DocumentService {
                   style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 20),
               pw.Paragraph(
-                text: 'This is to certify that ${data['name']} has been employed with Gokulshree School Of Management And Technology as a ${data['designation']} since ${data['doj']}.',
+                text: 'This is to certify that ${data['name']} has been employed with ${InstituteConfig.legalName} as a ${data['designation']} since ${data['doj']}.',
                 style: const pw.TextStyle(fontSize: 14, lineSpacing: 2),
               ),
               pw.Paragraph(
@@ -277,7 +271,7 @@ class DocumentService {
                   pw.Container(width: 150, height: 1, color: PdfColors.black),
                   pw.SizedBox(height: 4),
                   pw.Text('Authorized Signatory', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Gokulshree School', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                  pw.Text(InstituteConfig.shortName, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                 ]),
               ]),
             ],

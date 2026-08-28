@@ -49,18 +49,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Already logged in → redirect away from public pages to role home
       if (loggedIn && isPublic) return session.homeRoute;
 
-      // Student registered but not yet approved by a branch/super admin —
-      // lock them to the pending screen; the backend rejects every other
-      // student data endpoint for this account anyway, so this is just an
-      // honest reflection of that, not the actual security boundary.
-      const pendingPath = '/student/pending-approval';
-      if (loggedIn && session.role == UserRole.student && !session.isApproved) {
-        if (path != pendingPath) return pendingPath;
-        return null;
-      }
-      if (loggedIn && session.role == UserRole.student && path == pendingPath) {
-        return session.homeRoute;
-      }
+      // Allow all students (approved or unapproved) to access the normal shell.
+      // Unapproved students will see a banner on the dashboard and empty states
+      // on other tabs.
 
       if (loggedIn && !_isAllowedRouteForRole(session, path)) {
         return session.homeRoute;
@@ -99,9 +90,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           role: UserRole.student,
           tabs: const [
             GButton(icon: Icons.dashboard_rounded,    text: 'Home'),
-            GButton(icon: Icons.assignment_rounded,   text: 'Exams'),
-            GButton(icon: Icons.folder_rounded,       text: 'Docs'),
-            GButton(icon: Icons.person_rounded,       text: 'Profile'),
+            GButton(icon: Icons.school_rounded,       text: 'Academics'),
+            GButton(icon: Icons.person_rounded,       text: 'Account'),
           ],
         ),
         branches: StudentRoutes.branches,

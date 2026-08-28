@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -144,29 +145,29 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
 
 /// Helper class with common website URLs
 class WebUrls {
-  static const String baseUrl = 'https://gokulshreeschool.com';
+  static String get baseUrl => EnvConfig.websiteBaseUrl;
 
-  static const String home = '$baseUrl/index.php';
-  static const String studentLogin = '$baseUrl/login.php';
-  static const String examPortal = '$baseUrl/login.php';
-  static const String results = '$baseUrl/result.php';
-  static const String admitCard = '$baseUrl/admit-card.php';
-  static const String marksheetVerification =
+  static String get home => '$baseUrl/index.php';
+  static String get studentLogin => '$baseUrl/login.php';
+  static String get examPortal => '$baseUrl/login.php';
+  static String get results => '$baseUrl/result.php';
+  static String get admitCard => '$baseUrl/admit-card.php';
+  static String get marksheetVerification =>
       '$baseUrl/marksheet-verification.php';
-  static const String certificateVerification =
+  static String get certificateVerification =>
       '$baseUrl/certificate-verification.php';
-  static const String studentVerification = '$baseUrl/verification.php';
-  static const String studentRegistration = '$baseUrl/student-registration.php';
-  static const String aboutUs = '$baseUrl/about-us.php';
-  static const String gallery = '$baseUrl/gallery.php';
-  static const String franchise = '$baseUrl/franchise.php';
-  static const String contactUs = '$baseUrl/contact-us.php';
-  static const String downloads = '$baseUrl/downloads.php';
-  static const String studyMaterial = '$baseUrl/downloads.php';
+  static String get studentVerification => '$baseUrl/verification.php';
+  static String get studentRegistration => '$baseUrl/student-registration.php';
+  static String get aboutUs => '$baseUrl/about-us.php';
+  static String get gallery => '$baseUrl/gallery.php';
+  static String get franchise => '$baseUrl/franchise.php';
+  static String get contactUs => '$baseUrl/contact-us.php';
+  static String get downloads => '$baseUrl/downloads.php';
+  static String get studyMaterial => '$baseUrl/downloads.php';
 
   // Course pages
-  static const String diplomaCourses = '$baseUrl/diploma-courses.php';
-  static const String vocationalCourses = '$baseUrl/vocational-courses.php';
-  static const String yogaCourses = '$baseUrl/yoga-courses.php';
-  static const String universityCourses = '$baseUrl/university-courses.php';
+  static String get diplomaCourses => '$baseUrl/diploma-courses.php';
+  static String get vocationalCourses => '$baseUrl/vocational-courses.php';
+  static String get yogaCourses => '$baseUrl/yoga-courses.php';
+  static String get universityCourses => '$baseUrl/university-courses.php';
 }

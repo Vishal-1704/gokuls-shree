@@ -26,50 +26,37 @@ class TeacherDashboardScreen extends ConsumerWidget {
     final hasViewStudents = session?.hasPermission('READ_BRANCH_STUDENTS') ?? session?.hasPermission('view_students') ?? false;
     final hasUploadResults = session?.hasPermission('UPLOAD_MARKS') ?? session?.hasPermission('upload_results') ?? false;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.inkNavy900,
-        appBar: AppBar(
-          backgroundColor: AppColors.inkNavy800,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hello, ${session?.name ?? 'Teacher'} 👋',
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+    return Scaffold(
+      backgroundColor: AppColors.inkNavy900,
+      appBar: AppBar(
+        backgroundColor: AppColors.inkNavy800,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hello, ${session?.name ?? 'Teacher'} 👋',
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            employeeProfileAsync.when(
+              data: (emp) => Text(
+                '${emp?['designation'] ?? 'Faculty'} • ${emp?['department'] ?? 'Teacher Portal'}',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
-              employeeProfileAsync.when(
-                data: (emp) => Text(
-                  '${emp?['designation'] ?? 'Faculty'} • ${emp?['department'] ?? 'Teacher Portal'}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-                ),
-                loading: () => const Text('Teacher Portal', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                error: (_, __) => const Text('Teacher Portal', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_rounded, color: AppColors.textSecondary),
-              onPressed: () {},
+              loading: () => const Text('Teacher Portal', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              error: (_, __) => const Text('Teacher Portal', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
             ),
           ],
-          bottom: const TabBar(
-            indicatorColor: AppColors.goldCta,
-            labelColor: AppColors.goldCta,
-            unselectedLabelColor: AppColors.textSecondary,
-            tabs: [
-              Tab(icon: Icon(Icons.dashboard_outlined), text: 'Dashboard'),
-              Tab(icon: Icon(Icons.badge_outlined), text: 'Zoho Employee Profile'),
-            ],
-          ),
         ),
-        body: ResponsiveContainer(
-          padding: EdgeInsets.zero,
-          child: TabBarView(
-          children: [
-            // TAB 1: DASHBOARD & STATS
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_rounded, color: AppColors.textSecondary),
+            onPressed: () {},
+          ),
+        ],
+      ),
+      body: ResponsiveContainer(
+        padding: EdgeInsets.zero,
+        child:
             RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(adminStudentsProvider);
@@ -129,38 +116,9 @@ class TeacherDashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
-            // TAB 2: ZOHO EMPLOYEE DETAILS
-            RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(teacherEmployeeProfileProvider);
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: employeeProfileAsync.when(
-                  data: (emp) => _buildEmployeeDetails(context, ref, emp),
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 100),
-                      child: CircularProgressIndicator(color: AppColors.goldCta),
-                    ),
-                  ),
-                  error: (err, _) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 100),
-                      child: Text('Error loading profile: $err', style: const TextStyle(color: AppColors.textSecondary)),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   // WIDGET: Student Attendance Summary (Zoho style summary card)
   Widget _buildStudentAttendanceCard(BuildContext context, AsyncValue<Map<String, dynamic>> statsAsync) {
@@ -251,18 +209,24 @@ class TeacherDashboardScreen extends ConsumerWidget {
                     const SizedBox(width: 24),
                     // Stats Details Grid
                     Expanded(
-                      child: GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        childAspectRatio: 2.2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildDetailMiniCard('Present', '$present', Colors.green),
-                          _buildDetailMiniCard('Absent', '$absent', Colors.red),
-                          _buildDetailMiniCard('Pending', '$pending', Colors.orange),
-                          _buildDetailMiniCard('Total Class', '$total', Colors.blue),
+                          Row(
+                            children: [
+                              Expanded(child: _buildDetailMiniCard('Present', '$present', Colors.green)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildDetailMiniCard('Absent', '$absent', Colors.red)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: _buildDetailMiniCard('Pending', '$pending', Colors.orange)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildDetailMiniCard('Total Class', '$total', Colors.blue)),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -374,266 +338,6 @@ class TeacherDashboardScreen extends ConsumerWidget {
       error: (_, __) => const SizedBox(
         height: 100,
         child: Center(child: Text('Error loading subjects', style: TextStyle(color: AppColors.textMuted))),
-      ),
-    );
-  }
-
-  // WIDGET: Zoho Style Employee Profile Details
-  Widget _buildEmployeeDetails(BuildContext context, WidgetRef ref, Map<String, dynamic>? emp) {
-    if (emp == null) {
-      return const Center(child: Text('No employee profile record found.', style: TextStyle(color: AppColors.textSecondary)));
-    }
-
-    final name = emp['name'] ?? 'Employee';
-    final email = emp['email'] ?? 'N/A';
-    final contact = emp['contact'] ?? 'N/A';
-    final designation = emp['designation'] ?? 'N/A';
-    final department = emp['department'] ?? 'N/A';
-    final doj = emp['doj'] ?? 'N/A';
-    final address = emp['address'] ?? 'N/A';
-
-    // Salary info
-    final basic = (emp['basic_salary'] as num?)?.toDouble() ?? 0.0;
-    final hra = (emp['hra'] as num?)?.toDouble() ?? 0.0;
-    final da = (emp['da'] as num?)?.toDouble() ?? 0.0;
-    final other = (emp['other_allowance'] as num?)?.toDouble() ?? 0.0;
-    final gross = basic + hra + da + other;
-
-    // Accounts
-    final pf = emp['pf_account_no'] ?? 'N/A';
-    final pan = emp['pan_no'] ?? 'N/A';
-    final esi = emp['esi_no'] ?? 'N/A';
-
-    // Leaves
-    const totalLeaves = 15;
-    const takenLeaves = 3;
-    final remainingLeaves = emp['causal_leave'] ?? (totalLeaves - takenLeaves);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Employee Badge
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.inkNavy700, AppColors.inkNavy800],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.goldCta.withOpacity(0.2), width: 1),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: AppColors.inkNavy700,
-                child: Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(color: AppColors.goldCta, fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name.toUpperCase(), style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(designation, style: const TextStyle(color: AppColors.goldCta, fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text('Dept: $department', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Leaves Section (Zoho style leave tracker)
-        const Text('Leave Entitlements', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            _buildLeaveCard('Total Leaves', '$totalLeaves', Colors.blue),
-            const SizedBox(width: 10),
-            _buildLeaveCard('Leaves Taken', '$takenLeaves', Colors.orange),
-            const SizedBox(width: 10),
-            _buildLeaveCard('Balance Available', '$remainingLeaves', Colors.green),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Payroll / Payslip Section
-        const Text('Payroll Snapshot (Monthly)', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.inkNavy800,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider10, width: 1),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPayRow('Basic Salary', '₹${basic.toStringAsFixed(2)}'),
-              _buildPayRow('House Rent Allowance (HRA)', '₹${hra.toStringAsFixed(2)}'),
-              _buildPayRow('Dearness Allowance (DA)', '₹${da.toStringAsFixed(2)}'),
-              _buildPayRow('Special Allowances', '₹${other.toStringAsFixed(2)}'),
-              const Divider(color: AppColors.textMuted, thickness: 1, height: 20),
-              _buildPayRow('Gross Salary', '₹${gross.toStringAsFixed(2)}', isBold: true, valueColor: AppColors.goldCta),
-              const SizedBox(height: 16),
-              const Text('Statutory Registrations', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _buildPayRow('PF Account No', pf, isSecondary: true),
-              _buildPayRow('ESI Registration No', esi, isSecondary: true),
-              _buildPayRow('PAN Card', pan, isSecondary: true),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Profile Details List
-        const Text('Registry Details', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.inkNavy800,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              _buildInfoRow('Email Address', email, Icons.email_outlined),
-              _buildInfoRow('Contact Number', contact, Icons.phone_outlined),
-              _buildInfoRow('Date of Joining', doj, Icons.calendar_today_outlined),
-              _buildInfoRow('Office Address', address, Icons.location_on_outlined),
-            ],
-          ),
-        ),
-        const SizedBox(height: 30),
-        
-        // Experience Certificate Request
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: () => _requestExperienceCertificate(context, ref),
-            icon: const Icon(Icons.workspace_premium, color: AppColors.textPrimary),
-            label: const Text('Request Experience Certificate', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.goldCta,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
-  Future<void> _requestExperienceCertificate(BuildContext context, WidgetRef ref) async {
-    try {
-      final repo = ref.read(attendanceRepositoryProvider);
-      final baseUrl = 'http://10.0.2.2:3001/api/v1'; // Or from config
-      final session = supabase.auth.currentSession;
-      
-      if (session == null) throw Exception('Not authenticated');
-
-      final response = await Dio().post(
-        '$baseUrl/documents/experience-certificates/request',
-        options: Options(headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${session.accessToken}',
-        }),
-      );
-
-      if (response.statusCode == 201) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Experience Certificate requested successfully!'), backgroundColor: AppColors.success),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to request certificate: $e'), backgroundColor: AppColors.danger),
-        );
-      }
-    }
-  }
-
-  Widget _buildLeaveCard(String title, String count, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.inkNavy800,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
-        ),
-        child: Column(
-          children: [
-            Text(count, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(fontSize: 10, color: AppColors.textMuted), textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPayRow(String label, String value, {bool isBold = false, bool isSecondary = false, Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isSecondary ? 11 : 12,
-              color: isSecondary ? AppColors.textMuted : (isBold ? AppColors.textPrimary : AppColors.textSecondary),
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isSecondary ? 11 : 12,
-              color: valueColor ?? (isSecondary ? AppColors.textMuted : AppColors.textPrimary),
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: AppColors.goldCta),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

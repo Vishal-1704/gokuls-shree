@@ -1,3 +1,4 @@
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -181,20 +182,20 @@ class _PublicHomeScreenState extends ConsumerState<PublicHomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Gokul Shree',
-                                style: TextStyle(
+                                EnvConfig.shortName,
+                                style: const TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Text(
+                              const Text(
                                 'School of Management',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
@@ -261,13 +262,15 @@ class _PublicHomeScreenState extends ConsumerState<PublicHomeScreen> {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.count(
+              child: GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                childAspectRatio: 0.85,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 150,
+                  mainAxisExtent: 110,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                ),
                 children: [
                   _QuickActionCard(
                     icon: Icons.school_outlined,

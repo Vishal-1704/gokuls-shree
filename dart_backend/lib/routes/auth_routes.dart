@@ -8,7 +8,6 @@ import 'package:shelf_router/shelf_router.dart';
 import '../config/supabase_service.dart';
 import '../middleware/auth_middleware.dart';
 import '../middleware/role_guard.dart';
-import '../middleware/rate_limiter.dart';
 import '../models/user_session.dart';
 
 Router buildAuthRouter() {

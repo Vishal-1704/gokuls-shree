@@ -78,5 +78,13 @@ class AdminRoutes {
       path: '/admin/franchise-setup',
       builder: (c, s) => const FranchiseSetupScreen(),
     ),
+    GoRoute(
+      path: '/admin/marksheet-generator',
+      builder: (c, s) => const AdminMarksheetGeneratorScreen(),
+    ),
+    GoRoute(
+      path: '/admin/dues-report',
+      builder: (c, s) => const AdminDuesReportScreen(),
+    ),
   ];
 }

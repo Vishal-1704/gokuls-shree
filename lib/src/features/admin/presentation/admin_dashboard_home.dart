@@ -4,6 +4,9 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/widgets/setup_required_banner.dart';
+import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_notice_board.dart';
+import 'package:gokul_shree_app/src/core/services/update_service.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_notices_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_profile_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +27,9 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
   void initState() {
     super.initState();
     _refreshData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
   }
 
   void _refreshData() {
@@ -72,8 +78,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                           Text(
                             'Welcome, $roleLabel',
                             style: AppTypography.headingLg,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            softWrap: true,
                           ),
                         ],
                       ),
@@ -110,28 +116,6 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AdminProfileScreen(),
-                              ),
-                            );
-                          },
-                          child: CircleAvatar(
-                            radius: 20,
-                            backgroundColor: roleAccent,
-                            child: Text(
-                              roleAvatarText,
-                              style: TextStyle(
-                                color: AppColors.inkNavy900,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ),
                         ),
                       ],
@@ -191,7 +175,7 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               ),
             ),
 
-            // ─── Stats Section ───
+            // ─── Stats Section (Vibrant Control Panel) ───
             SliverToBoxAdapter(
               child: FutureBuilder<Map<String, dynamic>>(
                 future: _statsFuture,
@@ -212,33 +196,57 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildPrimaryCard(stats),
+                        Text('Control panel', style: AppTypography.headingSm),
                         const SizedBox(height: 16),
-                        Row(
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
                           children: [
-                            Expanded(
-                              child: _buildSecondaryCard(
-                                icon: Icons.groups,
-                                iconColor: AppColors.info,
-                                label: 'Present Students',
-                                value: '${stats['present_students']}',
-                                subValue: '/${stats['total_students']}',
-                                footerText: '${stats['attendance_rate']}% Rate',
-                                footerColor: AppColors.success,
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              child: _buildVibrantTile(
+                                value: '0',
+                                label: 'MARKSHEET',
+                                icon: Icons.pie_chart,
+                                color: const Color(0xFFF04F69),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildSecondaryCard(
-                                icon: Icons.assignment_late,
-                                iconColor: AppColors.warning,
-                                label: 'Pending Enquiries',
-                                value: '${stats['pending_enquiries']} New',
-                                subValue: '',
-                                footerText: 'Action Req.',
-                                footerColor: AppColors.warning,
-                                showBadge: true,
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              child: _buildVibrantTile(
+                                value: '${stats['total_students'] ?? 18}',
+                                label: 'STUDENT',
+                                icon: Icons.shopping_bag,
+                                color: const Color(0xFFF34C68),
+                              ),
+                            ),
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              child: _buildVibrantTile(
+                                value: '4',
+                                label: 'PROGRAM',
+                                icon: Icons.pie_chart_outline,
+                                color: const Color(0xFFF39C12),
+                              ),
+                            ),
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              child: _buildVibrantTile(
+                                value: '${stats['total_courses'] ?? 106}',
+                                label: 'COURSES',
+                                icon: Icons.bar_chart,
+                                color: const Color(0xFF3498DB),
+                              ),
+                            ),
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              child: _buildVibrantTile(
+                                value: '128',
+                                label: 'SUBJECT',
+                                icon: Icons.person_add,
+                                color: const Color(0xFFF1C40F),
                               ),
                             ),
                           ],
@@ -259,56 +267,39 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                   children: [
                     Text('Quick Actions', style: AppTypography.headingSm),
                     const SizedBox(height: 12),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.campaign,
                             label: 'Notices',
                             color: AppColors.goldCta,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AdminNoticesScreen(),
-                                ),
-                              );
-                            },
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminNoticesScreen())),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.badge,
                             label: 'Staff',
                             color: AppColors.info,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const AdminStaffDirectoryScreen(),
-                                ),
-                              );
-                            },
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminStaffDirectoryScreen())),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: _buildQuickAction(
-                        icon: Icons.fact_check_outlined,
-                        label: 'Results Entry',
-                        color: const Color(0xFF7C3AED),
-                        onTap: () => context.push('/admin/results-entry'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
+                          child: _buildQuickAction(
+                            icon: Icons.fact_check_outlined,
+                            label: 'Results Entry',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => context.push('/admin/results-entry'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.person_add_alt_1_outlined,
                             label: 'Add Student',
@@ -316,8 +307,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             onTap: () => context.push('/admin/add-student'),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.request_quote_outlined,
                             label: 'Dues Report',
@@ -325,32 +316,26 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             onTap: () => context.push('/admin/dues-report'),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: _buildQuickAction(
-                        icon: Icons.event_note_outlined,
-                        label: 'Exam Scheduler',
-                        color: const Color(0xFF2563EB),
-                        onTap: () => context.push('/admin/exam-scheduler'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
+                          child: _buildQuickAction(
+                            icon: Icons.event_note_outlined,
+                            label: 'Exam Scheduler',
+                            color: const Color(0xFF2563EB),
+                            onTap: () => context.push('/admin/exam-scheduler'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.picture_as_pdf_outlined,
                             label: 'Marksheet',
                             color: AppColors.info,
-                            onTap: () =>
-                                context.push('/admin/marksheet-generator'),
+                            onTap: () => context.push('/admin/marksheet-generator'),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
                           child: _buildQuickAction(
                             icon: Icons.upload_file_outlined,
                             label: 'Materials',
@@ -364,86 +349,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                 ),
               ),
             ),
+const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // ─── Recent Transactions Header ───
-            SliverToBoxAdapter(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.inkNavy800,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Recent Transactions',
-                        style: AppTypography.headingSm,
-                      ),
-                      TextButton(
-                        onPressed: () => context.push('/admin/dues-report'),
-                        child: Text(
-                          'View All',
-                          style: AppTypography.bodyMd.copyWith(
-                            color: AppColors.goldCta,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // ─── Recent Activity List ───
-            SliverToBoxAdapter(
-              child: Container(
-                color: AppColors.inkNavy800,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _activitiesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32.0),
-                          child: CircularProgressIndicator(
-                            color: AppColors.goldCta,
-                          ),
-                        ),
-                      );
-                    }
-
-                    final activities = snapshot.data ?? [];
-                    if (activities.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No recent activity",
-                          style: AppTypography.bodyMd,
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: activities.length,
-                      separatorBuilder: (_, __) => Divider(
-                        color: AppColors.divider.withOpacity(0.35),
-                        height: 1,
-                      ),
-                      itemBuilder: (context, index) =>
-                          _buildActivityItem(activities[index]),
-                    );
-                  },
-                ),
-              ),
-            ),
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
@@ -452,130 +359,170 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
   }
 
   // ─── Primary Card: Fee Collection ───
-  Widget _buildPrimaryCard(Map<String, dynamic> stats) {
+
+  // ─── Primary Card: Student Attendance ───
+  Widget _buildVibrantTile({
+    required String value,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      height: 120,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.goldCta, Color(0xFFA67B00)],
-        ),
+        color: color,
+        borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: AppColors.goldCta.withOpacity(0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Stack(
         children: [
-          // Decorative Circle
           Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.textPrimary.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
+            right: -10,
+            top: 10,
+            child: Icon(
+              icon,
+              size: 70,
+              color: Colors.black.withOpacity(0.15),
             ),
           ),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(4)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.inkNavy900.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.payments,
-                      color: AppColors.inkNavy900,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.inkNavy900.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.trending_up,
-                          color: AppColors.inkNavy900,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${stats['collection_growth']}%',
-                          style: AppTypography.labelLg.copyWith(
-                            color: AppColors.inkNavy900,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  Text('More info ', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Icon(Icons.arrow_circle_right, color: Colors.white, size: 14),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                "Today's Collection",
-                style: AppTypography.bodyMd.copyWith(
-                  color: AppColors.inkNavy900.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '₹ ${stats['todays_collection']}',
-                style: AppTypography.displayLg.copyWith(
-                  color: AppColors.inkNavy900,
-                  fontSize: 32,
-                  fontStyle: FontStyle.normal,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Progress Bar
-              Container(
-                height: 4,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.inkNavy900.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: 0.65,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.inkNavy900,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildPrimaryCard(Map<String, dynamic> stats) {
+    final List<dynamic> courseAttendance = stats['course_attendance'] ?? [];
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.inkNavy800,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.school, color: AppColors.info, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text('Student Attendance (Course-wise)', style: AppTypography.headingSm),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (courseAttendance.isEmpty)
+            Text('No attendance data available for today.', style: AppTypography.bodyMd.copyWith(color: AppColors.textMuted))
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: courseAttendance.length,
+              separatorBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Divider(color: AppColors.divider.withOpacity(0.2), height: 1),
+              ),
+              itemBuilder: (context, index) {
+                final course = courseAttendance[index] as Map<String, dynamic>;
+                final name = course['course_name'] ?? 'Unknown';
+                final present = course['present'] ?? 0;
+                final total = course['total'] ?? 0;
+                final rate = course['rate'] ?? 0;
+                
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: AppTypography.labelMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          Text('$present / $total Present', style: AppTypography.bodySm.copyWith(color: AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: rate >= 75 ? AppColors.success.withOpacity(0.15) : AppColors.warning.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$rate%',
+                        style: AppTypography.labelMd.copyWith(
+                          color: rate >= 75 ? AppColors.success : AppColors.warning,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
 
   // ─── Secondary Card ───
   Widget _buildSecondaryCard({

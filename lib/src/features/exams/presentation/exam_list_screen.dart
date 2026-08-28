@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
-import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';
 import '../data/exam_repository.dart';
@@ -13,437 +12,246 @@ final examListProvider = FutureProvider<List<Exam>>((ref) async {
   return ref.read(examRepositoryProvider).getExams();
 });
 
-final examResultsProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) async {
+final examResultsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return ref.read(examRepositoryProvider).getMyResults();
 });
 
-final upcomingExamsProvider = FutureProvider<List<Map<String, dynamic>>>(
-  (ref) async => ref.read(studentRepositoryProvider).getUpcomingExams(),
-);
+final upcomingExamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return ref.read(studentRepositoryProvider).getUpcomingExams();
+});
 
-class ExamListScreen extends ConsumerWidget {
-  const ExamListScreen({super.key});
+class ExamListBody extends ConsumerWidget {
+  const ExamListBody({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.inkNavy900,
-        appBar: AppBar(
-          title: const Text(
-            'Exams',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: AppColors.inkNavy800,
-          iconTheme: const IconThemeData(color: AppColors.textPrimary),
-          bottom: TabBar(
-            indicatorColor: AppColors.goldCta,
-            labelColor: AppColors.goldCta,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(text: "Hub"),
-              Tab(text: "Exams"),
-              Tab(text: "Results"),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [_ExamHubTab(), _AvailableExamsTab(), _MyResultsTab()],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExamHubTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final upcomingAsync = ref.watch(upcomingExamsProvider);
-    final resultsAsync = ref.watch(examResultsProvider);
-    final role = ref.watch(userRoleProvider);
-    final isAdmin = role == 'super_admin' || role == 'branch_admin';
-
     return RefreshIndicator(
+      color: AppColors.goldCta,
       onRefresh: () async {
+        ref.invalidate(examListProvider);
         ref.invalidate(upcomingExamsProvider);
         ref.invalidate(examResultsProvider);
       },
-      child: Container(
-        color: AppColors.inkNavy900,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _HubSectionTitle(
-              title: 'Exam Schedule',
-              onTap: () => DefaultTabController.of(context).animateTo(1),
-            ),
-            const SizedBox(height: 8),
-            upcomingAsync.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return const _EmptyCard(message: 'No upcoming exams yet');
-                }
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSectionTitle('Upcoming Schedule'),
+          const SizedBox(height: 12),
+          _UpcomingScheduleSection(),
+          
+          const SizedBox(height: 24),
+          _buildSectionTitle('Active Exams'),
+          const SizedBox(height: 12),
+          _ActiveExamsSection(),
+          
+          const SizedBox(height: 24),
+          _buildSectionTitle('Recent Results'),
+          const SizedBox(height: 12),
+          _RecentResultsSection(),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
 
-                return _HubCard(
-                  child: Column(
-                    children: items.take(3).map((exam) {
-                      final status = exam['status']?.toString() ?? 'Available';
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.event_note,
-                              color: AppColors.info,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    exam['name']?.toString() ?? 'Exam',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    exam['date']?.toString() ?? 'TBA',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _MiniBadge(label: status),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-              loading: () => const _LoadingCard(),
-              error: (_, __) =>
-                  const _EmptyCard(message: 'Failed to load schedule'),
-            ),
-            const SizedBox(height: 16),
-            _HubSectionTitle(
-              title: 'Recent Results',
-              onTap: () => DefaultTabController.of(context).animateTo(2),
-            ),
-            const SizedBox(height: 8),
-            resultsAsync.when(
-              data: (results) {
-                if (results.isEmpty) {
-                  return const _EmptyCard(message: 'No results yet');
-                }
-
-                return _HubCard(
-                  child: Column(
-                    children: results.take(3).map((result) {
-                      final paperSet =
-                          result['paper_sets'] as Map<String, dynamic>?;
-                      final examResult = result['exam_results'] as List?;
-                      final title = paperSet?['title'] ?? 'Exam';
-                      final totalMarks =
-                          (paperSet?['total_marks'] as num?)?.toInt() ?? 100;
-
-                      int score = 0;
-                      bool passed = false;
-                      if (examResult != null && examResult.isNotEmpty) {
-                        final first = examResult.first as Map<String, dynamic>;
-                        score = (first['marks_obtained'] as num?)?.toInt() ?? 0;
-                        passed = first['passed'] == true;
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              passed ? Icons.check_circle : Icons.cancel,
-                              color: passed ? Colors.green : Colors.red,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    title.toString(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '$score / $totalMarks marks',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _MiniBadge(label: passed ? 'Pass' : 'Fail'),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-              loading: () => const _LoadingCard(),
-              error: (_, __) =>
-                  const _EmptyCard(message: 'Failed to load results'),
-            ),
-            const SizedBox(height: 16),
-            _HubSectionTitle(title: 'Quick Access'),
-            const SizedBox(height: 8),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 1.1,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              children: [
-                _QuickAccessCard(
-                  icon: Icons.badge,
-                  label: 'Admit Card',
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const InAppWebViewScreen(
-                        url: WebUrls.admitCard,
-                        title: 'Admit Card',
-                      ),
-                    ),
-                  ),
-                ),
-                _QuickAccessCard(
-                  icon: Icons.insert_drive_file_outlined,
-                  label: 'My Documents',
-                  color: Colors.indigo,
-                  onTap: () => context.push('/documents'),
-                ),
-                _QuickAccessCard(
-                  icon: Icons.menu_book,
-                  label: 'Study Material',
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const InAppWebViewScreen(
-                        url: WebUrls.studyMaterial,
-                        title: 'Study Material',
-                      ),
-                    ),
-                  ),
-                ),
-                _QuickAccessCard(
-                  icon: Icons.workspace_premium,
-                  label: 'Certificates',
-                  color: Colors.teal,
-                  onTap: () => context.push('/documents'),
-                ),
-              ],
-            ),
-            if (isAdmin) ...[
-              const SizedBox(height: 12),
-              _QuickAccessCard(
-                icon: isAdmin ? Icons.admin_panel_settings : Icons.help_outline,
-                label: isAdmin ? 'Admin Panel' : 'Help',
-                color: isAdmin ? Colors.purple : Colors.blueGrey,
-                onTap: isAdmin ? () => context.push('/admin') : () {},
-              ),
-            ],
-          ],
-        ),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 18,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.5,
       ),
     );
   }
 }
 
 // ═══════════════════════════════════════════════
-// TAB 1: Available Exams
+// SECTIONS
 // ═══════════════════════════════════════════════
 
-class _AvailableExamsTab extends ConsumerWidget {
+class _QuickActionsSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final role = ref.watch(userRoleProvider);
+    final isAdmin = role == 'super_admin' || role == 'branch_admin';
+
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        mainAxisExtent: 60,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      children: [
+        _QuickActionCard(
+          icon: Icons.badge_outlined,
+          label: 'Admit Card',
+          gradient: const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)]),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InAppWebViewScreen(url: WebUrls.admitCard, title: 'Admit Card'),
+            ),
+          ),
+        ),
+        _QuickActionCard(
+          icon: Icons.menu_book_rounded,
+          label: 'Study Material',
+          gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InAppWebViewScreen(url: WebUrls.studyMaterial, title: 'Study Material'),
+            ),
+          ),
+        ),
+        if (isAdmin)
+          _QuickActionCard(
+            icon: Icons.admin_panel_settings_outlined,
+            label: 'Admin Panel',
+            gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
+            onTap: () => context.push('/admin'),
+          ),
+      ],
+    );
+  }
+}
+
+class _UpcomingScheduleSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final upcomingAsync = ref.watch(upcomingExamsProvider);
+    
+    return upcomingAsync.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const _EmptyState(
+            icon: Icons.event_available,
+            message: 'No upcoming scheduled exams.',
+          );
+        }
+        return Column(
+          children: items.map((exam) {
+            final status = exam['status']?.toString() ?? 'Upcoming';
+            return _ScheduleCard(
+              title: exam['name']?.toString() ?? 'Exam',
+              date: exam['date']?.toString() ?? 'TBA',
+              status: status,
+            );
+          }).toList(),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+      error: (_, __) => const _EmptyState(icon: Icons.error_outline, message: 'Failed to load schedule'),
+    );
+  }
+}
+
+class _ActiveExamsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final examsAsync = ref.watch(examListProvider);
-
-    return Container(
-      color: AppColors.inkNavy900,
-      child: examsAsync.when(
-        data: (exams) {
-          if (exams.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.quiz_outlined,
-                    size: 64,
-                    color: AppColors.textMuted,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No exams available right now',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Check back later for new exams',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(examListProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: exams.length,
-              itemBuilder: (context, index) {
-                final exam = exams[index];
-                return _ExamCard(exam: exam);
-              },
-            ),
+    
+    return examsAsync.when(
+      data: (exams) {
+        if (exams.isEmpty) {
+          return const _EmptyState(
+            icon: Icons.quiz_outlined,
+            message: 'No exams currently active for you to take.',
           );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-              const SizedBox(height: 12),
-              const Text(
-                'Failed to load exams',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () => ref.invalidate(examListProvider),
-                icon: const Icon(Icons.refresh, color: AppColors.goldCta),
-                label: const Text(
-                  'Retry',
-                  style: TextStyle(color: AppColors.goldCta),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        }
+        return Column(
+          children: exams.map((exam) => _ExamCard(exam: exam)).toList(),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+      error: (_, __) => const _EmptyState(icon: Icons.error_outline, message: 'Failed to load exams'),
     );
   }
 }
 
-// ═══════════════════════════════════════════════
-// TAB 2: My Results
-// ═══════════════════════════════════════════════
-
-class _MyResultsTab extends ConsumerWidget {
+class _RecentResultsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resultsAsync = ref.watch(examResultsProvider);
-
-    return Container(
-      color: AppColors.inkNavy900,
-      child: resultsAsync.when(
-        data: (results) {
-          if (results.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.assessment_outlined,
-                    size: 64,
-                    color: AppColors.textMuted,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No exam results yet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Complete an exam to see your results here',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(examResultsProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: results.length,
-              itemBuilder: (context, index) {
-                final result = results[index];
-                return _ResultCard(result: result);
-              },
-            ),
+    
+    return resultsAsync.when(
+      data: (results) {
+        if (results.isEmpty) {
+          return const _EmptyState(
+            icon: Icons.assessment_outlined,
+            message: 'No exam results yet.',
           );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-              const SizedBox(height: 12),
-              const Text(
-                'Failed to load results',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              TextButton.icon(
-                onPressed: () => ref.invalidate(examResultsProvider),
-                icon: const Icon(Icons.refresh, color: AppColors.goldCta),
-                label: const Text(
-                  'Retry',
-                  style: TextStyle(color: AppColors.goldCta),
+        }
+        return Column(
+          children: results.map((r) => _ResultCard(result: r)).toList(),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+      error: (_, __) => const _EmptyState(icon: Icons.error_outline, message: 'Failed to load results'),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════
+// WIDGETS
+// ═══════════════════════════════════════════════
+
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Gradient gradient;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: (gradient.colors.first).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -451,9 +259,54 @@ class _MyResultsTab extends ConsumerWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-// EXAM CARD (Available Exams)
-// ═══════════════════════════════════════════════
+class _ScheduleCard extends StatelessWidget {
+  final String title;
+  final String date;
+  final String status;
+
+  const _ScheduleCard({required this.title, required this.date, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.inkNavy800,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider10),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppColors.inkNavy700, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.calendar_today_rounded, color: AppColors.goldCta, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(date, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: AppColors.inkNavy700, borderRadius: BorderRadius.circular(20)),
+            child: Text(status, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ExamCard extends StatelessWidget {
   final Exam exam;
@@ -469,11 +322,7 @@ class _ExamCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.goldCta.withOpacity(0.14)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -481,83 +330,38 @@ class _ExamCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () =>
-              context.push('/exam-instruction/${exam.id}', extra: exam),
+          onTap: () => context.push('/exam-instruction/${exam.id}', extra: exam),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Exam Icon
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primaryColor.withOpacity(0.8),
-                        AppTheme.primaryColor,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    gradient: const LinearGradient(colors: [AppColors.goldCta, AppColors.goldShine]),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.assignment,
-                    color: AppColors.textPrimary,
-                    size: 26,
-                  ),
+                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
                 ),
-                const SizedBox(width: 14),
-                // Exam Details
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        exam.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
+                      Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
-                          _InfoChip(
-                            icon: Icons.timer_outlined,
-                            text: '${exam.durationMinutes} min',
-                          ),
+                          _InfoChip(icon: Icons.timer_outlined, text: '${exam.durationMinutes}m'),
                           const SizedBox(width: 12),
-                          _InfoChip(
-                            icon: Icons.quiz_outlined,
-                            text: '${exam.questionsCount} Q',
-                          ),
+                          _InfoChip(icon: Icons.quiz_outlined, text: '${exam.questionsCount}Q'),
                           const SizedBox(width: 12),
-                          _InfoChip(
-                            icon: Icons.star_outline,
-                            text: '${exam.totalMarks} marks',
-                          ),
+                          _InfoChip(icon: Icons.star_outline, text: '${exam.totalMarks} Marks'),
                         ],
                       ),
                     ],
-                  ),
-                ),
-                // Arrow
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.goldCta.withOpacity(0.16),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: AppColors.goldCta,
                   ),
                 ),
               ],
@@ -569,10 +373,6 @@ class _ExamCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-// RESULT CARD (My Results)
-// ═══════════════════════════════════════════════
-
 class _ResultCard extends StatelessWidget {
   final Map<String, dynamic> result;
 
@@ -583,7 +383,7 @@ class _ResultCard extends StatelessWidget {
     final paperSet = result['paper_sets'] as Map<String, dynamic>?;
     final examResult = result['exam_results'] as List?;
     final title = paperSet?['title'] ?? 'Exam';
-    final totalMarks = paperSet?['total_marks'] ?? 100;
+    final totalMarks = (paperSet?['total_marks'] as num?)?.toInt() ?? 100;
 
     int score = 0;
     bool passed = false;
@@ -594,87 +394,48 @@ class _ResultCard extends StatelessWidget {
     }
 
     final pct = totalMarks > 0 ? (score / totalMarks * 100) : 0.0;
-    final color = passed ? Colors.green : Colors.red;
+    final color = passed ? AppColors.success : AppColors.danger;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.inkNavy800,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.goldCta.withOpacity(0.14)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.divider10),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Score circle
             Container(
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
-                border: Border.all(color: color, width: 2.5),
+                border: Border.all(color: color.withOpacity(0.5), width: 2),
               ),
               alignment: Alignment.center,
               child: Text(
                 '${pct.toInt()}%',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: color,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color),
               ),
             ),
-            const SizedBox(width: 14),
-            // Details
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
                   const SizedBox(height: 4),
-                  Text(
-                    '$score / $totalMarks marks',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text('$score / $totalMarks marks', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 ],
               ),
             ),
-            // Pass/Fail badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                passed ? 'PASS ✅' : 'FAIL ❌',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: color,
-                ),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              child: Text(passed ? 'PASS' : 'FAIL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color)),
             ),
           ],
         ),
@@ -682,10 +443,6 @@ class _ResultCard extends StatelessWidget {
     );
   }
 }
-
-// ═══════════════════════════════════════════════
-// INFO CHIP (small icon + text)
-// ═══════════════════════════════════════════════
 
 class _InfoChip extends StatelessWidget {
   final IconData icon;
@@ -699,174 +456,35 @@ class _InfoChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 14, color: AppColors.textSecondary),
-        const SizedBox(width: 3),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
       ],
     );
   }
 }
 
-class _HubSectionTitle extends StatelessWidget {
-  final String title;
-  final VoidCallback? onTap;
-
-  const _HubSectionTitle({required this.title, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        if (onTap != null)
-          TextButton(
-            onPressed: onTap,
-            child: const Text(
-              'View All',
-              style: TextStyle(color: AppColors.goldCta),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _HubCard extends StatelessWidget {
-  final Widget child;
-
-  const _HubCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.inkNavy800,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.goldCta.withOpacity(0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _MiniBadge extends StatelessWidget {
-  final String label;
-
-  const _MiniBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.inkNavy700,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickAccessCard extends StatelessWidget {
+class _EmptyState extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAccessCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _HubCard(
-      child: Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
-    );
-  }
-}
-
-class _EmptyCard extends StatelessWidget {
   final String message;
 
-  const _EmptyCard({required this.message});
+  const _EmptyState({required this.icon, required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return _HubCard(
-      child: Text(
-        message,
-        style: const TextStyle(color: AppColors.textSecondary),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.inkNavy800,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider10, style: BorderStyle.solid),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+        ],
       ),
     );
   }

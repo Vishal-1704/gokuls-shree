@@ -46,10 +46,15 @@ class SuperAdminDashboardScreen extends ConsumerWidget {
                   final pendingStudents = studentSnap.data?.length ?? 0;
                   final certs = docSnap.data?['certificates']?.length ?? 0;
 
-                  return GridView.count(
-                    crossAxisCount: 2, shrinkWrap: true,
+                  return GridView(
+                    shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.6,
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 200,
+                      mainAxisExtent: 130,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                    ),
                     children: [
                       _AdminStat('Pending Students', '$pendingStudents',
                           Icons.pending_actions_rounded, Colors.orange),

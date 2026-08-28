@@ -14,6 +14,14 @@ final adminBatchTargetsProvider = FutureProvider<List<Map<String, dynamic>>>(
   (ref) async => ref.read(examRepositoryProvider).getBatchTargets(),
 );
 
+final upcomingExamsProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) async => ref.read(examRepositoryProvider).getUpcomingExams(),
+);
+
+final examResultsProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) async => ref.read(examRepositoryProvider).getExamResults(),
+);
+
 class ExamRepository {
   final SupabaseClient _client;
 
@@ -24,27 +32,26 @@ class ExamRepository {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// Get available paper sets (exams) for the logged-in student.
-  Future<List<Exam>> getExams({int? courseId}) async {
+  Future<List<Exam>> getExams({int? branchId}) async {
     final userId = _client.auth.currentUser?.id;
 
     if (userId != null) {
       try {
         final student = await _client
             .from('students')
-            .select('id, course_id, batch_id, branch_id')
+            .select('id, branch_id, batch_id, branch_id')
             .eq('profile_id', userId)
             .maybeSingle();
 
-        final courseIdDynamic = student?['course_id'];
-        final batchIdDynamic = student?['batch_id'];
         final branchIdDynamic = student?['branch_id'];
+        final batchIdDynamic = student?['batch_id'];
 
         final filters = <String>[
           'and(assignment_type.eq.student,student_id.eq.$userId)',
         ];
-        if (courseIdDynamic != null) {
+        if (branchIdDynamic != null) {
           filters.add(
-            'and(assignment_type.eq.course,course_id.eq.$courseIdDynamic)',
+            'and(assignment_type.eq.course,branch_id.eq.$branchIdDynamic)',
           );
         }
         if (batchIdDynamic != null) {
@@ -68,10 +75,10 @@ class ExamRepository {
           return (visibleResponse as List)
               .map(
                 (e) => Exam.fromJson({
-                  'id': e['paper_set_id'].toString(),
+                  'id': e['category_id'].toString(),
                   'schedule_id': e['exam_schedule_id']?.toString(),
-                  'title': e['title'] ?? 'Exam',
-                  'duration_minutes': e['duration_minutes'] ?? 60,
+                  'name': e['name'] ?? 'Exam',
+                  'time_limit': e['time_limit'] ?? 60,
                   'total_marks': e['total_marks'] ?? 100,
                   'questions_count': e['total_questions'] ?? 0,
                   'max_attempts': e['max_attempts'] ?? 1,
@@ -83,35 +90,10 @@ class ExamRepository {
               .toList();
         }
       } catch (_) {
-        // Fallback to legacy paper_sets query below.
+        return [];
       }
     }
-
-    var fallbackQuery = _client
-        .from('paper_sets')
-        .select('*, courses(title)')
-        .eq('is_active', true);
-
-    if (courseId != null) {
-      fallbackQuery = fallbackQuery.eq('course_id', courseId);
-    }
-
-    final fallbackResponse = await fallbackQuery.order(
-      'created_at',
-      ascending: false,
-    );
-
-    return (fallbackResponse as List)
-        .map(
-          (e) => Exam.fromJson({
-            'id': e['id'].toString(),
-            'title': e['title'] ?? e['courses']?['title'] ?? 'Exam',
-            'duration_minutes': e['duration_minutes'] ?? 60,
-            'total_marks': e['total_marks'] ?? 100,
-            'questions_count': e['total_questions'] ?? 0,
-          }),
-        )
-        .toList();
+    return [];
   }
 
   Future<Map<String, dynamic>> canStartExam(Exam exam) async {
@@ -167,7 +149,7 @@ class ExamRepository {
           .from('exam_sessions')
           .select('id')
           .eq('student_id', userId)
-          .eq('paper_set_id', int.parse(exam.id));
+          .eq('category_id', int.parse(exam.id));
       if ((attempts as List).isNotEmpty) {
         return {'allowed': false, 'reason': 'Already attempted'};
       }
@@ -179,10 +161,10 @@ class ExamRepository {
   /// Get questions for a paper set
   Future<List<Question>> getQuestions(String paperSetId) async {
     final response = await _client
-        .from('questions')
+        .from('exam_questions')
         .select()
-        .eq('paper_set_id', int.parse(paperSetId))
-        .order('question_number');
+        .eq('category_id', int.parse(paperSetId))
+        .order('id');
 
     return (response as List)
         .map(
@@ -195,7 +177,7 @@ class ExamRepository {
               e['option_c'] ?? '',
               e['option_d'] ?? '',
             ],
-            'correct_option_index': _optionToIndex(e['correct_option']),
+            'correct_option_index': (e['correct_option'] as int? ?? 1) - 1,
           }),
         )
         .toList();
@@ -208,8 +190,8 @@ class ExamRepository {
   /// Get all paper sets for admin management view
   Future<List<Map<String, dynamic>>> getAdminPaperSets() async {
     final response = await _client
-        .from('paper_sets')
-        .select('id, title, total_marks, duration_minutes, total_questions, is_active, created_at, courses(title)')
+        .from('exam_categories')
+        .select('id, name, total_marks, time_limit, total_questions, status, created_at, branches(name)')
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
@@ -221,18 +203,20 @@ class ExamRepository {
     required String title,
     required int durationMinutes,
     required int totalMarks,
+    int? branchId,
     int? courseId,
     bool isActive = false, // Draft by default until questions are added
   }) async {
     final response = await _client
-        .from('paper_sets')
+        .from('exam_categories')
         .insert({
-          'title': title,
-          'duration_minutes': durationMinutes,
+          'name': title,
+          'time_limit': durationMinutes,
           'total_marks': totalMarks,
           'total_questions': 0,
+          'branch_id': branchId,
           'course_id': courseId,
-          'is_active': isActive,
+          'status': isActive ? 1 : 0,
           'created_by': _client.auth.currentUser?.id,
           'created_at': DateTime.now().toIso8601String(),
         })
@@ -248,29 +232,31 @@ class ExamRepository {
     String? title,
     int? durationMinutes,
     int? totalMarks,
+    int? branchId,
     int? courseId,
     bool? isActive,
   }) async {
     final updates = <String, dynamic>{};
-    if (title != null) updates['title'] = title;
-    if (durationMinutes != null) updates['duration_minutes'] = durationMinutes;
+    if (title != null) updates['name'] = title;
+    if (durationMinutes != null) updates['time_limit'] = durationMinutes;
     if (totalMarks != null) updates['total_marks'] = totalMarks;
+    if (branchId != null) updates['branch_id'] = branchId;
     if (courseId != null) updates['course_id'] = courseId;
-    if (isActive != null) updates['is_active'] = isActive;
+    if (isActive != null) updates['status'] = isActive ? 1 : 0;
 
-    await _client.from('paper_sets').update(updates).eq('id', paperSetId);
+    await _client.from('exam_categories').update(updates).eq('id', paperSetId);
   }
 
   /// Delete a paper set (also deletes all questions via cascade)
   Future<void> deletePaperSet(int paperSetId) async {
-    await _client.from('paper_sets').delete().eq('id', paperSetId);
+    await _client.from('exam_categories').delete().eq('id', paperSetId);
   }
 
   /// Publish/unpublish a paper set
   Future<void> togglePaperSetStatus(int paperSetId, bool isActive) async {
     await _client
-        .from('paper_sets')
-        .update({'is_active': isActive})
+        .from('exam_categories')
+        .update({'status': isActive ? 1 : 0})
         .eq('id', paperSetId);
   }
 
@@ -281,12 +267,16 @@ class ExamRepository {
   /// Get all questions for a paper set (admin view — includes correct answer)
   Future<List<Map<String, dynamic>>> getAdminQuestions(int paperSetId) async {
     final response = await _client
-        .from('questions')
-        .select('id, question_number, question_text, option_a, option_b, option_c, option_d, correct_option, marks')
-        .eq('paper_set_id', paperSetId)
-        .order('question_number');
+        .from('exam_questions')
+        .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, marks')
+        .eq('category_id', paperSetId)
+        .order('id');
 
-    return List<Map<String, dynamic>>.from(response);
+    return (response as List).map((q) {
+      final map = Map<String, dynamic>.from(q);
+      map['correct_option'] = _intToChar(map['correct_option']);
+      return map;
+    }).toList();
   }
 
   /// Add a single MCQ question to a paper set
@@ -302,26 +292,25 @@ class ExamRepository {
   }) async {
     // Get current question count to set question_number
     final existing = await _client
-        .from('questions')
+        .from('exam_questions')
         .select('id')
-        .eq('paper_set_id', paperSetId);
+        .eq('category_id', paperSetId);
     final nextNum = (existing as List).length + 1;
 
-    await _client.from('questions').insert({
-      'paper_set_id': paperSetId,
-      'question_number': nextNum,
+    await _client.from('exam_questions').insert({
+      'category_id': paperSetId,
       'question_text': questionText,
       'option_a': optionA,
       'option_b': optionB,
       'option_c': optionC,
       'option_d': optionD,
-      'correct_option': correctOption.toUpperCase(),
+      'correct_option': _charToInt(correctOption),
       'marks': marks,
     });
 
     // Update total_questions count on paper_set
     await _client
-        .from('paper_sets')
+        .from('exam_categories')
         .update({'total_questions': nextNum})
         .eq('id', paperSetId);
   }
@@ -337,28 +326,28 @@ class ExamRepository {
     required String correctOption,
     double marks = 1.0,
   }) async {
-    await _client.from('questions').update({
+    await _client.from('exam_questions').update({
       'question_text': questionText,
       'option_a': optionA,
       'option_b': optionB,
       'option_c': optionC,
       'option_d': optionD,
-      'correct_option': correctOption.toUpperCase(),
+      'correct_option': _charToInt(correctOption),
       'marks': marks,
     }).eq('id', questionId);
   }
 
   /// Delete a question and renumber remaining
   Future<void> deleteQuestion(int questionId, int paperSetId) async {
-    await _client.from('questions').delete().eq('id', questionId);
+    await _client.from('exam_questions').delete().eq('id', questionId);
 
     // Recount and update total_questions
     final remaining = await _client
-        .from('questions')
+        .from('exam_questions')
         .select('id')
-        .eq('paper_set_id', paperSetId);
+        .eq('category_id', paperSetId);
     await _client
-        .from('paper_sets')
+        .from('exam_categories')
         .update({'total_questions': (remaining as List).length})
         .eq('id', paperSetId);
   }
@@ -369,7 +358,7 @@ class ExamRepository {
 
   Future<List<Map<String, dynamic>>> getAdminPaperSetsSimple() async {
     final response = await _client
-        .from('paper_sets')
+        .from('exam_categories')
         .select('id, title')
         .eq('is_active', true)
         .order('created_at', ascending: false);
@@ -411,9 +400,9 @@ class ExamRepository {
     double marksUnanswered = 0.0,
     String? negativeFormula,
   }) async {
-    int? courseId;
-    int? batchId;
     int? branchId;
+    int? batchId;
+    int? courseId;
     String? studentId;
     final rawAssignment = assignmentValue.trim();
 
@@ -446,12 +435,12 @@ class ExamRepository {
     final schedule = await _client
         .from('exam_schedules')
         .insert({
-          'paper_set_id': paperSetId,
-          'title': title,
+          'category_id': paperSetId,
+          'name': title,
           'status': 'published',
           'publish_at': (publishAt ?? DateTime.now()).toUtc().toIso8601String(),
           'start_at': startAt.toUtc().toIso8601String(),
-          'duration_minutes': durationMinutes,
+          'time_limit': durationMinutes,
           'max_attempts': maxAttempts,
           'shuffle_questions': true,
           'shuffle_options': true,
@@ -471,9 +460,9 @@ class ExamRepository {
       'exam_schedule_id': scheduleId,
       'assignment_type': assignmentType,
       'student_id': studentId,
-      'course_id': courseId,
-      'batch_id': batchId,
       'branch_id': branchId,
+      'batch_id': batchId,
+      'course_id': courseId,
     });
   }
 
@@ -499,7 +488,7 @@ class ExamRepository {
     final response = await _client
         .from('exam_sessions')
         .insert({
-          'paper_set_id': int.parse(paperSetId),
+          'category_id': int.parse(paperSetId),
           'student_id': studentId,
           'exam_schedule_id': examScheduleId == null || examScheduleId.isEmpty
               ? null
@@ -559,13 +548,50 @@ class ExamRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  int _optionToIndex(String? option) {
-    switch (option?.toUpperCase()) {
-      case 'A': return 0;
-      case 'B': return 1;
-      case 'C': return 2;
-      case 'D': return 3;
-      default: return 0;
+  Future<List<Map<String, dynamic>>> getUpcomingExams() async {
+    try {
+      final response = await _client
+          .from('exam_schedules')
+          .select('*, paper_sets(*), courses(*)')
+          .order('start_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getExamResults() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return [];
+    try {
+      final response = await _client
+          .from('exam_results')
+          .select('*, exam_sessions!inner(*, paper_sets(*))')
+          .order('calculated_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  int _charToInt(String char) {
+    switch (char.toUpperCase()) {
+      case 'A': return 1;
+      case 'B': return 2;
+      case 'C': return 3;
+      case 'D': return 4;
+      default: return 1;
+    }
+  }
+
+  String _intToChar(dynamic val) {
+    if (val is! int) return 'A';
+    switch (val) {
+      case 1: return 'A';
+      case 2: return 'B';
+      case 3: return 'C';
+      case 4: return 'D';
+      default: return 'A';
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 
 // ─────────────────────────────────────────────
 // DATA MODEL
@@ -181,7 +182,7 @@ class AdmitCardWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'GOKULSHREE SCHOOL OF MANAGEMENT & TECHNOLOGY PVT. LTD.',
+                  EnvConfig.legalName.toUpperCase(),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -199,7 +200,7 @@ class AdmitCardWidget extends StatelessWidget {
                   style: const TextStyle(fontSize: _AC.f8, color: _AC.textLabel),
                 ),
                 Text(
-                  'www.gokulshreeschool.com',
+                  'www.${EnvConfig.websiteBaseUrl.replaceFirst(RegExp(r'^https?://(www\.)?'), '')}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: _AC.f7, color: _AC.textMuted),
                 ),
@@ -633,8 +634,8 @@ class AdmitCardWidget extends StatelessWidget {
                         style: TextStyle(
                             fontSize: _AC.f8,
                             color: _AC.textPrimary)),
-                    const Text('Gokulshree School',
-                        style: TextStyle(
+                    Text(EnvConfig.shortName,
+                        style: const TextStyle(
                             fontSize: _AC.f7,
                             color: _AC.textLabel)),
                   ],

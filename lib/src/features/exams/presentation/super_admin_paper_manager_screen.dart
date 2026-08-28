@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/features/exams/domain/exam_model.dart';
+import 'package:gokul_shree_app/src/features/exams/presentation/question_manager_screen.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
 
 /// Super Admin: Manage Exam Paper Sets & Questions
@@ -51,9 +54,11 @@ class _SuperAdminPaperManagerScreenState
   }
 
   Future<void> _createPaperSet() async {
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const _CreatePaperSetDialog(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _CreatePaperSetBottomSheet(),
     );
     if (result == null) return;
 
@@ -63,6 +68,7 @@ class _SuperAdminPaperManagerScreenState
         title: result['title'],
         durationMinutes: result['duration'],
         totalMarks: result['marks'],
+        branchId: result['branchId'],
         courseId: result['courseId'],
       );
       _snack('✅ Paper set created!');
@@ -93,7 +99,7 @@ class _SuperAdminPaperManagerScreenState
         title: const Text('Delete Paper Set?',
             style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
-          'This will permanently delete "${paper['title']}" and ALL its questions. This cannot be undone.',
+          'This will permanently delete "${paper['name']}" and ALL its questions. This cannot be undone.',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -125,9 +131,9 @@ class _SuperAdminPaperManagerScreenState
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _QuestionManagerScreen(
+        builder: (_) => QuestionManagerScreen(
           paperSetId: paper['id'] as int,
-          paperTitle: paper['title'] as String? ?? 'Paper',
+          paperTitle: paper['name'] as String? ?? 'Paper',
         ),
       ),
     ).then((_) => _loadPaperSets());
@@ -224,11 +230,11 @@ class _PaperSetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = paper['is_active'] as bool? ?? false;
+    final isActive = (paper['status'] as int? ?? 0) == 1;
     final qCount = paper['total_questions'] ?? 0;
-    final duration = paper['duration_minutes'] ?? 0;
+    final duration = paper['time_limit'] ?? 0;
     final marks = paper['total_marks'] ?? 0;
-    final courseName = paper['courses']?['title'] ?? 'No course';
+    final branchName = paper['branches']?['name'] ?? 'All Branches';
 
     return Container(
       decoration: BoxDecoration(
@@ -276,7 +282,7 @@ class _PaperSetCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        courseName,
+                        branchName,
                         style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                       ),
                     ],
@@ -402,18 +408,19 @@ class _ActionBtn extends StatelessWidget {
 
 // ─── Create Paper Set Dialog ───────────────────────────────────────────────
 
-class _CreatePaperSetDialog extends StatefulWidget {
-  const _CreatePaperSetDialog();
+class _CreatePaperSetBottomSheet extends ConsumerStatefulWidget {
+  const _CreatePaperSetBottomSheet();
 
   @override
-  State<_CreatePaperSetDialog> createState() => _CreatePaperSetDialogState();
+  ConsumerState<_CreatePaperSetBottomSheet> createState() => _CreatePaperSetBottomSheetState();
 }
 
-class _CreatePaperSetDialogState extends State<_CreatePaperSetDialog> {
+class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _durationCtrl = TextEditingController(text: '60');
   final _marksCtrl = TextEditingController(text: '100');
+  int? _selectedCourseId;
 
   @override
   void dispose() {
@@ -425,77 +432,144 @@ class _CreatePaperSetDialogState extends State<_CreatePaperSetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.inkNavy800,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Create New Paper Set',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-      content: Form(
+    final coursesAsync = ref.watch(adminCoursesProvider);
+    final courses = coursesAsync.value ?? [];
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: keyboardHeight + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.inkNavy900,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _DialogField(
-              controller: _titleCtrl,
-              label: 'Paper Title',
-              hint: 'e.g. Computer Fundamentals – Unit 1',
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title required' : null,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _DialogField(
-                    controller: _durationCtrl,
-                    label: 'Duration (min)',
-                    hint: '60',
-                    keyboard: TextInputType.number,
-                    validator: (v) => int.tryParse(v ?? '') == null
-                        ? 'Enter minutes'
-                        : null,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DialogField(
-                    controller: _marksCtrl,
-                    label: 'Total Marks',
-                    hint: '100',
-                    keyboard: TextInputType.number,
-                    validator: (v) => int.tryParse(v ?? '') == null
-                        ? 'Enter marks'
-                        : null,
+              ),
+              const Text(
+                'Create New Paper Set',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Fill out the details below to initialize a new exam paper.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 24),
+              _DialogField(
+                controller: _titleCtrl,
+                label: 'Paper Title',
+                hint: 'e.g. Computer Fundamentals – Unit 1',
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Title required' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                isExpanded: true,
+                value: _selectedCourseId,
+                dropdownColor: AppColors.inkNavy800,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Course',
+                  labelStyle: const TextStyle(color: AppColors.textMuted),
+                  filled: true,
+                  fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.divider),
                   ),
                 ),
-              ],
-            ),
-          ],
+                items: courses.map((c) => DropdownMenuItem<int>(
+                  value: c['id'], 
+                  child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
+                )).toList(),
+                onChanged: (v) => setState(() => _selectedCourseId = v),
+                validator: (v) => v == null ? 'Please select a course' : null,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DialogField(
+                      controller: _durationCtrl,
+                      label: 'Duration (min)',
+                      hint: '60',
+                      keyboard: TextInputType.number,
+                      validator: (v) => int.tryParse(v ?? '') == null
+                          ? 'Enter minutes'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _DialogField(
+                      controller: _marksCtrl,
+                      label: 'Total Marks',
+                      hint: '100',
+                      keyboard: TextInputType.number,
+                      validator: (v) => int.tryParse(v ?? '') == null
+                          ? 'Enter marks'
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.goldCta,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (!_formKey.currentState!.validate()) return;
+                    Navigator.pop(context, {
+                      'title': _titleCtrl.text.trim(),
+                      'duration': int.parse(_durationCtrl.text),
+                      'marks': int.parse(_marksCtrl.text),
+                      'branchId': null,
+                      'courseId': _selectedCourseId,
+                    });
+                  },
+                  child: const Text('Create Paper Set', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.goldCta,
-            foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          onPressed: () {
-            if (!_formKey.currentState!.validate()) return;
-            Navigator.pop(context, {
-              'title': _titleCtrl.text.trim(),
-              'duration': int.parse(_durationCtrl.text),
-              'marks': int.parse(_marksCtrl.text),
-              'courseId': null,
-            });
-          },
-          child: const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ],
     );
   }
 }
@@ -540,544 +614,6 @@ class _DialogField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.goldCta),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Question Manager Screen (push on top of paper manager)
-// ═══════════════════════════════════════════════════════════════════════════
-
-class _QuestionManagerScreen extends ConsumerStatefulWidget {
-  final int paperSetId;
-  final String paperTitle;
-  const _QuestionManagerScreen({required this.paperSetId, required this.paperTitle});
-
-  @override
-  ConsumerState<_QuestionManagerScreen> createState() => _QuestionManagerScreenState();
-}
-
-class _QuestionManagerScreenState extends ConsumerState<_QuestionManagerScreen> {
-  bool _isLoading = true;
-  List<Map<String, dynamic>> _questions = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadQuestions();
-  }
-
-  Future<void> _loadQuestions() async {
-    setState(() => _isLoading = true);
-    try {
-      final qs = await ref
-          .read(examRepositoryProvider)
-          .getAdminQuestions(widget.paperSetId);
-      setState(() {
-        _questions = qs;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _snack('Failed to load questions: $e', isError: true);
-    }
-  }
-
-  void _snack(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
-  }
-
-  void _addOrEditQuestion({Map<String, dynamic>? existing}) async {
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (_) => _QuestionFormDialog(existing: existing),
-    );
-    if (result == null) return;
-
-    try {
-      final repo = ref.read(examRepositoryProvider);
-      if (existing != null) {
-        await repo.updateQuestion(
-          questionId: existing['id'] as int,
-          questionText: result['text'],
-          optionA: result['a'],
-          optionB: result['b'],
-          optionC: result['c'],
-          optionD: result['d'],
-          correctOption: result['correct'],
-          marks: result['marks'],
-        );
-        _snack('✅ Question updated');
-      } else {
-        await repo.addQuestion(
-          paperSetId: widget.paperSetId,
-          questionText: result['text'],
-          optionA: result['a'],
-          optionB: result['b'],
-          optionC: result['c'],
-          optionD: result['d'],
-          correctOption: result['correct'],
-          marks: result['marks'],
-        );
-        _snack('✅ Question added');
-      }
-      await _loadQuestions();
-    } catch (e) {
-      _snack('Error: $e', isError: true);
-    }
-  }
-
-  Future<void> _deleteQuestion(Map<String, dynamic> q) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.inkNavy800,
-        title: const Text('Delete Question?',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: Text(
-          'Q${q['question_number']}: ${(q['question_text'] as String? ?? '').substring(0, (q['question_text'] as String? ?? '').length.clamp(0, 60))}...',
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    try {
-      await ref
-          .read(examRepositoryProvider)
-          .deleteQuestion(q['id'] as int, widget.paperSetId);
-      _snack('🗑️ Question deleted');
-      await _loadQuestions();
-    } catch (e) {
-      _snack('Error: $e', isError: true);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.inkNavy900,
-      appBar: AppBar(
-        backgroundColor: AppColors.inkNavy800,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.paperTitle,
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15)),
-            Text('${_questions.length} question(s)',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: AppColors.textSecondary),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addOrEditQuestion(),
-        backgroundColor: AppColors.goldCta,
-        foregroundColor: Colors.black,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add Question', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.goldCta))
-          : _questions.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.help_outline_rounded,
-                          size: 64, color: AppColors.divider),
-                      const SizedBox(height: 16),
-                      Text('No questions yet',
-                          style: AppTypography.headingSm
-                              .copyWith(color: AppColors.textMuted)),
-                      const SizedBox(height: 8),
-                      Text('Tap + Add Question to begin',
-                          style: AppTypography.bodySm
-                              .copyWith(color: AppColors.textMuted)),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                  itemCount: _questions.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final q = _questions[i];
-                    final correct = (q['correct_option'] as String? ?? 'A').toUpperCase();
-                    final opts = {'A': q['option_a'], 'B': q['option_b'], 'C': q['option_c'], 'D': q['option_d']};
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.inkNavy800,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.textPrimary.withValues(alpha: 0.06)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.goldCta.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'Q${q['question_number'] ?? i + 1}',
-                                    style: const TextStyle(
-                                        color: AppColors.goldCta,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    q['question_text'] ?? '',
-                                    style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: opts.entries.map((e) {
-                                final isCorrect = e.key == correct;
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: isCorrect
-                                        ? Colors.green.withValues(alpha: 0.15)
-                                        : AppColors.textPrimary.withValues(alpha: 0.04),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isCorrect
-                                          ? Colors.green.withValues(alpha: 0.5)
-                                          : AppColors.textPrimary.withValues(alpha: 0.08),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (isCorrect)
-                                        const Padding(
-                                          padding: EdgeInsets.only(right: 4),
-                                          child: Icon(Icons.check_circle_rounded,
-                                              size: 12, color: Colors.green),
-                                        ),
-                                      Text(
-                                        '${e.key}. ${e.value ?? ''}',
-                                        style: TextStyle(
-                                          color: isCorrect
-                                              ? Colors.green
-                                              : AppColors.textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: isCorrect
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                          const Divider(color: AppColors.divider10, height: 1),
-                          Row(
-                            children: [
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: () =>
-                                    _addOrEditQuestion(existing: q),
-                                icon: const Icon(Icons.edit_rounded,
-                                    size: 14, color: Colors.blue),
-                                label: const Text('Edit',
-                                    style: TextStyle(
-                                        color: Colors.blue, fontSize: 12)),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => _deleteQuestion(q),
-                                icon: const Icon(Icons.delete_outline_rounded,
-                                    size: 14, color: Colors.red),
-                                label: const Text('Delete',
-                                    style: TextStyle(
-                                        color: Colors.red, fontSize: 12)),
-                              ),
-                              const Spacer(),
-                              Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: Text(
-                                  '${q['marks'] ?? 1} mark',
-                                  style: const TextStyle(
-                                      color: AppColors.goldCta, fontSize: 11),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
-}
-
-// ─── Question Form Dialog ──────────────────────────────────────────────────
-
-class _QuestionFormDialog extends StatefulWidget {
-  final Map<String, dynamic>? existing;
-  const _QuestionFormDialog({this.existing});
-
-  @override
-  State<_QuestionFormDialog> createState() => _QuestionFormDialogState();
-}
-
-class _QuestionFormDialogState extends State<_QuestionFormDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _textCtrl;
-  late final TextEditingController _aCtrl;
-  late final TextEditingController _bCtrl;
-  late final TextEditingController _cCtrl;
-  late final TextEditingController _dCtrl;
-  late final TextEditingController _marksCtrl;
-  String _correct = 'A';
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.existing;
-    _textCtrl = TextEditingController(text: e?['question_text'] ?? '');
-    _aCtrl = TextEditingController(text: e?['option_a'] ?? '');
-    _bCtrl = TextEditingController(text: e?['option_b'] ?? '');
-    _cCtrl = TextEditingController(text: e?['option_c'] ?? '');
-    _dCtrl = TextEditingController(text: e?['option_d'] ?? '');
-    _marksCtrl = TextEditingController(text: (e?['marks'] ?? 1).toString());
-    _correct = (e?['correct_option'] as String? ?? 'A').toUpperCase();
-  }
-
-  @override
-  void dispose() {
-    _textCtrl.dispose();
-    _aCtrl.dispose();
-    _bCtrl.dispose();
-    _cCtrl.dispose();
-    _dCtrl.dispose();
-    _marksCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
-    return Dialog(
-      backgroundColor: AppColors.inkNavy800,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                isEdit ? 'Edit Question' : 'Add Question',
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-
-              // Question text
-              _DialogField(
-                controller: _textCtrl,
-                label: 'Question Text',
-                hint: 'Enter the question...',
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Options
-              ...['A', 'B', 'C', 'D'].map((letter) {
-                final ctrl = {'A': _aCtrl, 'B': _bCtrl, 'C': _cCtrl, 'D': _dCtrl}[letter]!;
-                final isSelected = _correct == letter;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setState(() => _correct = letter),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.green
-                                : AppColors.textPrimary.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected
-                                  ? Colors.green
-                                  : AppColors.textMuted,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              letter,
-                              style: TextStyle(
-                                color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: TextFormField(
-                          controller: ctrl,
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: 'Option $letter',
-                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                            filled: true,
-                            fillColor: isSelected
-                                ? Colors.green.withValues(alpha: 0.08)
-                                : AppColors.textPrimary.withValues(alpha: 0.04),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                  color: isSelected ? Colors.green : AppColors.divider),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                  color: isSelected
-                                      ? Colors.green.withValues(alpha: 0.4)
-                                      : AppColors.divider),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.goldCta),
-                            ),
-                          ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Required' : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              // Marks
-              SizedBox(
-                width: 120,
-                child: _DialogField(
-                  controller: _marksCtrl,
-                  label: 'Marks',
-                  hint: '1',
-                  keyboard: TextInputType.number,
-                  validator: (v) =>
-                      double.tryParse(v ?? '') == null ? 'Enter marks' : null,
-                ),
-              ),
-
-              // Correct answer hint
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, size: 14, color: AppColors.textMuted),
-                    const SizedBox(width: 6),
-                    Text('Tap a letter circle to mark the correct answer',
-                        style: AppTypography.bodySm.copyWith(color: AppColors.textMuted, fontSize: 11)),
-                  ],
-                ),
-              ),
-
-              // Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel',
-                        style: TextStyle(color: AppColors.textMuted)),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.goldCta,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () {
-                      if (!_formKey.currentState!.validate()) return;
-                      Navigator.pop(context, {
-                        'text': _textCtrl.text.trim(),
-                        'a': _aCtrl.text.trim(),
-                        'b': _bCtrl.text.trim(),
-                        'c': _cCtrl.text.trim(),
-                        'd': _dCtrl.text.trim(),
-                        'correct': _correct,
-                        'marks': double.parse(_marksCtrl.text),
-                      });
-                    },
-                    child: Text(isEdit ? 'Update' : 'Add Question',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -381,6 +381,7 @@ CREATE TABLE IF NOT EXISTS exam_categories (
   total_questions INT DEFAULT 20,
   status          SMALLINT DEFAULT 1,
   branch_id       INT REFERENCES branches(id),
+  course_id       INT REFERENCES courses(id),
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 

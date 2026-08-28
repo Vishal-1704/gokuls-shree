@@ -8,8 +8,30 @@ class StudentRepository {
 
   Future<Map<String, dynamic>> getStudentProfile() async {
     try {
+      final user = supabase.auth.currentUser;
       final profile = await _supabaseService.getStudentProfile();
-      if (profile == null) throw Exception('Student profile not found');
+      
+      if (profile == null) {
+        final authName = user?.userMetadata?['name'] ?? 'Student';
+        return {
+          'id': user?.id,
+          'name': authName,
+          'class_section': 'Pending Setup',
+          'reg_no': 'Pending Approval',
+          'streak': 0,
+          'photo_url': 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
+          'email': user?.email,
+          'phone': user?.phone,
+          'father_name': null,
+          'guardian_name': null,
+          'address': null,
+          'doj': null,
+          'date_of_birth': null,
+          'course_id': null,
+          'batch_id': null,
+          'branch_id': null,
+        };
+      }
 
       final resolvedName =
           profile['name'] ?? profile['full_name'] ?? profile['student_name'];
@@ -40,16 +62,18 @@ class StudentRepository {
         'branch_id': profile['branch_id'],
       };
     } catch (e) {
-      // Fallback for development if table/columns missing
+      final user = supabase.auth.currentUser;
+      final authName = user?.userMetadata?['name'] ?? 'Student';
+      // Fallback for development if table/columns missing or RLS error
       return {
-        'id': null,
-        'name': 'Gokul Student',
-        'class_section': 'Loading...',
-        'reg_no': 'GS-2024-XX',
+        'id': user?.id,
+        'name': authName,
+        'class_section': 'Pending Setup',
+        'reg_no': 'Pending Approval',
         'streak': 0,
-        'photo_url': 'https://ui-avatars.com/api/?name=Student',
-        'email': null,
-        'phone': null,
+        'photo_url': 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
+        'email': user?.email,
+        'phone': user?.phone,
         'father_name': null,
         'guardian_name': null,
         'address': null,
@@ -169,48 +193,51 @@ class StudentRepository {
 
   Future<List<Map<String, dynamic>>> getUpcomingExams({int limit = 3}) async {
     try {
-      final results = await _supabaseService.getMyExamResults();
-      final now = DateTime.now();
+      final user = supabase.auth.currentUser;
+      if (user == null) return [];
 
-      final upcomingFromSessions = <Map<String, dynamic>>[];
-      for (final r in results) {
-        final session = r['exam_sessions'];
-        if (session is! Map<String, dynamic>) continue;
+      final student = await supabase
+          .from('students')
+          .select('course_id, batch_id, branch_id')
+          .eq('profile_id', user.id)
+          .maybeSingle();
 
-        final endedAtRaw = session['ended_at']?.toString();
-        if (endedAtRaw == null || endedAtRaw.isEmpty) continue;
+      final courseIdDynamic = student?['course_id'];
+      final batchIdDynamic = student?['batch_id'];
+      final branchIdDynamic = student?['branch_id'];
 
-        final endedAt = DateTime.tryParse(endedAtRaw);
-        if (endedAt == null || !endedAt.isAfter(now)) continue;
-
-        final paperSet = session['paper_sets'];
-        upcomingFromSessions.add({
-          'name': (paperSet is Map<String, dynamic>)
-              ? (paperSet['name'] ?? paperSet['title'] ?? 'Exam').toString()
-              : 'Exam',
-          'date': _formatDate(endedAtRaw),
-          'status': 'Upcoming',
-        });
+      final filters = <String>[
+        'and(assignment_type.eq.student,student_id.eq.${user.id})',
+      ];
+      if (courseIdDynamic != null) {
+        filters.add('and(assignment_type.eq.course,course_id.eq.$courseIdDynamic)');
+      }
+      if (batchIdDynamic != null) {
+        filters.add('and(assignment_type.eq.batch,batch_id.eq.$batchIdDynamic)');
+      }
+      if (branchIdDynamic != null) {
+        filters.add('and(assignment_type.eq.branch,branch_id.eq.$branchIdDynamic)');
       }
 
-      if (upcomingFromSessions.isNotEmpty) {
-        return upcomingFromSessions.take(limit).toList();
-      }
+      final response = await supabase
+          .from('v_student_visible_exams')
+          .select()
+          .or(filters.join(','))
+          .order('start_at', ascending: true)
+          .limit(limit);
 
-      final paperSets = await _supabaseService.getActivePaperSets(limit: limit);
-      return paperSets.map((p) {
-        final dateRaw =
-            p['exam_date'] ??
-            p['scheduled_at'] ??
-            p['start_at'] ??
-            p['created_at'];
-        final statusRaw = (p['status'] ?? '').toString().toLowerCase();
-        final status = statusRaw == 'scheduled' || statusRaw == 'upcoming'
-            ? 'Upcoming'
-            : 'Available';
+      return (response as List).map((p) {
+        final dateRaw = p['start_at'];
+        final now = DateTime.now().toUtc();
+        final startAt = dateRaw != null ? DateTime.tryParse(dateRaw.toString())?.toUtc() : null;
+        
+        String status = 'Available';
+        if (startAt != null && startAt.isAfter(now)) {
+          status = 'Upcoming';
+        }
 
         return {
-          'name': (p['title'] ?? p['name'] ?? 'Exam').toString(),
+          'name': (p['title'] ?? 'Exam').toString(),
           'date': _formatDate(dateRaw?.toString()),
           'status': status,
         };
@@ -457,4 +484,14 @@ final studentFeeStatusProvider = FutureProvider<List<Map<String, dynamic>>>((
       'receiptNo': p['receipt_no'],
     };
   }).toList();
+});
+
+final studentAttendanceStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  final repository = ref.watch(studentRepositoryProvider);
+  return repository.getAttendanceStats();
+});
+
+final studentFeeSnapshotProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  final repository = ref.watch(studentRepositoryProvider);
+  return repository.getFeeSnapshot();
 });

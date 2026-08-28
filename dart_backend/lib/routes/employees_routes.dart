@@ -16,8 +16,10 @@ Router buildEmployeesRouter() {
       .addMiddleware(rateLimit)
       .addMiddleware(requireAuth())
       .addMiddleware(requirePermission('MANAGE_STAFF'))
+      .addMiddleware(strictBranchGuard())
       .addHandler((Request req) async {
     try {
+      final session = req.context['session'] as UserSession;
       final id = req.params['id'] as String;
       final body = await _body(req);
       final empId = int.tryParse(id);
@@ -46,13 +48,42 @@ Router buildEmployeesRouter() {
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
-      final updated = await SupabaseService.update('employees', updateData, filters: {'id': empId});
+      final filters = <String, dynamic>{'id': empId};
+      if (session.queryBranchId != null) {
+        filters['branch_id'] = session.queryBranchId;
+      }
+
+      final updated = await SupabaseService.update('employees', updateData, filters: filters);
       
       if (updated.isEmpty) {
-        return _json(404, {'error': 'Employee not found'});
+        return _json(404, {'error': 'Employee not found or access denied'});
       }
       
       return _json(200, {'success': true, 'data': updated.first});
+    } catch (e) {
+      return _json(500, {'error': e.toString()});
+    }
+  }));
+
+  // Employee: get own details
+  router.get('/me', Pipeline()
+      .addMiddleware(rateLimit)
+      .addMiddleware(requireAuth())
+      .addMiddleware(requirePermission('READ_OWN_PROFILE'))
+      .addHandler((Request req) async {
+    try {
+      final session = req.context['session'] as UserSession;
+      final res = await SupabaseService.query(
+        'employees',
+        queryParams: {'profile_id': 'eq.${session.profileId}'},
+      );
+
+      final data = jsonDecode(res.body) as List;
+      if (data.isEmpty) {
+        return _json(404, {'error': 'Employee record not found'});
+      }
+
+      return _json(200, {'success': true, 'data': data.first});
     } catch (e) {
       return _json(500, {'error': e.toString()});
     }

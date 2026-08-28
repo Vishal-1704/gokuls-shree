@@ -3,7 +3,6 @@
 // SEC-2 FIX: generate_pdf route now requires authentication
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import '../config/supabase_service.dart';
@@ -294,8 +293,6 @@ Router buildDocumentsRouter() {
       // Fetch the cert and employee details to generate PDF
       final certs = await SupabaseService.select('experience_certificates', columns: '*, employees(*)', filters: {'id': certId});
       if (certs.isEmpty) return _json(404, {'error': 'Request not found'});
-      final cert = certs.first;
-      final emp = cert['employees'];
 
       final updated = await SupabaseService.update('experience_certificates', {
         'status': 1,
