@@ -4,8 +4,6 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
-import 'package:gokul_shree_app/src/features/admin/presentation/widgets/setup_required_banner.dart';
-import 'package:gokul_shree_app/src/features/student/presentation/widgets/student_notice_board.dart';
 import 'package:gokul_shree_app/src/core/services/update_service.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_notices_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_profile_screen.dart';
