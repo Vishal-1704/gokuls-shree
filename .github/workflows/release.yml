@@ -48,6 +48,16 @@ jobs:
           ${{ secrets.ENV_FILE }}
           ENVEOF
 
+      # android/.gitignore excludes **/*.jks (android/app/key.jks is the
+      # real release-signing keystore, correctly never committed), so a
+      # fresh CI checkout has no keystore for the "release" signing config
+      # in android/app/build.gradle.kts — the build fails at
+      # :app:validateSigningRelease with "Keystore file ... not found".
+      # Requires a one-time repo secret named KEYSTORE_BASE64 containing
+      # the real key.jks file, base64-encoded.
+      - name: Decode signing keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/key.jks
+
       - name: Generate Release Tag
         id: tag
         run: |
