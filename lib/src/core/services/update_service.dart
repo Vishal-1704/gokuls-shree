@@ -10,6 +10,18 @@ class UpdateService {
   static const String _githubRepo = 'Vishal-1704/gokuls-shree';
   static const String _prefsLastSeenTagKey = 'update_last_seen_tag';
 
+  // RoleShell (the single call site for this, shared by every role) can
+  // have its State recreated/re-run initState() multiple times per app
+  // session during ordinary GoRouter shell rebuilds — without this guard,
+  // every rebuild queued another SnackBar, each one interrupting/replacing
+  // whichever was already showing, which looked like a single notice stuck
+  // on screen forever and made the first tap just dismiss the current
+  // instance instead of ever reaching its action button. One real check
+  // per process lifetime is all this needs; a fresh app launch re-arms it.
+  static bool _hasCheckedThisSession = false;
+
+  static final ValueNotifier<double?> downloadProgress = ValueNotifier<double?>(null);
+
   /// Checks for an update and shows a snackbar if a new, not-yet-seen
   /// version is available. Call once (e.g. from RoleShell, shared by every
   /// role) — not per-dashboard, so every role actually gets checked.
@@ -24,6 +36,9 @@ class UpdateService {
     BuildContext context, {
     Duration delay = const Duration(seconds: 8),
   }) async {
+    if (_hasCheckedThisSession) return;
+    _hasCheckedThisSession = true;
+
     await Future.delayed(delay);
     if (!context.mounted) return;
 
@@ -91,14 +106,25 @@ class UpdateService {
     messenger
         .showSnackBar(
           SnackBar(
-            content: Text('A new version ($version) is available.'),
             duration: const Duration(seconds: 8),
-            action: downloadUrl == null
-                ? null
-                : SnackBarAction(
-                    label: 'UPDATE',
+            content: Row(
+              children: [
+                Expanded(child: Text('A new version ($version) is available.')),
+                if (downloadUrl != null)
+                  TextButton(
                     onPressed: () => _downloadAndInstall(context, downloadUrl),
+                    child: const Text('UPDATE', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                // Explicit close so this doesn't rely only on the 8s
+                // auto-timeout to go away.
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => messenger.hideCurrentSnackBar(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
           ),
         )
         .closed
@@ -110,27 +136,54 @@ class UpdateService {
     String downloadUrl,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Downloading update…'), duration: Duration(seconds: 30)),
+    messenger.hideCurrentSnackBar();
+    downloadProgress.value = null;
+
+    final progressController = messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(minutes: 10),
+        content: ValueListenableBuilder<double?>(
+          valueListenable: downloadProgress,
+          builder: (context, progress, _) => Row(
+            children: [
+              const Text('Downloading update…'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: LinearProgressIndicator(value: progress, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              Text(progress == null ? '' : '${(progress * 100).toStringAsFixed(0)}%'),
+            ],
+          ),
+        ),
+      ),
     );
 
     try {
       final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/gokul_shree_update.apk';
-      await Dio().download(downloadUrl, filePath);
+      await Dio().download(
+        downloadUrl,
+        filePath,
+        onReceiveProgress: (received, total) {
+          if (total > 0) downloadProgress.value = received / total;
+        },
+      );
 
       final file = File(filePath);
       if (!await file.exists()) {
         throw Exception('Downloaded file not found');
       }
 
-      messenger.hideCurrentSnackBar();
+      progressController.close();
       await OpenFilex.open(filePath);
     } catch (e) {
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.red),
-      );
+      progressController.close();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
