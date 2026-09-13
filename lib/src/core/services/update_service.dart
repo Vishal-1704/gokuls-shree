@@ -1,13 +1,18 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateService {
   static const String _githubRepo = 'Vishal-1704/gokuls-shree';
+  static const String _prefsLastSeenTagKey = 'update_last_seen_tag';
 
-  /// Checks for an update and shows a dialog if a new version is available.
-  /// This should be called from the main screen after the app loads.
+  /// Checks for an update and shows a snackbar if a new, not-yet-seen
+  /// version is available. Call once (e.g. from RoleShell, shared by every
+  /// role) — not per-dashboard, so every role actually gets checked.
   ///
   /// Waits before doing any network work so this never competes with the
   /// dashboard's own initial data fetches right at boot/login — this was
@@ -30,67 +35,102 @@ class UpdateService {
         'https://api.github.com/repos/$_githubRepo/releases/latest',
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final latestTag = data['tag_name'] as String?;
-        final downloadUrl = data['html_url'] as String?;
+      if (response.statusCode != 200) return;
 
-        if (latestTag != null && downloadUrl != null) {
-          final latestVersion = latestTag.replaceAll('v', '');
+      final data = response.data;
+      final latestTag = data['tag_name'] as String?;
+      if (latestTag == null) return;
+      final latestVersion = latestTag.replaceAll('v', '');
 
-          if (_isUpdateAvailable(currentVersion, latestVersion)) {
-            if (context.mounted) {
-              _showUpdateDialog(context, latestVersion, downloadUrl);
-            }
-          }
-        }
+      // Built-name/build-number are now generated from the exact same
+      // release tag as the CI workflow (see release.yml) — comparing
+      // currentVersion (the running APK's own versionName) against
+      // latestVersion this way is finally comparing like with like,
+      // instead of a hand-maintained pubspec version against a date tag.
+      if (!_isUpdateAvailable(currentVersion, latestVersion)) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final lastSeenTag = prefs.getString(_prefsLastSeenTagKey);
+      // Already shown this exact release before — don't nag again every
+      // single launch. Only a genuinely newer tag re-triggers the notice.
+      if (lastSeenTag == latestTag) return;
+
+      final assets = data['assets'] as List?;
+      final apkAsset = assets?.cast<Map>().firstWhere(
+            (a) => (a['name'] as String?)?.endsWith('.apk') ?? false,
+            orElse: () => const {},
+          );
+      final downloadUrl = apkAsset?['browser_download_url'] as String?;
+
+      if (context.mounted) {
+        _showUpdateSnackBar(context, latestTag, latestVersion, downloadUrl);
       }
     } catch (e) {
       debugPrint('Error checking for updates: $e');
     }
   }
 
-  /// Basic version comparison (e.g. 1.0.0 vs 1.0.1)
+  /// Basic version comparison (e.g. 2026.09.14-1530 vs 2026.09.10-0900) —
+  /// this date-stamp format sorts correctly as a plain string compare.
   static bool _isUpdateAvailable(String current, String latest) {
-    // If we use date-based tags like v2024.10.15, this logic will need tweaking,
-    // but for simple semver or timestamp comparison, comparing strings works well enough for basic use cases.
     return latest.compareTo(current) > 0;
   }
 
-  static void _showUpdateDialog(
+  static Future<void> _markSeen(String tag) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsLastSeenTagKey, tag);
+  }
+
+  static void _showUpdateSnackBar(
     BuildContext context,
-    String newVersion,
-    String url,
+    String tag,
+    String version,
+    String? downloadUrl,
   ) {
-    showDialog(
-      context: context,
-      barrierDismissible:
-          false, // Force update if needed, change to true for optional
-      builder: (context) => AlertDialog(
-        title: const Text('Update Available!'),
-        content: Text(
-          'A new version ($newVersion) of the app is available. Please update to get the latest features and fixes.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Later', style: TextStyle(color: Colors.grey)),
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+        .showSnackBar(
+          SnackBar(
+            content: Text('A new version ($version) is available.'),
+            duration: const Duration(seconds: 8),
+            action: downloadUrl == null
+                ? null
+                : SnackBarAction(
+                    label: 'UPDATE',
+                    onPressed: () => _downloadAndInstall(context, downloadUrl),
+                  ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text(
-              'Update Now',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+        )
+        .closed
+        .then((_) => _markSeen(tag));
+  }
+
+  static Future<void> _downloadAndInstall(
+    BuildContext context,
+    String downloadUrl,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Downloading update…'), duration: Duration(seconds: 30)),
     );
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/gokul_shree_update.apk';
+      await Dio().download(downloadUrl, filePath);
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('Downloaded file not found');
+      }
+
+      messenger.hideCurrentSnackBar();
+      await OpenFilex.open(filePath);
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }

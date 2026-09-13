@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Lets the user approve installing the downloaded update APK from
+         within the app, instead of only being able to open a browser to
+         the GitHub release page. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:label="gokul_shree_app"
         android:name="${applicationName}"

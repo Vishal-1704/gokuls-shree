@@ -1,6 +1,7 @@
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/navigation/back_handler.dart';
+import 'package:gokul_shree_app/src/core/services/update_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +38,15 @@ class _RoleShellState extends ConsumerState<RoleShell> {
     // Even if this widget is disposed and recreated, the singleton stays alive.
     BackHandler.instance.handler = _handleBack;
     debugPrint('🔵 RoleShell mounted — handler set (tab=${widget.shell.currentIndex})');
+
+    // Single call site for every role's shell, instead of duplicating this
+    // per-dashboard (which is exactly why teacher/super_admin never got an
+    // update check at all before). checkForUpdate itself is idempotent
+    // against re-showing an already-seen release, so it's harmless if this
+    // fires again on a shell rebuild.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
   }
 
   @override

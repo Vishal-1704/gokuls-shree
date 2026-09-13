@@ -4,7 +4,6 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
-import 'package:gokul_shree_app/src/core/services/update_service.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_notices_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_profile_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -26,9 +25,6 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
   void initState() {
     super.initState();
     _refreshData();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService.checkForUpdate(context);
-    });
   }
 
   void _refreshData() {
