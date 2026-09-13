@@ -34,6 +34,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Create .env file for build
+        run: cp .env.example .env
+
       - name: Generate Release Tag
         id: tag
         run: |
