@@ -34,6 +34,20 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # pubspec.yaml requires .env as a bundled asset (flutter_dotenv), but
+      # .env is gitignored (it holds live Supabase keys) so a fresh CI
+      # checkout never has one — the build fails at the asset-bundling step
+      # with "No file or variants found for asset: .env" before it ever
+      # gets to compiling anything. Requires a one-time repo secret named
+      # ENV_FILE containing the exact real .env file's full contents
+      # (Settings -> Secrets and variables -> Actions -> New repository
+      # secret) — this workflow cannot invent real Supabase credentials.
+      - name: Write .env file
+        run: |
+          cat > .env << 'ENVEOF'
+          ${{ secrets.ENV_FILE }}
+          ENVEOF
+
       - name: Generate Release Tag
         id: tag
         run: |
