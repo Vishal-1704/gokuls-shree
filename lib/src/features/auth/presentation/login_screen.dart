@@ -21,7 +21,7 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-enum LoginStep { phone, password, register }
+enum LoginStep { phone, password, legacyVerify, register }
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
@@ -34,11 +34,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _legacyPasswordController = TextEditingController();
   final _signupEmailController = TextEditingController();
   final _signupNameController = TextEditingController();
   final _signupPasswordController = TextEditingController();
   final _signupConfirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _keepOldPassword = false;
+  bool _isVerifyingLegacy = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -72,6 +75,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void dispose() {
     _mobileController.dispose();
     _passwordController.dispose();
+    _legacyPasswordController.dispose();
     _signupEmailController.dispose();
     _signupNameController.dispose();
     _signupPasswordController.dispose();
@@ -120,12 +124,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       setState(() {
         _lookupResult = result;
-        _currentStep = result.hasAuthAccount ? LoginStep.password : LoginStep.register;
+        // A found-but-unclaimed record must prove ownership via its old
+        // legacy password before it can set up a new login — previously
+        // this jumped straight to "create your account," which let anyone
+        // who knew the phone number claim it as their own.
+        _currentStep = result.hasAuthAccount ? LoginStep.password : LoginStep.legacyVerify;
       });
     } catch (e) {
       if (!mounted) return;
       _cancelLatencyTimer();
       setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _handleLegacyVerify() async {
+    final legacyPassword = _legacyPasswordController.text;
+    if (legacyPassword.isEmpty) return;
+
+    setState(() => _isVerifyingLegacy = true);
+    try {
+      final verified = await ref.read(supabaseAuthNotifierProvider).verifyLegacyPassword(
+            phone: _mobileController.text.trim(),
+            legacyPassword: legacyPassword,
+          );
+      if (!mounted) return;
+      setState(() => _isVerifyingLegacy = false);
+
+      if (verified) {
+        setState(() => _currentStep = LoginStep.register);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That password doesn\'t match our records. Please try again or contact your branch admin.'), backgroundColor: AppColors.danger),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isVerifyingLegacy = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
@@ -142,15 +177,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_signupPasswordController.text != _signupConfirmPasswordController.text) {
+    if (!_keepOldPassword && _signupPasswordController.text != _signupConfirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
+    // Skipping "create a new password" keeps the legacy password they just
+    // verified with as their login going forward, per the checkbox.
+    final finalPassword = _keepOldPassword ? _legacyPasswordController.text : _signupPasswordController.text;
     await ref.read(supabaseAuthNotifierProvider).registerWithPhone(
       phone: _mobileController.text.trim(),
       email: _signupEmailController.text.trim(),
-      password: _signupPasswordController.text,
+      password: finalPassword,
       name: _signupNameController.text.trim(),
+      legacyPassword: _legacyPasswordController.text,
     );
     if (mounted && ref.read(supabaseAuthProvider) is! AuthError) {
       setState(() { _currentStep = LoginStep.password; });
@@ -315,6 +354,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                               if (_currentStep == LoginStep.phone) _buildPhoneStep(isBusy),
                               if (_currentStep == LoginStep.password) _buildPasswordStep(isBusy),
+                              if (_currentStep == LoginStep.legacyVerify) _buildLegacyVerifyStep(),
                               if (_currentStep == LoginStep.register) _buildRegisterStep(isBusy),
 
                               if (_isSlowNetwork)
@@ -474,6 +514,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  Widget _buildLegacyVerifyStep() {
+    return Column(
+      children: [
+        Text(
+          'We found your record!\nEnter your previous password to confirm it\'s you.',
+          textAlign: TextAlign.center,
+          style: AppTypography.bodyMd.copyWith(color: AppColors.success),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _legacyPasswordController,
+          obscureText: _obscurePassword,
+          style: AppTypography.bodyMd,
+          decoration: _buildGlassInputDecoration(
+            labelText: 'Previous Password',
+            hintText: 'The password you used before',
+            prefixIcon: const Icon(Icons.history_rounded, color: AppColors.textSecondary),
+            suffixIcon: IconButton(
+              icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textSecondary),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+        ),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: _isVerifyingLegacy ? null : _handleLegacyVerify,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.goldCta,
+              foregroundColor: AppColors.inkNavy900,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: _isVerifyingLegacy
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkNavy900))
+                : Text('VERIFY', style: AppTypography.labelLg.copyWith(color: AppColors.inkNavy900, fontSize: 16)),
+          ),
+        ),
+        TextButton(
+          onPressed: _callCentre,
+          child: Text('Don\'t remember it? Call your branch', style: AppTypography.bodyMd.copyWith(color: AppColors.goldCta, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRegisterStep(bool isBusy) {
     return Column(
       children: [
@@ -509,33 +597,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           },
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _signupPasswordController,
-          obscureText: _obscurePassword,
-          style: AppTypography.bodyMd,
-          decoration: _buildGlassInputDecoration(
-            labelText: 'Create Password',
-            hintText: 'Minimum 6 characters',
-            prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary),
-            suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textSecondary),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        CheckboxListTile(
+          value: _keepOldPassword,
+          onChanged: (v) => setState(() => _keepOldPassword = v ?? false),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          activeColor: AppColors.goldCta,
+          title: Text('Keep using my previous password', style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary)),
+        ),
+        if (!_keepOldPassword) ...[
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _signupPasswordController,
+            obscureText: _obscurePassword,
+            style: AppTypography.bodyMd,
+            decoration: _buildGlassInputDecoration(
+              labelText: 'Create Password',
+              hintText: 'Minimum 6 characters',
+              prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textSecondary),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
             ),
+            validator: (v) => (_keepOldPassword || (v != null && v.length >= 6)) ? null : 'Min 6 characters',
           ),
-          validator: (v) => (v == null || v.length < 6) ? 'Min 6 characters' : null,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _signupConfirmPasswordController,
-          obscureText: _obscurePassword,
-          style: AppTypography.bodyMd,
-          decoration: _buildGlassInputDecoration(
-            labelText: 'Confirm Password',
-            hintText: 'Re-enter your password',
-            prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _signupConfirmPasswordController,
+            obscureText: _obscurePassword,
+            style: AppTypography.bodyMd,
+            decoration: _buildGlassInputDecoration(
+              labelText: 'Confirm Password',
+              hintText: 'Re-enter your password',
+              prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary),
+            ),
+            validator: (v) => (_keepOldPassword || (v != null && v.isNotEmpty)) ? null : 'Required',
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-        ),
+        ],
         const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,

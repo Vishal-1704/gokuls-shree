@@ -4,6 +4,7 @@ import '../presentation/teacher_attendance_screen.dart';
 import '../presentation/teacher_students_screen.dart';
 import '../presentation/teacher_results_upload_screen.dart';
 import '../presentation/teacher_employment_details_screen.dart';
+import '../presentation/employee_salary_screen.dart';
 import '../../auth/presentation/account_screen.dart';
 
 class TeacherRoutes {
@@ -29,6 +30,13 @@ class TeacherRoutes {
       builder: (context, state) {
         final emp = state.extra as Map<String, dynamic>?;
         return TeacherEmploymentDetailsScreen(emp: emp);
+      },
+    ),
+    GoRoute(
+      path: '/teacher/my-salary',
+      builder: (context, state) {
+        final emp = state.extra as Map<String, dynamic>?;
+        return EmployeeSalaryScreen(emp: emp);
       },
     ),
   ];

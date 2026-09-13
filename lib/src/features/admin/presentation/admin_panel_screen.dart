@@ -6,6 +6,10 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 import 'package:gokul_shree_app/src/core/models/user_session.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/admin_add_student_screen.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/admin_course_detail_screen.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/admin_course_form_screen.dart';
+import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 
 /// Admin Panel screen for managing courses, notices, students, and downloads
 /// Only accessible by admin users
@@ -30,6 +34,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _loadData();
   }
 
@@ -149,12 +156,14 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                     ],
                   ),
                 ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.goldCta,
-            foregroundColor: AppColors.inkNavy900,
-            onPressed: () => _showAddDialog(),
-            child: const Icon(Icons.add),
-          ),
+          floatingActionButton: _tabController.index == 0
+              ? null
+              : FloatingActionButton(
+                  backgroundColor: AppColors.goldCta,
+                  foregroundColor: AppColors.inkNavy900,
+                  onPressed: () => _showAddDialog(),
+                  child: const Icon(Icons.add),
+                ),
         );
       },
       loading: () => const Scaffold(
@@ -183,6 +192,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
       return const Center(child: Text('No courses found'));
     }
 
+    final role = ref.watch(currentRoleProvider);
+    final isSuperAdmin = role == UserRole.superAdmin;
+
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
@@ -190,28 +202,98 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         itemCount: _courses.length,
         itemBuilder: (context, index) {
           final course = _courses[index];
+          final courseTitle = (course['name'] ?? course['title'] ?? 'Untitled Course').toString();
+          final courseCategory = (course['category'] ?? 'Computer & Vocational').toString();
+          final courseDuration = (course['duration'] ?? '12 Months').toString();
+
           return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.school, color: AppTheme.primaryColor),
-              ),
-              title: Text(course['title'] ?? 'Untitled'),
-              subtitle: Text('${course['category']} • ${course['duration']}'),
-              trailing: PopupMenuButton(
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+            margin: const EdgeInsets.only(bottom: 10),
+            elevation: 0.5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                    builder: (_) => AdminCourseDetailScreen(course: course),
                   ),
-                ],
-                onSelected: (value) => _handleCourseAction(value, course),
+                ).then((_) => _loadData());
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldCta.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.school_rounded, color: AppColors.goldCta, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            courseTitle,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  courseCategory,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '•  $courseDuration',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSuperAdmin)
+                      PopupMenuButton(
+                        icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 'edit', child: Text('Edit Specs')),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                        onSelected: (value) => _handleCourseAction(value, course),
+                      )
+                    else
+                      const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 22),
+                  ],
+                ),
               ),
             ),
           );
@@ -285,17 +367,21 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                backgroundImage: student['photo_url'] != null
-                    ? NetworkImage(student['photo_url'])
-                    : null,
-                child: student['photo_url'] == null
-                    ? Text(
-                        (student['name'] as String? ?? 'S')[0].toUpperCase(),
-                        style: const TextStyle(color: AppTheme.primaryColor),
-                      )
-                    : null,
+              leading: Builder(
+                builder: (context) {
+                  final avatar = resolveAvatarProvider(student['photo_url']);
+                  return CircleAvatar(
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    backgroundImage: avatar,
+                    onBackgroundImageError: avatar != null ? (_, __) {} : null,
+                    child: avatar == null
+                        ? Text(
+                            (student['name'] as String? ?? 'S')[0].toUpperCase(),
+                            style: const TextStyle(color: AppTheme.primaryColor),
+                          )
+                        : null,
+                  );
+                },
               ),
               title: Text(student['name'] ?? 'Unknown'),
               subtitle: Text(
@@ -501,18 +587,27 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   // ===========================================
   void _showAddDialog() {
     final currentTab = _tabController.index;
+    final role = ref.read(currentRoleProvider);
+    final isSuperAdmin = role == UserRole.superAdmin;
 
     switch (currentTab) {
       case 0:
+        if (!isSuperAdmin) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Courses are managed by Super Admin.')),
+          );
+          return;
+        }
         _showAddCourseDialog();
         break;
       case 1:
         _showAddNoticeDialog();
         break;
       case 2:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Students are added through signup')),
-        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminAddStudentScreen()),
+        ).then((_) => _loadData());
         break;
       case 3:
         _showAddDownloadDialog();
@@ -521,180 +616,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   }
 
   void _showAddCourseDialog() {
-    final titleController = TextEditingController();
-    final categoryController = TextEditingController(text: 'Diploma');
-    final durationController = TextEditingController();
-    final eligibilityController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final totalClassesController = TextEditingController(text: '0');
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          top: 24,
-          left: 24,
-          right: 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Add New Course',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Course Title',
-                  prefixIcon: Icon(Icons.school_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: 'Diploma',
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-                items: ['Diploma', 'Vocational', 'Yoga', 'University']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => categoryController.text = v ?? 'Diploma',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: durationController,
-                decoration: const InputDecoration(
-                  labelText: 'Duration (e.g., 1 Year)',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: eligibilityController,
-                decoration: const InputDecoration(
-                  labelText: 'Eligibility',
-                  prefixIcon: Icon(Icons.verified_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: totalClassesController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Total Classes',
-                  prefixIcon: Icon(Icons.class_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  prefixIcon: Icon(Icons.description_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (titleController.text.isNotEmpty) {
-                      await ref
-                          .read(adminRepositoryProvider)
-                          .addCourse(
-                            title: titleController.text,
-                            category: categoryController.text,
-                            duration: durationController.text,
-                            eligibility: eligibilityController.text,
-                            description: descriptionController.text.isNotEmpty
-                                ? descriptionController.text
-                                : null,
-                            totalClasses:
-                                int.tryParse(totalClassesController.text) ?? 0,
-                          );
-                      if (mounted) {
-                        Navigator.pop(context);
-                        _loadData();
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Create Course',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const AdminCourseFormScreen()),
+    ).then((_) => _loadData());
   }
 
   void _showAddNoticeDialog() {
@@ -706,7 +630,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -732,11 +656,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -902,7 +826,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -925,11 +849,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -1028,7 +952,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1051,11 +975,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -1177,185 +1101,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   // EDIT DIALOGS
   // ===========================================
   void _showEditCourseDialog(Map<String, dynamic> course) {
-    final titleController = TextEditingController(text: course['title']);
-    final categoryController = TextEditingController(text: course['category']);
-    final durationController = TextEditingController(text: course['duration']);
-    final eligibilityController = TextEditingController(
-      text: course['eligibility'],
-    );
-    final descriptionController = TextEditingController(
-      text: course['description'] ?? '',
-    );
-    final totalClassesController = TextEditingController(
-      text: (course['total_classes'] ?? 0).toString(),
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          top: 24,
-          left: 24,
-          right: 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Edit Course',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  prefixIcon: Icon(Icons.school_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: categoryController.text,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-                items: ['Diploma', 'Vocational', 'Yoga', 'University']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => categoryController.text = v ?? 'Diploma',
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: durationController,
-                decoration: const InputDecoration(
-                  labelText: 'Duration',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: eligibilityController,
-                decoration: const InputDecoration(
-                  labelText: 'Eligibility',
-                  prefixIcon: Icon(Icons.verified_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: totalClassesController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Total Classes',
-                  prefixIcon: Icon(Icons.class_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  prefixIcon: Icon(Icons.description_outlined),
-                  filled: true,
-                  fillColor: Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await ref
-                        .read(adminRepositoryProvider)
-                        .updateCourse(
-                          id: course['id'].toString(),
-                          title: titleController.text,
-                          category: categoryController.text,
-                          duration: durationController.text,
-                          eligibility: eligibilityController.text,
-                          description: descriptionController.text.isNotEmpty
-                              ? descriptionController.text
-                              : null,
-                          totalClasses:
-                              int.tryParse(totalClassesController.text) ?? 0,
-                        );
-                    if (mounted) {
-                      Navigator.pop(context);
-                      _loadData();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => AdminCourseFormScreen(course: course)),
+    ).then((_) => _loadData());
   }
 
   void _showEditNoticeDialog(Map<String, dynamic> notice) {
@@ -1369,7 +1117,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1394,11 +1142,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -1531,16 +1279,27 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1549,30 +1308,30 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            _buildDetailRow(Icons.person, 'Name', student['name'] ?? 'N/A'),
+            _buildDetailRow(Icons.person_outline, 'Name', student['name']),
             const SizedBox(height: 16),
-            _buildDetailRow(Icons.email, 'Email', student['email'] ?? 'N/A'),
+            _buildDetailRow(Icons.email_outlined, 'Email', student['email']),
             const SizedBox(height: 16),
             _buildDetailRow(
-              Icons.badge,
+              Icons.badge_outlined,
               'Reg No',
-              student['registration_number'] ?? 'N/A',
+              student['registration_number'] ?? student['reg_no'],
             ),
             const SizedBox(height: 16),
-            _buildDetailRow(Icons.phone, 'Phone', student['phone'] ?? 'N/A'),
+            _buildDetailRow(Icons.phone_outlined, 'Phone', student['phone'] ?? student['contact']),
             const SizedBox(height: 16),
             _buildDetailRow(
-              Icons.school,
+              Icons.school_outlined,
               'Course ID',
               student['course_id'] ?? 'Not enrolled',
             ),
@@ -1582,6 +1341,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1598,17 +1360,21 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(IconData icon, String label, dynamic value) {
+    final displayValue = (value == null || value.toString().trim().isEmpty)
+        ? 'N/A'
+        : value.toString().trim();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F7),
-            borderRadius: BorderRadius.circular(8),
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+          child: Icon(icon, color: AppTheme.primaryColor, size: 22),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1617,19 +1383,19 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Color(0xFF64748B),
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                value,
+                displayValue,
                 style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0F172A),
                 ),
               ),
             ],

@@ -93,14 +93,14 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
           colors: [AppColors.inkNavy800, AppColors.inkNavy700],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.goldCta.withOpacity(0.2)),
+        border: Border.all(color: AppColors.goldCta.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.goldCta.withOpacity(0.1),
+              color: AppColors.goldCta.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.verified_user_rounded, color: AppColors.goldCta, size: 32),
@@ -167,7 +167,7 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: (isMarksheet ? Colors.blue : Colors.orange).withOpacity(0.1),
+            color: (isMarksheet ? Colors.blue : Colors.orange).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -185,15 +185,13 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
 
   Future<void> _viewDocument(String type, Map<String, dynamic> doc) async {
     if (type == 'Marksheet') {
-      Navigator.push(
-        context,
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (_) => MarksheetViewerScreen(marksheet: doc),
         ),
       );
     } else {
-      Navigator.push(
-        context,
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (_) => CertificateViewerScreen(certificate: doc),
         ),

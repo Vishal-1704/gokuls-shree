@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/core/widgets/webview_screen.dart';
@@ -12,13 +11,11 @@ final examListProvider = FutureProvider<List<Exam>>((ref) async {
   return ref.read(examRepositoryProvider).getExams();
 });
 
-final examResultsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  return ref.read(examRepositoryProvider).getMyResults();
-});
-
-final upcomingExamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  return ref.read(studentRepositoryProvider).getUpcomingExams();
-});
+// upcomingExamsProvider and examResultsProvider come from exam_repository.dart
+// (imported below) — this file used to shadow both with local providers that
+// read from a different, now-defunct data path, which meant this screen's
+// "Upcoming Schedule" and "Recent Results" sections were silently reading
+// the wrong data despite the correct providers being one import away.
 
 class ExamListBody extends ConsumerWidget {
   const ExamListBody({super.key});
@@ -136,11 +133,16 @@ class _UpcomingScheduleSection extends ConsumerWidget {
         }
         return Column(
           children: items.map((exam) {
-            final status = exam['status']?.toString() ?? 'Upcoming';
+            final paper = exam['paper_sets'] as Map<String, dynamic>? ?? {};
+            final title = paper['title']?.toString() ?? exam['title']?.toString() ?? 'Exam';
+            final startAt = DateTime.tryParse((exam['start_at'] ?? '').toString());
+            final date = startAt != null
+                ? '${startAt.day.toString().padLeft(2, '0')}/${startAt.month.toString().padLeft(2, '0')}/${startAt.year}'
+                : 'TBA';
             return _ScheduleCard(
-              title: exam['name']?.toString() ?? 'Exam',
-              date: exam['date']?.toString() ?? 'TBA',
-              status: status,
+              title: title,
+              date: date,
+              status: exam['status']?.toString() ?? 'Upcoming',
             );
           }).toList(),
         );
@@ -380,18 +382,12 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paperSet = result['paper_sets'] as Map<String, dynamic>?;
-    final examResult = result['exam_results'] as List?;
-    final title = paperSet?['title'] ?? 'Exam';
-    final totalMarks = (paperSet?['total_marks'] as num?)?.toInt() ?? 100;
-
-    int score = 0;
-    bool passed = false;
-    if (examResult != null && examResult.isNotEmpty) {
-      final r = examResult[0] as Map<String, dynamic>;
-      score = (r['marks_obtained'] as num?)?.toInt() ?? 0;
-      passed = r['passed'] == true;
-    }
+    final schedule = result['schedules'] as Map<String, dynamic>?;
+    final paper = schedule?['paper_sets'] as Map<String, dynamic>?;
+    final title = schedule?['title'] ?? paper?['title'] ?? 'Exam';
+    final totalMarks = (result['total_marks'] as num?)?.toInt() ?? 100;
+    final score = (result['score'] as num?)?.toInt() ?? 0;
+    final passed = result['result'] == 'pass';
 
     final pct = totalMarks > 0 ? (score / totalMarks * 100) : 0.0;
     final color = passed ? AppColors.success : AppColors.danger;

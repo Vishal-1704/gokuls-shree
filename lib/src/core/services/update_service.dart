@@ -8,7 +8,20 @@ class UpdateService {
 
   /// Checks for an update and shows a dialog if a new version is available.
   /// This should be called from the main screen after the app loads.
-  static Future<void> checkForUpdate(BuildContext context) async {
+  ///
+  /// Waits before doing any network work so this never competes with the
+  /// dashboard's own initial data fetches right at boot/login — this was
+  /// previously fired from postFrameCallback the instant the dashboard
+  /// first rendered, adding a GitHub API round-trip to the app's busiest
+  /// startup moment. Runs like a background check instead: the dashboard
+  /// is already fully interactive by the time this does anything.
+  static Future<void> checkForUpdate(
+    BuildContext context, {
+    Duration delay = const Duration(seconds: 8),
+  }) async {
+    await Future.delayed(delay);
+    if (!context.mounted) return;
+
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
@@ -24,7 +37,7 @@ class UpdateService {
 
         if (latestTag != null && downloadUrl != null) {
           final latestVersion = latestTag.replaceAll('v', '');
-          
+
           if (_isUpdateAvailable(currentVersion, latestVersion)) {
             if (context.mounted) {
               _showUpdateDialog(context, latestVersion, downloadUrl);
@@ -44,13 +57,20 @@ class UpdateService {
     return latest.compareTo(current) > 0;
   }
 
-  static void _showUpdateDialog(BuildContext context, String newVersion, String url) {
+  static void _showUpdateDialog(
+    BuildContext context,
+    String newVersion,
+    String url,
+  ) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Force update if needed, change to true for optional
+      barrierDismissible:
+          false, // Force update if needed, change to true for optional
       builder: (context) => AlertDialog(
         title: const Text('Update Available!'),
-        content: Text('A new version ($newVersion) of the app is available. Please update to get the latest features and fixes.'),
+        content: Text(
+          'A new version ($newVersion) of the app is available. Please update to get the latest features and fixes.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -64,7 +84,10 @@ class UpdateService {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Update Now', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Update Now',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

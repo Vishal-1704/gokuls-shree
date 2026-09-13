@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_fee_collection_screen.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_admit_card_screen.dart';
+import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 
 class AdminStudentDirectoryScreen extends ConsumerStatefulWidget {
   final int? branchId;
@@ -253,7 +253,6 @@ class _AdminStudentDirectoryScreenState
                       final isInactive = student['status'] == 2;
                       final isPending = student['status'] == 0;
                       final photoUrl = student['photo_url']?.toString();
-                      final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
                       final courseName =
                           student['courses']?['short_name'] ??
                           student['courses']?['name'] ??
@@ -269,21 +268,22 @@ class _AdminStudentDirectoryScreenState
                           onTap: () =>
                               _showStudentActionSheet(context, student),
                           contentPadding: const EdgeInsets.all(12),
-                          leading: CircleAvatar(
-                            radius: 28,
-                            backgroundColor: AppColors.inkNavy700,
-                            backgroundImage: hasPhoto
-                                ? NetworkImage(photoUrl)
-                                : null,
-                            child: hasPhoto
-                                ? null
-                                : const Icon(
-                                    Icons.person,
-                                    color: AppColors.textSecondary,
-                                  ),
-                            onBackgroundImageError: hasPhoto 
-                                ? (_, __) {} 
-                                : null,
+                          leading: Builder(
+                            builder: (context) {
+                              final avatar = resolveAvatarProvider(photoUrl);
+                              return CircleAvatar(
+                                radius: 28,
+                                backgroundColor: AppColors.inkNavy700,
+                                backgroundImage: avatar,
+                                onBackgroundImageError: avatar != null ? (_, __) {} : null,
+                                child: avatar == null
+                                    ? const Icon(
+                                        Icons.person,
+                                        color: AppColors.textSecondary,
+                                      )
+                                    : null,
+                              );
+                            },
                           ),
                           title: Row(
                             children: [
@@ -565,19 +565,23 @@ class _AdminStudentDirectoryScreenState
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.inkNavy700,
-                      backgroundImage: student['photo_url'] != null
-                          ? NetworkImage(student['photo_url'])
-                          : null,
-                      child: student['photo_url'] == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 50,
-                              color: AppColors.textSecondary,
-                            )
-                          : null,
+                    Builder(
+                      builder: (context) {
+                        final avatar = resolveAvatarProvider(student['photo_url']);
+                        return CircleAvatar(
+                          radius: 50,
+                          backgroundColor: AppColors.inkNavy700,
+                          backgroundImage: avatar,
+                          onBackgroundImageError: avatar != null ? (_, __) {} : null,
+                          child: avatar == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: AppColors.textSecondary,
+                                )
+                              : null,
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     Text(

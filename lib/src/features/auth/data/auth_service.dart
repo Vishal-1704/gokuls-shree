@@ -88,18 +88,41 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     }
   }
 
+  // Bumped each time _loadProfile is called; a call whose result lands after
+  // a newer call has already updated _state is stale and must not overwrite
+  // it — otherwise a slow, premature fetch (e.g. one fired by the
+  // onAuthStateChange listener right after signUp(), before the profile row
+  // is linked) can clobber the correct result from a later, authoritative
+  // call with a null profile.
+  int _loadProfileSeq = 0;
+
   /// Load user profile from profiles table
   Future<void> _loadProfile(User user) async {
+    final seq = ++_loadProfileSeq;
     try {
       final profile = await _client
           .from('profiles')
           .select()
           .eq('auth_uid', user.id)
           .maybeSingle()
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 10));
 
-      _state = AuthAuthenticated(user, profile);
+      if (seq != _loadProfileSeq) return; // superseded by a newer call
+
+      if (profile == null) {
+        // A signed-in auth user with no matching profiles row is an
+        // orphaned/incomplete account, never a legitimate "guest" — routing
+        // it onward as AuthAuthenticated(user, null) sends it to a dead-end
+        // public screen with no way to recover.
+        _state = AuthError('Your account isn\'t fully set up. Please log in again or contact your branch admin.');
+        try {
+          await _client.auth.signOut();
+        } catch (_) {}
+      } else {
+        _state = AuthAuthenticated(user, profile);
+      }
     } catch (e) {
+      if (seq != _loadProfileSeq) return;
       debugPrint('⚠️ Failed to load profile: $e');
       _state = AuthError('Network Error. Could not load profile. Please check your connection.');
       try {
@@ -157,12 +180,42 @@ class SupabaseAuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// Register a user for the first time via phone number
+  /// Checks the caller actually owns the legacy student record for this
+  /// phone number before letting them anywhere near creating an account —
+  /// previously anyone who knew a registered phone number could claim it
+  /// with no proof at all. This must be verified before [registerWithPhone]
+  /// is ever called.
+  Future<bool> verifyLegacyPassword({
+    required String phone,
+    required String legacyPassword,
+  }) async {
+    try {
+      final response = await _client
+          .rpc('verify_legacy_password', params: {
+            'p_phone': phone.trim(),
+            'p_legacy_password': legacyPassword,
+          })
+          .timeout(const Duration(seconds: 5));
+      return response['verified'] == true;
+    } on TimeoutException {
+      throw Exception('Network timeout. Please check your internet connection.');
+    } catch (e) {
+      debugPrint('Error verifying legacy password: $e');
+      throw Exception('Could not verify your old password. Please try again.');
+    }
+  }
+
+  /// Claims an existing (already legacy-password-verified) student record.
+  /// [newPassword] is what the student will log in with going forward — if
+  /// they chose to keep their old password instead of setting a new one,
+  /// callers should pass the same value they already verified with
+  /// [verifyLegacyPassword].
   Future<void> registerWithPhone({
     required String phone,
     required String email,
     required String password,
     required String name,
+    required String legacyPassword,
   }) async {
     _state = AuthLoading();
     notifyListeners();
@@ -185,18 +238,20 @@ class SupabaseAuthNotifier extends ChangeNotifier {
         return;
       }
 
-      // 2. Link auth user to entity
+      // 2. Link auth user to entity — re-verifies the legacy password
+      // server-side too, it isn't just trusting the earlier check.
       final linkResponse = await _client.rpc('link_auth_user_to_entity', params: {
         'p_phone': phone.trim(),
         'p_auth_uid': authResponse.user!.id,
         'p_email': email.trim(),
         'p_name': name.trim(),
+        'p_legacy_password': legacyPassword,
       });
 
       if (linkResponse['success'] == true) {
         await _loadProfile(authResponse.user!);
       } else {
-        _state = AuthError('Failed to link account: ');
+        _state = AuthError('Could not verify your record. Please contact your branch admin.');
         notifyListeners();
       }
     } on AuthException catch (e) {

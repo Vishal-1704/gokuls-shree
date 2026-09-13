@@ -8,6 +8,8 @@ import '../presentation/student_fee_status_screen.dart';
 import '../presentation/student_result_list_screen.dart';
 import '../presentation/student_attendance_screen.dart';
 import '../presentation/student_id_card_screen.dart';
+import '../presentation/student_calendar_screen.dart';
+import '../presentation/student_notices_screen.dart';
 class StudentRoutes {
   static List<StatefulShellBranch> get branches => [
     StatefulShellBranch(routes: [
@@ -26,5 +28,7 @@ class StudentRoutes {
     GoRoute(path: '/results', builder: (c, s) => const StudentResultListScreen()),
     GoRoute(path: '/attendance', builder: (c, s) => const StudentAttendanceScreen()),
     GoRoute(path: '/id-card', builder: (c, s) => const StudentIdCardScreen()),
+    GoRoute(path: '/calendar', builder: (c, s) => const StudentCalendarScreen()),
+    GoRoute(path: '/notices', builder: (c, s) => const StudentNoticesScreen()),
   ];
 }

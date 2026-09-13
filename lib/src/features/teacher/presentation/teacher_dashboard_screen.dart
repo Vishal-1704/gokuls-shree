@@ -34,7 +34,7 @@ class TeacherDashboardScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hello, ${session?.name ?? 'Teacher'} 👋',
+              'Hello, ${session?.name.trim().split(RegExp(r'\s+')).first ?? 'Teacher'} 👋',
               style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             employeeProfileAsync.when(
@@ -75,7 +75,7 @@ class TeacherDashboardScreen extends ConsumerWidget {
 
                     // 2. Subjects Taught Catalog
                     const Text(
-                      'Subjects I Teach',
+                      'Subjects',
                       style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),

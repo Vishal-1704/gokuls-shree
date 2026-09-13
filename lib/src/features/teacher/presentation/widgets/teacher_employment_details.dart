@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
+import 'package:gokul_shree_app/src/features/teacher/presentation/employee_salary_screen.dart';
 
 class TeacherEmploymentDetails extends ConsumerWidget {
   final Map<String, dynamic>? emp;
@@ -101,35 +103,8 @@ class TeacherEmploymentDetails extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
-        // Payroll / Payslip Section
-        const Text('Payroll Snapshot (Monthly)', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.inkNavy800,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider10, width: 1),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPayRow('Basic Salary', '₹${basic.toStringAsFixed(2)}'),
-              _buildPayRow('House Rent Allowance (HRA)', '₹${hra.toStringAsFixed(2)}'),
-              _buildPayRow('Dearness Allowance (DA)', '₹${da.toStringAsFixed(2)}'),
-              _buildPayRow('Special Allowances', '₹${other.toStringAsFixed(2)}'),
-              const Divider(color: AppColors.textMuted, thickness: 1, height: 20),
-              _buildPayRow('Gross Salary', '₹${gross.toStringAsFixed(2)}', isBold: true, valueColor: AppColors.goldCta),
-              const SizedBox(height: 16),
-              const Text('Statutory Registrations', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _buildPayRow('PF Account No', pf, isSecondary: true),
-              _buildPayRow('ESI Registration No', esi, isSecondary: true),
-              _buildPayRow('PAN Card', pan, isSecondary: true),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
+
+
 
         // Profile Details List
         const Text('Registry Details', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
@@ -150,7 +125,27 @@ class TeacherEmploymentDetails extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 30),
-        
+
+        // My Salary & Payslips
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => EmployeeSalaryScreen(emp: emp),
+              ),
+            ),
+            icon: const Icon(Icons.receipt_long_rounded, color: AppColors.goldCta),
+            label: const Text('My Salary & Payslips', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.goldCta)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.goldCta),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Experience Certificate Request
         SizedBox(
           width: double.infinity,
@@ -165,18 +160,14 @@ class TeacherEmploymentDetails extends ConsumerWidget {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 40),
       ],
     );
   }
 
-  Future<void> _requestExperienceCertificate(BuildContext context, WidgetRef ref) async {
-    // Disabled/Mocked
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Experience Certificate requested successfully!'), backgroundColor: AppColors.success),
-    );
-  }
+  Future<void> _requestExperienceCertificate(BuildContext context, WidgetRef ref) =>
+      requestExperienceCertificate(context, emp);
 
   Widget _buildLeaveCard(String title, String count, Color color) {
     return Expanded(
@@ -246,5 +237,36 @@ class TeacherEmploymentDetails extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Shared with account_screen.dart's quick-access tile, so both call sites
+/// use the exact same insert logic instead of duplicating it.
+Future<void> requestExperienceCertificate(BuildContext context, Map<String, dynamic>? emp) async {
+  final employeeId = emp?['id'] as int?;
+  if (employeeId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not find your employee record.'), backgroundColor: AppColors.danger),
+    );
+    return;
+  }
+
+  try {
+    await supabase.from('experience_certificates').insert({
+      'employee_id': employeeId,
+      'branch_id': emp?['branch_id'],
+      'status': 0,
+    });
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Experience Certificate requested successfully!'), backgroundColor: AppColors.success),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request failed: $e'), backgroundColor: AppColors.danger),
+      );
+    }
   }
 }

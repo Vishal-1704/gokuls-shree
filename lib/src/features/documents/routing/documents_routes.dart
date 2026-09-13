@@ -8,8 +8,11 @@ class DocumentsRoutes {
       builder: (context, state) => const VerificationScreen(),
       routes: [
         GoRoute(
-          path: ':id',
-          builder: (context, state) => VerificationScreen(documentId: state.pathParameters['id']),
+          path: ':type/:id',
+          builder: (context, state) => VerificationScreen(
+            documentType: state.pathParameters['type'],
+            documentId: int.tryParse(state.pathParameters['id'] ?? ''),
+          ),
         ),
       ],
     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
@@ -482,7 +483,18 @@ class _AdminExamSchedulerScreenState
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
-      appBar: AppBar(title: Text(titleText)),
+      appBar: AppBar(
+        title: Text(titleText),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined),
+            tooltip: 'View Results',
+            onPressed: () => context.push(
+              isBranchAdmin ? '/admin/schedule-results' : '/super-admin/schedule-results',
+            ),
+          ),
+        ],
+      ),
       body: paperSetsAsync.when(
         data: (paperSets) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -610,7 +622,8 @@ class _AdminExamSchedulerScreenState
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Marks Correct (+)',
+                    labelText: 'Correct answer multiplier',
+                    helperText: '1 = full marks for that question. e.g. a 2-mark question awards 2.',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -620,7 +633,8 @@ class _AdminExamSchedulerScreenState
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Marks Wrong (- or 0)',
+                    labelText: 'Wrong answer multiplier (- or 0)',
+                    helperText: '-0.25 = lose a quarter of that question\'s marks. Scales with each question\'s own weight.',
                   ),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').trim());
@@ -636,7 +650,8 @@ class _AdminExamSchedulerScreenState
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Marks Unanswered',
+                    labelText: 'Unanswered multiplier',
+                    helperText: 'Usually 0. Same scaling as above.',
                   ),
                 ),
                 const SizedBox(height: 12),

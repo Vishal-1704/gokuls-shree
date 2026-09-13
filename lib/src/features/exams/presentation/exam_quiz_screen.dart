@@ -1,4 +1,3 @@
-import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +32,11 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
   int _remainingSeconds = 0;
   bool _isSubmitted = false;
   int _switchCounts = 0;
+  String? _attemptId;
+  Map<String, dynamic>? _resumedAnswers; // question id -> selected_option (1-4)
+  bool _appliedResume = false;
+  Timer? _pauseGraceTimer;
+  List<Question>? _loadedQuestions;
 
   @override
   void initState() {
@@ -42,22 +46,89 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
       _remainingSeconds = widget.examMetadata!.durationMinutes * 60;
       _startTimer();
     }
+    _startSession();
+  }
+
+  /// Creates (or resumes) the `attempts` row for this exam up front so every
+  /// answer and the final submission has somewhere to persist to —
+  /// previously this screen never called into the repository at all and
+  /// scored purely in memory, so nothing about an attempt was ever saved.
+  /// Answer taps are blocked in the UI until this resolves (see the
+  /// "Preparing your exam" overlay in build()) so a fast tap can't land
+  /// before there's an attempt id to attach it to.
+  Future<void> _startSession() async {
+    try {
+      final result = await ref.read(examRepositoryProvider).startExamSession(
+            paperSetId: widget.examId,
+            studentId: '',
+            examScheduleId: widget.examMetadata?.scheduleId,
+          );
+      if (!mounted || result == null) return;
+
+      // remaining_seconds is computed by the database (attempt_remaining_seconds,
+      // migration 20240301000008) from the server's own clock — the
+      // student's device clock is never consulted, so a skewed phone
+      // clock can't cause a premature auto-submit or a wrong countdown.
+      final remainingSeconds = result['remaining_seconds'] as int?;
+
+      setState(() {
+        _attemptId = result['attempt_id'] as String?;
+        _resumedAnswers = Map<String, dynamic>.from(result['answers'] as Map? ?? {});
+        if (remainingSeconds != null) _remainingSeconds = remainingSeconds;
+      });
+
+      if (remainingSeconds == 0) {
+        // Resumed an attempt whose window already elapsed while the app
+        // was closed — submit immediately so it gets graded rather than
+        // sitting stuck in_progress forever.
+        _submitExam(reason: 'time_expired');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start exam session: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _applyResumedAnswers(List<Question> questions) {
+    if (_resumedAnswers == null || _appliedResume) return;
+    for (var i = 0; i < questions.length; i++) {
+      final val = _resumedAnswers![questions[i].id];
+      if (val is int) _selectedAnswers[i] = val - 1;
+    }
+    _appliedResume = true;
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      if (!_isSubmitted) _handleAppSwitch();
+    // Only `paused` (actually backgrounded) counts — `inactive` also fires
+    // for transient system overlays (an incoming call banner, the
+    // notification shade, a permission prompt) that never leave the app,
+    // and treating those as switches disqualified students for things
+    // that weren't cheating.
+    if (state == AppLifecycleState.paused) {
+      _pauseGraceTimer?.cancel();
+      // 8s (not 3s) — a longer, more forgiving window before a transient
+      // system interruption (an incoming call ringing, a permission
+      // prompt) that keeps the app backgrounded a few seconds counts as
+      // a strike.
+      _pauseGraceTimer = Timer(const Duration(seconds: 8), () {
+        if (!_isSubmitted) _handleAppSwitch();
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      _pauseGraceTimer?.cancel();
     }
   }
 
   void _handleAppSwitch() {
     _switchCounts++;
     debugPrint("⚠️ App Switch Detected! Count: $_switchCounts");
+    if (mounted) setState(() {});
     if (_switchCounts >= 3) {
-      _submitExam();
+      _submitExam(reason: 'app_switch');
     }
   }
 
@@ -67,7 +138,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
         setState(() => _remainingSeconds--);
       } else {
         _timer?.cancel();
-        _submitExam();
+        _submitExam(reason: 'time_expired');
       }
     });
   }
@@ -76,6 +147,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _pauseGraceTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -86,30 +158,79 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  void _submitExam([List<Question>? questions]) {
+  Future<void> _submitExam({String? reason}) async {
+    final questions = _loadedQuestions;
     if (_isSubmitted) return;
     _isSubmitted = true;
     _timer?.cancel();
+    _pauseGraceTimer?.cancel();
 
-    int score = 0;
-    int total = questions?.length ?? 0;
+    final attemptId = _attemptId;
+    if (attemptId == null) {
+      _isSubmitted = false; // never actually started — let the student retry
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Exam session was not ready — please try submitting again.'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
 
+    // Re-send every currently selected answer before grading. Taps fire
+    // submitAnswer without blocking the UI, so if any of those silently
+    // failed (a network blip), this flush is the last chance to get the
+    // real state to the server before grade_attempt reads it.
     if (questions != null) {
-      for (int i = 0; i < total; i++) {
-        if (_selectedAnswers[i] == questions[i].correctOptionIndex) {
-          score++;
+      final repo = ref.read(examRepositoryProvider);
+      for (final entry in _selectedAnswers.entries) {
+        if (entry.key >= questions.length) continue;
+        final optLabel = String.fromCharCode(65 + entry.value);
+        try {
+          await repo.submitAnswer(
+            sessionId: attemptId,
+            questionId: questions[entry.key].id,
+            selectedOption: optLabel,
+          );
+        } catch (_) {
+          // Best-effort — grade_attempt will just treat that one as
+          // unanswered if this resend also fails.
         }
       }
     }
 
-    context.pushReplacement(
-      '/exam-result',
-      extra: {
-        'score': score,
-        'total': total,
-        'title': widget.examMetadata?.title ?? 'Exam',
-      },
-    );
+    try {
+      final result = await ref.read(examRepositoryProvider).finishExam(attemptId, reason: reason);
+      if (!mounted) return;
+      context.pushReplacement(
+        '/exam-result',
+        extra: {
+          'score': ((result?['score'] as num?) ?? 0).round(),
+          'total': ((result?['total_marks'] as num?) ?? (questions?.length ?? 0)).round(),
+          'title': widget.examMetadata?.title ?? 'Exam',
+          'passed': result?['result'] == 'pass',
+        },
+      );
+    } catch (e) {
+      // grade_attempt raises if the schedule's time window has already
+      // closed — surface that instead of showing a fabricated result.
+      _isSubmitted = false;
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Could not submit'),
+            content: Text('$e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -139,14 +260,14 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
               children: [
                 Icon(
                   isTimeWarning ? Icons.warning_rounded : Icons.timer,
-                  color: AppColors.textPrimary,
+                  color: Colors.white,
                   size: 16,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   _formatTime(_remainingSeconds),
                   style: const TextStyle(
-                    color: AppColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     fontFamily: 'monospace',
@@ -161,6 +282,8 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
         children: [
           questionsAsync.when(
             data: (questions) {
+              _loadedQuestions = questions;
+              _applyResumedAnswers(questions);
               if (questions.isEmpty) {
                 return Center(
                   child: Column(
@@ -253,7 +376,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
-                                  color: AppColors.textPrimary,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
@@ -268,10 +391,23 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                   style: const TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F172A),
                                     height: 1.4,
                                   ),
                                 ),
                               ),
+                              if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    question.imageUrl!,
+                                    width: double.infinity,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 18),
 
                               // Options
@@ -290,6 +426,14 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                     color: Colors.transparent,
                                     child: InkWell(
                                       onTap: () {
+                                        final attemptId = _attemptId;
+                                        if (attemptId != null) {
+                                          ref.read(examRepositoryProvider).submitAnswer(
+                                                sessionId: attemptId,
+                                                questionId: question.id,
+                                                selectedOption: optLabel,
+                                              );
+                                        }
                                         setState(() {
                                           _selectedAnswers[index] = optIndex;
                                         });
@@ -304,7 +448,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                           color: isSelected
                                               ? AppTheme.primaryColor
                                                     .withOpacity(0.08)
-                                              : AppColors.textPrimary,
+                                              : Colors.white,
                                           border: Border.all(
                                             color: isSelected
                                                 ? AppTheme.primaryColor
@@ -347,7 +491,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                                   ? const Icon(
                                                       Icons.check,
                                                       size: 18,
-                                                      color: AppColors.textPrimary,
+                                                      color: Colors.white,
                                                     )
                                                   : Text(
                                                       optLabel,
@@ -391,7 +535,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary,
+                      color: Colors.white,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.06),
@@ -433,7 +577,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                                   _currentQuestionIndex < questions.length - 1
                                   ? AppTheme.primaryColor
                                   : Colors.green,
-                              foregroundColor: AppColors.textPrimary,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -504,7 +648,7 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                   children: [
                     const Icon(
                       Icons.warning_amber_rounded,
-                      color: AppColors.textPrimary,
+                      color: Colors.white,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -512,12 +656,31 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
                       child: Text(
                         "⚠️ App switch detected! ($_switchCounts/3 — auto-submit at 3)",
                         style: const TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ──── Session-preparing overlay ────
+          // Blocks answer taps until _startSession() resolves, so a fast
+          // tap can't land before there's an attempt id for it to attach
+          // to (previously that answer would just be silently dropped).
+          if (_attemptId == null && !_isSubmitted)
+            Container(
+              color: Colors.black.withOpacity(0.35),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text('Preparing your exam...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -567,11 +730,11 @@ class _ExamQuizScreenState extends ConsumerState<ExamQuizScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _submitExam(questions);
+              _submitExam();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
-              foregroundColor: AppColors.textPrimary,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

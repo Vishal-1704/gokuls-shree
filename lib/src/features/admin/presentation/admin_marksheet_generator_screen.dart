@@ -7,6 +7,7 @@ import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/admin_results_entry_screen.dart';
 
 class AdminMarksheetGeneratorScreen extends ConsumerStatefulWidget {
   const AdminMarksheetGeneratorScreen({super.key});
@@ -324,11 +325,85 @@ class _AdminMarksheetGeneratorScreenState
 
                         final rows = snap.data!;
                         if (rows.isEmpty) {
+                          final studentName = selectedStudent.isNotEmpty
+                              ? (selectedStudent.first['name'] ?? 'this student')
+                              : 'this student';
                           return Center(
-                            child: Text(
-                              'No result rows found for this student.',
-                              style: AppTypography.bodyMd.copyWith(
-                                color: AppColors.textSecondary,
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 24,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(18),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.goldCta.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.assignment_late_outlined,
+                                      size: 48,
+                                      color: AppColors.goldCta,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No Exam Marks Found',
+                                    style: AppTypography.headingSm.copyWith(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No exam or test scores have been entered for $studentName yet. Marks must be entered first to generate their marksheet.',
+                                    textAlign: TextAlign.center,
+                                    style: AppTypography.bodySm.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => AdminResultsEntryScreen(
+                                            initialStudentId: _studentId,
+                                          ),
+                                        ),
+                                      );
+                                      if (mounted) setState(() {});
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.goldCta,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.add_chart_rounded,
+                                      size: 20,
+                                    ),
+                                    label: const Text(
+                                      'Enter Marks for this Student',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

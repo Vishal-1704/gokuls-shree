@@ -32,50 +32,42 @@ class StudentExamReportGrid extends ConsumerWidget {
                 color: Colors.white,
               ),
               child: DataTable(
-                headingRowColor: MaterialStateProperty.all(const Color(0xFF006B3F)),
+                headingRowColor: WidgetStateProperty.all(const Color(0xFF006B3F)),
                 dataRowMinHeight: 48,
                 dataRowMaxHeight: 56,
                 columns: const [
                   DataColumn(label: Text('Sn.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                   DataColumn(label: Text('Date', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                   DataColumn(label: Text('Test Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tot.Q.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Attempted', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('L.Q.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('R.Q.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('W.Q.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('(-M.)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tot.M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Score', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Total Marks', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Result', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                 ],
                 rows: results.asMap().entries.map((entry) {
                   final index = entry.key + 1;
                   final res = entry.value;
-                  
-                  final date = res['calculated_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(res['calculated_at'])) : 'N/A';
-                  final testName = res['exam_sessions']?['paper_sets']?['name'] ?? 'Unknown Test';
-                  
-                  final totalQ = res['total_questions'] ?? 0;
-                  final attempted = res['attempted_questions'] ?? 0;
-                  final correct = res['correct_answers'] ?? 0;
-                  final wrong = res['incorrect_answers'] ?? 0;
-                  final left = totalQ - attempted;
-                  
-                  // For UI fidelity, mocking negative marks and total marks calculation logic from typical Indian test structure
-                  final negMarks = res['negative_marks'] ?? (wrong * 0.25).toStringAsFixed(2);
-                  final totalMarks = res['score_obtained'] ?? 0;
+
+                  final date = res['submitted_at'] != null
+                      ? DateFormat('dd-MM-yyyy').format(DateTime.parse(res['submitted_at']))
+                      : 'N/A';
+                  final schedule = res['schedules'] as Map<String, dynamic>?;
+                  final paper = schedule?['paper_sets'] as Map<String, dynamic>?;
+                  final testName = schedule?['title'] ?? paper?['title'] ?? 'Unknown Test';
+                  final score = res['score'] ?? 0;
+                  final totalMarks = res['total_marks'] ?? 0;
+                  final passed = res['result'] == 'pass';
 
                   return DataRow(
                     cells: [
                       DataCell(Text('$index', style: const TextStyle(color: Colors.black87))),
                       DataCell(Text(date, style: const TextStyle(color: Colors.black87))),
                       DataCell(Text(testName, style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$totalQ', style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$attempted', style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$left', style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$correct', style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$wrong', style: const TextStyle(color: Colors.black87))),
-                      DataCell(Text('$negMarks', style: const TextStyle(color: Colors.red))),
-                      DataCell(Text('$totalMarks', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                      DataCell(Text('$score', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+                      DataCell(Text('$totalMarks', style: const TextStyle(color: Colors.black87))),
+                      DataCell(Text(
+                        passed ? 'PASS' : 'FAIL',
+                        style: TextStyle(color: passed ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+                      )),
                     ],
                   );
                 }).toList(),

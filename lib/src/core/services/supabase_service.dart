@@ -127,25 +127,61 @@ class SupabaseService {
     return response;
   }
 
+  /// students.profile_id references profiles(id), not the Supabase auth
+  /// uid — auth.currentUser.id has to be resolved to the profiles row
+  /// first. Querying students.profile_id directly against the auth uid
+  /// never matches, so every student saw the "pending approval" fallback
+  /// regardless of actual approval status.
+  Future<int?> _currentStudentId() async {
+    final authUid = _client.auth.currentUser?.id;
+    if (authUid == null) return null;
+
+    final profile = await _client
+        .from('profiles')
+        .select('id')
+        .eq('auth_uid', authUid)
+        .maybeSingle();
+    final profileId = profile?['id'];
+    if (profileId == null) return null;
+
+    final student = await _client
+        .from('students')
+        .select('id')
+        .eq('profile_id', profileId)
+        .maybeSingle();
+    return student?['id'] as int?;
+  }
+
   Future<Map<String, dynamic>?> getStudentProfile() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return null;
+    final authUid = _client.auth.currentUser?.id;
+    if (authUid == null) return null;
+
+    final profile = await _client
+        .from('profiles')
+        .select('id')
+        .eq('auth_uid', authUid)
+        .maybeSingle();
+    final profileId = profile?['id'];
+    if (profileId == null) return null;
 
     final response = await _client
         .from('students')
         .select('*, courses(name, category)')
-        .eq('profile_id', userId)
+        .eq('profile_id', profileId)
         .maybeSingle();
-        
+
     if (response != null && response['id'] != null) {
       try {
-        final feeSummary = await _client.rpc('get_student_fee_summary', params: {'p_student_id': response['id']});
+        final feeSummary = await _client.rpc(
+          'get_student_fee_summary',
+          params: {'p_student_id': response['id']},
+        );
         response['fee_summary'] = feeSummary;
       } catch (e) {
         response['fee_summary'] = null;
       }
     }
-    
+
     return response;
   }
 
@@ -171,106 +207,91 @@ class SupabaseService {
   // ============================================
   // SMART ATTENDANCE (QR + BLE)
   // ============================================
-  Future<Map<String, dynamic>> startQrAttendanceSession({
+  // Host: teacher/branch_admin/super_admin creates a short-lived session
+  // scoped to a course, a branch, a single student, or an open
+  // "classroom_ble" session with no restriction. Server-side (migration
+  // 20240301000015) enforces role + branch scoping — this is a thin RPC
+  // wrapper, not a raw table insert, since attendance_qr_sessions'
+  // INSERT policy requires created_by = auth.uid() plus role checks that
+  // are simplest to enforce inside the function itself.
+  Future<Map<String, dynamic>> createAttendanceSession({
     required String scopeType,
-    String? studentId,
     int? courseId,
-    int? batchId,
     int? branchId,
-    required DateTime startsAt,
-    required DateTime expiresAt,
+    int? studentId,
+    int? durationSeconds,
+  }) async {
+    final response = await _client.rpc(
+      'create_attendance_session',
+      params: {
+        'p_scope_type': scopeType,
+        'p_course_id': courseId,
+        'p_branch_id': branchId,
+        'p_student_id': studentId,
+        'p_duration_seconds': durationSeconds,
+      },
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
+
+  Future<Map<String, dynamic>> generatePayslip({
+    required int employeeId,
+    required int month,
+    required int year,
+  }) async {
+    final response = await _client.rpc(
+      'generate_payslip',
+      params: {
+        'p_employee_id': employeeId,
+        'p_month': month,
+        'p_year': year,
+      },
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
+
+  Future<Map<String, dynamic>> endAttendanceSession(String sessionId) async {
+    final response = await _client.rpc(
+      'end_attendance_session',
+      params: {'p_session_id': sessionId},
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
+
+  /// Agent: student scans the host's QR and (optionally) reports a BLE
+  /// ambient reading. BLE is supplementary — a missing/weak reading never
+  /// blocks the check-in server-side, it only affects confidence_score.
+  Future<Map<String, dynamic>> checkinAttendance({
+    required String sessionId,
     required String qrNonce,
-    required String qrPayloadHash,
-  }) async {
-    final payload = {
-      'scope_type': scopeType,
-      'scope_student_id': studentId,
-      'scope_course_id': courseId,
-      'scope_batch_id': batchId,
-      'scope_branch_id': branchId,
-      'starts_at': startsAt.toIso8601String(),
-      'expires_at': expiresAt.toIso8601String(),
-      'qr_nonce': qrNonce,
-      'qr_payload_hash': qrPayloadHash,
-      'created_by': _client.auth.currentUser?.id,
-      'is_active': true,
-    };
-
-    final response = await _client
-        .from('attendance_qr_sessions')
-        .insert(payload)
-        .select()
-        .single();
-    return Map<String, dynamic>.from(response);
-  }
-
-  Future<void> submitBleProximityEvent({
-    required String qrSessionId,
-    required String teacherDeviceId,
-    required String studentDeviceId,
-    required String studentId,
-    int? rssi,
-    double? estimatedDistanceM,
-    bool isValid = false,
-    String? reason,
-  }) async {
-    await _client.from('attendance_ble_events').insert({
-      'qr_session_id': qrSessionId,
-      'teacher_device_id': teacherDeviceId,
-      'student_device_id': studentDeviceId,
-      'student_id': studentId,
-      'rssi': rssi,
-      'estimated_distance_m': estimatedDistanceM,
-      'is_valid': isValid,
-      'reason': reason,
-    });
-  }
-
-  Future<Map<String, dynamic>> markSmartAttendance({
-    required String studentId,
-    required String source,
-    required String status,
-    String? qrSessionId,
+    int? bleRssi,
     String? teacherDeviceId,
     String? studentDeviceId,
-    int? bleRssi,
-    double? estimatedDistanceM,
-    double confidenceScore = 0,
-    String? rejectionReason,
-    Map<String, dynamic>? meta,
   }) async {
-    final response = await _client
-        .from('attendance_events')
-        .insert({
-          'qr_session_id': qrSessionId,
-          'student_id': studentId,
-          'source': source,
-          'status': status,
-          'teacher_device_id': teacherDeviceId,
-          'student_device_id': studentDeviceId,
-          'ble_rssi': bleRssi,
-          'estimated_distance_m': estimatedDistanceM,
-          'confidence_score': confidenceScore,
-          'rejection_reason': rejectionReason,
-          'meta': meta ?? <String, dynamic>{},
-        })
-        .select()
-        .single();
-
-    return Map<String, dynamic>.from(response);
+    final response = await _client.rpc(
+      'checkin_attendance',
+      params: {
+        'p_session_id': sessionId,
+        'p_qr_nonce': qrNonce,
+        'p_ble_rssi': bleRssi,
+        'p_teacher_device_id': teacherDeviceId,
+        'p_student_device_id': studentDeviceId,
+      },
+    );
+    return Map<String, dynamic>.from(response as Map);
   }
 
   // ============================================
   // ENROLLMENTS
   // ============================================
   Future<List<Map<String, dynamic>>> getMyEnrollments() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    final studentId = await _currentStudentId();
+    if (studentId == null) return [];
 
     final response = await _client
         .from('student_enrollments')
         .select('*, courses(title, code)')
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .order('enrolled_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
@@ -279,25 +300,34 @@ class SupabaseService {
   // MARKSHEETS & CERTIFICATES
   // ============================================
   Future<List<Map<String, dynamic>>> getMyMarksheets() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    final studentId = await _currentStudentId();
+    if (studentId == null) return [];
 
+    // marksheet_details doesn't exist anywhere in the schema — that join
+    // threw a PostgREST error on every call, silently swallowed by the
+    // Academics Hub's `orElse: () => 0`, so this always showed "0" there
+    // even when the Documents screen (a different query, no bad join)
+    // correctly showed real marksheets. Also filtering to status=1 here
+    // to match the Documents screen's "only approved" behavior — without
+    // it this count could include pending/unapproved marksheets the
+    // Documents screen deliberately hides.
     final response = await _client
         .from('marksheets')
-        .select('*, marksheet_details(*)')
-        .eq('student_id', userId)
+        .select()
+        .eq('student_id', studentId)
+        .eq('status', 1)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<Map<String, dynamic>>> getMyCertificates() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    final studentId = await _currentStudentId();
+    if (studentId == null) return [];
 
     final response = await _client
         .from('certificates')
         .select()
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .order('issue_date', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
@@ -306,38 +336,38 @@ class SupabaseService {
   // FEE PAYMENTS
   // ============================================
   Future<List<Map<String, dynamic>>> getMyFeePayments() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    final studentId = await _currentStudentId();
+    if (studentId == null) return [];
 
     final response = await _client
         .from('fee_payments')
         .select()
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<Map<String, dynamic>>> getMyPaymentTransactions() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    final studentId = await _currentStudentId();
+    if (studentId == null) return [];
 
     final response = await _client
         .from('payment_transactions')
         .select()
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   /// Get pending fee amount for current student
   Future<double> getPendingFees() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return 0;
+    final studentId = await _currentStudentId();
+    if (studentId == null) return 0;
 
     final response = await _client
         .from('fee_payments')
         .select('amount, amount_paid')
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .eq('status', 'pending');
 
     double pending = 0;
@@ -437,18 +467,14 @@ class SupabaseService {
 
     final studentId = student['id'];
 
+    // exam_results.student_id is a plain column — no join needed. The old
+    // query required an inner join through exam_sessions, which nothing
+    // (manual entry or the MCQ module) ever populated, so it always
+    // returned zero rows regardless of how many results actually existed.
     final response = await _client
         .from('exam_results')
-        .select('''
-          *,
-          exam_sessions!inner (
-            ended_at,
-            paper_sets (
-              name
-            )
-          )
-        ''')
-        .eq('exam_sessions.student_id', studentId)
+        .select()
+        .eq('student_id', studentId)
         .order('calculated_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
@@ -573,4 +599,15 @@ final branchesProvider = FutureProvider<List<Map<String, dynamic>>>((
 ) async {
   final service = ref.watch(supabaseServiceProvider);
   return service.getBranches();
+});
+
+final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  final client = ref.watch(supabaseClientProvider);
+  final response = await client
+      .from('departments')
+      .select()
+      .order('name');
+  return List<Map<String, dynamic>>.from(response);
 });

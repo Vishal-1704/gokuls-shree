@@ -27,11 +27,12 @@ class _SuperAdminApprovalsScreenState
   List<Map<String, dynamic>> _pendingMarksheets = [];
   List<Map<String, dynamic>> _pendingCertificates = [];
   List<Map<String, dynamic>> _pendingExperienceCerts = [];
+  List<Map<String, dynamic>> _pendingSalaryRevisions = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadAll();
   }
 
@@ -50,11 +51,13 @@ class _SuperAdminApprovalsScreenState
         repo.getPendingStudents(branchId: widget.branchId),
         repo.getPendingDocuments(branchId: widget.branchId),
         repo.getPendingExperienceCerts(branchId: widget.branchId),
+        repo.getPendingSalaryRevisions(branchId: widget.branchId),
       ]);
 
       final students = results[0] as List<Map<String, dynamic>>;
       final docs = results[1] as Map<String, List<Map<String, dynamic>>>;
       final expCerts = results[2] as List<Map<String, dynamic>>;
+      final salaryRevisions = results[3] as List<Map<String, dynamic>>;
 
       if (!mounted) return;
       setState(() {
@@ -62,6 +65,7 @@ class _SuperAdminApprovalsScreenState
         _pendingMarksheets = docs['marksheets']!;
         _pendingCertificates = docs['certificates']!;
         _pendingExperienceCerts = expCerts;
+        _pendingSalaryRevisions = salaryRevisions;
         _isLoading = false;
       });
     } catch (e) {
@@ -104,6 +108,30 @@ class _SuperAdminApprovalsScreenState
       }
     } catch (e) {
       if (mounted) _showError('Approval Failed: $e');
+    }
+  }
+
+  Future<void> _approveSalaryRevision(int id) async {
+    try {
+      await ref.read(adminRepositoryProvider).approveSalaryRevision(id);
+      if (mounted) {
+        _showSuccess('Salary revision approved — CTC updated.');
+        _loadAll();
+      }
+    } catch (e) {
+      if (mounted) _showError('Approval failed: $e');
+    }
+  }
+
+  Future<void> _rejectSalaryRevision(int id) async {
+    try {
+      await ref.read(adminRepositoryProvider).rejectSalaryRevision(id);
+      if (mounted) {
+        _showSuccess('Salary revision rejected.');
+        _loadAll();
+      }
+    } catch (e) {
+      if (mounted) _showError('Rejection failed: $e');
     }
   }
 
@@ -371,7 +399,7 @@ class _SuperAdminApprovalsScreenState
         _pendingCertificates.length;
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         backgroundColor: AppColors.inkNavy900,
         appBar: AppBar(
@@ -425,6 +453,7 @@ class _SuperAdminApprovalsScreenState
               Tab(text: 'Marksheets (${_pendingMarksheets.length})'),
               Tab(text: 'Certificates (${_pendingCertificates.length})'),
               Tab(text: 'Exp. Certs (${_pendingExperienceCerts.length})'),
+              Tab(text: 'Salary (${_pendingSalaryRevisions.length})'),
             ],
           ),
         ),
@@ -439,6 +468,7 @@ class _SuperAdminApprovalsScreenState
                   _buildDocList('marksheet', _pendingMarksheets),
                   _buildDocList('certificate', _pendingCertificates),
                   _buildExpCertList(),
+                  _buildSalaryRevisionList(),
                 ],
               ),
       ),
@@ -529,6 +559,51 @@ class _SuperAdminApprovalsScreenState
             badgeColor: Colors.orange,
             onApprove: () => _approveExperienceCert(id),
             approveBtnLabel: 'Approve & Issue',
+            onViewDetails: () {},
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSalaryRevisionList() {
+    if (_pendingSalaryRevisions.isEmpty) {
+      return _emptyState(
+        icon: Icons.payments_outlined,
+        label: 'No pending salary revisions',
+        sub: 'All CTC change requests have been reviewed.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      color: AppColors.goldCta,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _pendingSalaryRevisions.length,
+        itemBuilder: (context, i) {
+          final rev = _pendingSalaryRevisions[i];
+          final emp = rev['employees'] as Map<String, dynamic>?;
+          final name = emp?['name'] ?? 'Unknown';
+          final id = rev['id'] as int;
+
+          final proposedGross = ((rev['basic_salary'] as num?) ?? 0) +
+              ((rev['hra'] as num?) ?? 0) +
+              ((rev['da'] as num?) ?? 0) +
+              ((rev['other_allowance'] as num?) ?? 0);
+
+          return _ApprovalCard(
+            avatarLabel: name[0],
+            title: name,
+            subtitle: 'Effective: ${rev['effective_month']}/${rev['effective_year']}',
+            details: [
+              'Designation: ${emp?['designation'] ?? 'N/A'}',
+              'Proposed Monthly Gross: Rs. ${proposedGross.toStringAsFixed(2)}',
+            ],
+            badge: 'PENDING',
+            badgeColor: Colors.orange,
+            onApprove: () => _approveSalaryRevision(id),
+            approveBtnLabel: 'Approve',
+            onReject: () => _rejectSalaryRevision(id),
             onViewDetails: () {},
           );
         },

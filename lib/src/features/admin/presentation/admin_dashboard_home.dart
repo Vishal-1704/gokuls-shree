@@ -9,6 +9,7 @@ import 'package:gokul_shree_app/src/features/admin/presentation/admin_notices_sc
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_profile_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_staff_directory_screen.dart';
+import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 
 class AdminDashboardHome extends ConsumerStatefulWidget {
   const AdminDashboardHome({super.key});
@@ -33,7 +34,6 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
   void _refreshData() {
     final repo = ref.read(adminRepositoryProvider);
     _statsFuture = repo.getDashboardStats();
-    _activitiesFuture = repo.getRecentActivity();
   }
 
   @override
@@ -128,19 +128,25 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
               child: FutureBuilder<Map<String, dynamic>?>(
                 future: ref.read(adminRepositoryProvider).getMyBranch(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox.shrink();
-                  
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    return const SizedBox.shrink();
+
                   final hasBranch = snapshot.data != null;
                   if (hasBranch) return const SizedBox.shrink();
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        border: Border.all(
+                          color: Colors.orange.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -152,18 +158,33 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                               children: [
                                 const Text(
                                   'Setup Required',
-                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 Text(
                                   'Please complete your franchise details to start.',
-                                  style: TextStyle(color: AppColors.textPrimary.withOpacity(0.7), fontSize: 13),
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary.withOpacity(
+                                      0.7,
+                                    ),
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           TextButton(
-                            onPressed: () => context.push('/admin/franchise-setup'),
-                            child: const Text('SETUP NOW', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                            onPressed: () =>
+                                context.push('/admin/franchise-setup'),
+                            child: const Text(
+                              'SETUP NOW',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -203,7 +224,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                           runSpacing: 12,
                           children: [
                             SizedBox(
-                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              width:
+                                  (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
                                 value: '${stats['total_students'] ?? 0}',
                                 label: 'TOTAL STUDENTS',
@@ -212,7 +234,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                               ),
                             ),
                             SizedBox(
-                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              width:
+                                  (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
                                 value: '${stats['present_students'] ?? 0}',
                                 label: 'PRESENT TODAY',
@@ -221,7 +244,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                               ),
                             ),
                             SizedBox(
-                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              width:
+                                  (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
                                 value: '₹${stats['todays_collection'] ?? 0}',
                                 label: 'FEES TODAY',
@@ -230,7 +254,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                               ),
                             ),
                             SizedBox(
-                              width: (MediaQuery.of(context).size.width - 60) / 2,
+                              width:
+                                  (MediaQuery.of(context).size.width - 60) / 2,
                               child: _buildVibrantTile(
                                 value: '${stats['pending_enquiries'] ?? 0}',
                                 label: 'ENQUIRIES',
@@ -266,7 +291,12 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             icon: Icons.campaign,
                             label: 'Notices',
                             color: AppColors.goldCta,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminNoticesScreen())),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminNoticesScreen(),
+                              ),
+                            ),
                           ),
                         ),
                         SizedBox(
@@ -275,7 +305,13 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             icon: Icons.badge,
                             label: 'Staff',
                             color: AppColors.info,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminStaffDirectoryScreen())),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const AdminStaffDirectoryScreen(),
+                              ),
+                            ),
                           ),
                         ),
                         SizedBox(
@@ -320,7 +356,8 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             icon: Icons.picture_as_pdf_outlined,
                             label: 'Marksheet',
                             color: AppColors.info,
-                            onTap: () => context.push('/admin/marksheet-generator'),
+                            onTap: () =>
+                                context.push('/admin/marksheet-generator'),
                           ),
                         ),
                         SizedBox(
@@ -332,13 +369,40 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                             onTap: () => context.push('/admin/study-material'),
                           ),
                         ),
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
+                          child: _buildQuickAction(
+                            icon: Icons.qr_code_2_outlined,
+                            label: 'Attendance',
+                            color: const Color(0xFFDB2777),
+                            onTap: () => context.push('/admin/attendance'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
+                          child: _buildQuickAction(
+                            icon: Icons.receipt_long_outlined,
+                            label: 'Payslip',
+                            color: const Color(0xFF0D9488),
+                            onTap: () => context.push('/admin/payslip-generator'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 60) / 2,
+                          child: _buildQuickAction(
+                            icon: Icons.trending_up_outlined,
+                            label: 'Propose Salary',
+                            color: const Color(0xFF6D28D9),
+                            onTap: () => context.push('/admin/propose-salary'),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
@@ -374,11 +438,7 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
           Positioned(
             right: -10,
             top: 10,
-            child: Icon(
-              icon,
-              size: 70,
-              color: Colors.black.withOpacity(0.15),
-            ),
+            child: Icon(icon, size: 70, color: Colors.black.withOpacity(0.15)),
           ),
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -413,12 +473,17 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.1),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(4)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(4),
+                ),
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('More info ', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(
+                    'More info ',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                   Icon(Icons.arrow_circle_right, color: Colors.white, size: 14),
                 ],
               ),
@@ -431,7 +496,7 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
   Widget _buildPrimaryCard(Map<String, dynamic> stats) {
     final List<dynamic> courseAttendance = stats['course_attendance'] ?? [];
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -451,15 +516,25 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   color: AppColors.info.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.school, color: AppColors.info, size: 20),
+                child: const Icon(
+                  Icons.school,
+                  color: AppColors.info,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
-              Text('Student Attendance (Course-wise)', style: AppTypography.headingSm),
+              Text(
+                'Student Attendance (Course-wise)',
+                style: AppTypography.headingSm,
+              ),
             ],
           ),
           const SizedBox(height: 20),
           if (courseAttendance.isEmpty)
-            Text('No attendance data available for today.', style: AppTypography.bodyMd.copyWith(color: AppColors.textMuted))
+            Text(
+              'No attendance data available for today.',
+              style: AppTypography.bodyMd.copyWith(color: AppColors.textMuted),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
@@ -467,7 +542,10 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
               itemCount: courseAttendance.length,
               separatorBuilder: (context, index) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Divider(color: AppColors.divider.withOpacity(0.2), height: 1),
+                child: Divider(
+                  color: AppColors.divider.withOpacity(0.2),
+                  height: 1,
+                ),
               ),
               itemBuilder: (context, index) {
                 final course = courseAttendance[index] as Map<String, dynamic>;
@@ -475,7 +553,7 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 final present = course['present'] ?? 0;
                 final total = course['total'] ?? 0;
                 final rate = course['rate'] ?? 0;
-                
+
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -483,22 +561,39 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: AppTypography.labelMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(
+                            name,
+                            style: AppTypography.labelMd,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 4),
-                          Text('$present / $total Present', style: AppTypography.bodySm.copyWith(color: AppColors.textMuted)),
+                          Text(
+                            '$present / $total Present',
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: rate >= 75 ? AppColors.success.withOpacity(0.15) : AppColors.warning.withOpacity(0.15),
+                        color: rate >= 75
+                            ? AppColors.success.withOpacity(0.15)
+                            : AppColors.warning.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$rate%',
                         style: AppTypography.labelMd.copyWith(
-                          color: rate >= 75 ? AppColors.success : AppColors.warning,
+                          color: rate >= 75
+                              ? AppColors.success
+                              : AppColors.warning,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -511,7 +606,6 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ),
     );
   }
-
 
   // ─── Secondary Card ───
   Widget _buildSecondaryCard({
@@ -653,11 +747,19 @@ const SliverToBoxAdapter(child: SizedBox(height: 24)),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.inkNavy700,
-              backgroundImage: NetworkImage(activity['photo_url']),
-              onBackgroundImageError: (_, __) => const Icon(Icons.person),
+            Builder(
+              builder: (context) {
+                final avatar = resolveAvatarProvider(activity['photo_url']);
+                return CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.inkNavy700,
+                  backgroundImage: avatar,
+                  onBackgroundImageError: avatar != null ? (_, __) {} : null,
+                  child: avatar == null
+                      ? const Icon(Icons.person, color: AppColors.textSecondary)
+                      : null,
+                );
+              },
             ),
             const SizedBox(width: 16),
             Expanded(

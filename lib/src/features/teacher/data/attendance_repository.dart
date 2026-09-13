@@ -308,19 +308,26 @@ final teacherEmployeeProfileProvider = FutureProvider<Map<String, dynamic>?>((re
   }
 });
 
-/// Provider for subjects taught by the teacher
+/// Provider for subjects taught by the teacher — scoped via the
+/// teacher_subjects junction table (teacher_id -> profiles.id), not just
+/// "every subject in the branch" (every teacher would otherwise see the
+/// same full branch subject list instead of their own).
 final teacherSubjectsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final session = ref.watch(sessionProvider);
   if (session == null || session.role != UserRole.teacher) return [];
 
   try {
     final response = await supabase
-        .from('subjects')
-        .select('*, courses(title)')
-        .eq('branch_id', session.branchId ?? 1)
-        .eq('status', 1);
+        .from('teacher_subjects')
+        .select('subjects(*, courses(title))')
+        .eq('teacher_id', session.profileId)
+        .eq('branch_id', session.branchId ?? 1);
 
-    return List<Map<String, dynamic>>.from(response);
+    return List<Map<String, dynamic>>.from(response)
+        .map((row) => row['subjects'] as Map<String, dynamic>?)
+        .where((subject) => subject != null && subject['status'] == 1)
+        .map((subject) => subject!)
+        .toList();
   } catch (e) {
     return [];
   }

@@ -53,20 +53,20 @@ class StudentTestListGrid extends ConsumerWidget {
                 ],
                 rows: filteredExams.map((exam) {
                   final paperSet = exam['paper_sets'] ?? {};
-                  final testName = paperSet['name'] ?? exam['title'] ?? 'Unknown Test';
-                  final numQs = paperSet['questions'] != null ? (paperSet['questions'] as List).length : 0;
-                  final duration = exam['duration_minutes'] ?? 0;
+                  final testName = paperSet['title'] ?? exam['title'] ?? 'Unknown Test';
+                  final numQs = paperSet['questions_count'] ?? 0;
+                  final duration = paperSet['duration_minutes'] ?? 0;
                   final startDate = exam['start_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['start_at'])) : 'N/A';
                   final endDate = exam['end_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['end_at'])) : 'N/A';
-                  
+
                   final isStarted = DateTime.now().isAfter(DateTime.parse(exam['start_at'] ?? DateTime.now().toString()));
                   final isClosed = exam['status'] == 'closed' || (exam['end_at'] != null && DateTime.now().isAfter(DateTime.parse(exam['end_at'])));
                   final statusText = isClosed ? 'Closed' : (isStarted ? 'Start Test >' : 'Upcoming');
                   final statusColor = isClosed ? Colors.grey : (isStarted ? const Color(0xFF8CC63F) : AppColors.goldCta);
 
-                  final courseName = (exam['courses'] as Map<String, dynamic>?)?['name'] ?? 
-                                     (exam['courses'] as Map<String, dynamic>?)?['short_name'] ?? 
-                                     'ADVANCE DIPLOMA IN COMPUTER APPLICATION (ADCA)';
+                  final courseName = (paperSet['courses'] as Map<String, dynamic>?)?['name'] ??
+                                     (paperSet['courses'] as Map<String, dynamic>?)?['short_name'] ??
+                                     'N/A';
 
                   return DataRow(
                     cells: [
@@ -89,10 +89,10 @@ class StudentTestListGrid extends ConsumerWidget {
                         ElevatedButton(
                           onPressed: (isStarted && !isClosed) ? () {
                             final examObj = Exam.fromJson({
-                              'id': (paperSet['id'] ?? exam['paper_set_id'] ?? 1).toString(),
+                              'id': (paperSet['id'] ?? 1).toString(),
                               'schedule_id': (exam['id'] ?? 1).toString(),
-                              'name': testName,
-                              'time_limit': duration,
+                              'title': testName,
+                              'duration_minutes': duration,
                               'total_marks': paperSet['total_marks'] ?? 100,
                               'questions_count': numQs,
                             });

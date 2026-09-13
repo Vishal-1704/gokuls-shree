@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
@@ -16,7 +17,7 @@ class AdminRepository {
 
     return supabase
         .from('profiles')
-        .select('role, branch_id')
+        .select('id, role, branch_id')
         .eq('auth_uid', currentUser.id)
         .maybeSingle();
   }
@@ -29,7 +30,16 @@ class AdminRepository {
   Future<int?> _resolveBranchId({int? branchId}) async {
     if (branchId != null) return branchId;
     final profile = await _currentAdminProfile();
-    return profile?['branch_id'] as int?;
+    final bId = profile?['branch_id'] as int?;
+    if (bId != null) return bId;
+
+    try {
+      final myBranch = await getMyBranch();
+      if (myBranch != null && myBranch['id'] != null) {
+        return (myBranch['id'] as num).toInt();
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ===========================================
@@ -60,57 +70,135 @@ class AdminRepository {
   /// Add a new course
   Future<Map<String, dynamic>> addCourse({
     required String title,
+    String? shortName,
     required String category,
     required String duration,
+    double? fee,
     required String eligibility,
     String? imageUrl,
     String? description,
     int totalClasses = 0,
+    int totalMarks = 100,
+    int passMarks = 40,
+    int theoryMarks = 60,
+    int practicalMarks = 30,
+    int internalMarks = 10,
+    List<Map<String, dynamic>>? syllabus,
+    List<String>? careerOpportunities,
   }) async {
-    final response = await supabase
-        .from('courses')
-        .insert({
-          'title': title,
-          'category': category,
-          'duration': duration,
-          'eligibility': eligibility,
-          'image_url': imageUrl,
-          'description': description,
-          'total_classes': totalClasses,
-          'is_active': true,
-        })
-        .select()
-        .single();
-    return response;
+    final payload = <String, dynamic>{
+      'name': title,
+      'category': category,
+      'duration': duration,
+      'eligibility': eligibility,
+      'image_url': imageUrl,
+      'description': description,
+      'total_classes': totalClasses,
+      'total_marks': totalMarks,
+      'pass_marks': passMarks,
+      'theory_marks': theoryMarks,
+      'practical_marks': practicalMarks,
+      'internal_marks': internalMarks,
+      'status': 1,
+    };
+    if (shortName != null && shortName.isNotEmpty) payload['short_name'] = shortName;
+    if (fee != null && fee > 0) payload['fee'] = fee;
+    if (syllabus != null) payload['syllabus'] = syllabus;
+    if (careerOpportunities != null) payload['career_opportunities'] = careerOpportunities;
+
+    try {
+      final response = await supabase
+          .from('courses')
+          .insert(payload)
+          .select()
+          .single();
+      return response;
+    } catch (e) {
+      // Fallback for older database schemas without newly added columns
+      final basicPayload = <String, dynamic>{
+        'name': title,
+        if (shortName != null && shortName.isNotEmpty) 'short_name': shortName,
+        'category': category,
+        'duration': duration,
+        if (fee != null && fee > 0) 'fee': fee,
+        'total_marks': totalMarks,
+        'pass_marks': passMarks,
+        if (description != null) 'description': description,
+        'status': 1,
+      };
+      final response = await supabase
+          .from('courses')
+          .insert(basicPayload)
+          .select()
+          .single();
+      return response;
+    }
   }
 
   /// Update a course
   Future<Map<String, dynamic>> updateCourse({
     required String id,
     String? title,
+    String? shortName,
     String? category,
     String? duration,
+    double? fee,
     String? eligibility,
     String? imageUrl,
     String? description,
     int? totalClasses,
+    int? totalMarks,
+    int? passMarks,
+    int? theoryMarks,
+    int? practicalMarks,
+    int? internalMarks,
+    List<Map<String, dynamic>>? syllabus,
+    List<String>? careerOpportunities,
   }) async {
     final updates = <String, dynamic>{};
-    if (title != null) updates['title'] = title;
+    if (title != null) updates['name'] = title;
+    if (shortName != null) updates['short_name'] = shortName;
     if (category != null) updates['category'] = category;
     if (duration != null) updates['duration'] = duration;
+    if (fee != null) updates['fee'] = fee;
     if (eligibility != null) updates['eligibility'] = eligibility;
     if (imageUrl != null) updates['image_url'] = imageUrl;
     if (description != null) updates['description'] = description;
     if (totalClasses != null) updates['total_classes'] = totalClasses;
+    if (totalMarks != null) updates['total_marks'] = totalMarks;
+    if (passMarks != null) updates['pass_marks'] = passMarks;
+    if (theoryMarks != null) updates['theory_marks'] = theoryMarks;
+    if (practicalMarks != null) updates['practical_marks'] = practicalMarks;
+    if (internalMarks != null) updates['internal_marks'] = internalMarks;
+    if (syllabus != null) updates['syllabus'] = syllabus;
+    if (careerOpportunities != null) updates['career_opportunities'] = careerOpportunities;
 
-    final response = await supabase
-        .from('courses')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-    return response;
+    try {
+      final response = await supabase
+          .from('courses')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+      return response;
+    } catch (e) {
+      // Fallback without new jsonb columns if schema has not yet been migrated
+      final basicUpdates = Map<String, dynamic>.from(updates)
+        ..remove('eligibility')
+        ..remove('total_classes')
+        ..remove('theory_marks')
+        ..remove('practical_marks')
+        ..remove('internal_marks')
+        ..remove('syllabus')
+        ..remove('career_opportunities');
+      final response = await supabase
+          .from('courses')
+          .update(basicUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+      return response;
+    }
   }
 
   /// Delete a course
@@ -200,7 +288,7 @@ class AdminRepository {
   /// Get all students
   Future<List<Map<String, dynamic>>> getStudents() async {
     final profile = await _currentAdminProfile();
-    dynamic query = supabase.from('students').select();
+    dynamic query = supabase.from('students').select('*, courses(name, short_name)');
     final role = profile?['role']?.toString();
     final branchId = profile?['branch_id'] as int?;
     if (role != 'super_admin' && branchId != null) {
@@ -244,8 +332,8 @@ class AdminRepository {
     // 3. Get students in those courses
     final studentsResponse = await supabase
         .from('students')
-        .select()
-        .inFilter('course', courseIds)
+        .select('*, courses(name, short_name)')
+        .inFilter('course_id', courseIds)
         .order('name');
         
     return List<Map<String, dynamic>>.from(studentsResponse);
@@ -434,21 +522,20 @@ class AdminRepository {
     }
   }
 
-  /// Upload a profile photo to Supabase Storage 'avatars' bucket
-  Future<String?> uploadProfilePhoto(String fileName, dynamic fileBytes) async {
-    try {
-      final String path = '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-      await supabase.storage.from('avatars').uploadBinary(
-        path,
-        fileBytes,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-      );
-      final String publicUrl = supabase.storage.from('avatars').getPublicUrl(path);
-      return publicUrl;
-    } catch (e) {
-      print('Failed to upload photo: $e');
-      return null;
-    }
+  /// Upload a profile photo to Supabase Storage 'avatars' bucket.
+  /// Throws on failure — callers must surface this to the user rather than
+  /// silently submitting the form without a photo.
+  Future<String> uploadProfilePhoto(String fileName, dynamic fileBytes) async {
+    final currentUser = supabase.auth.currentUser;
+    final userPrefix = currentUser != null ? '${currentUser.id}/' : '';
+    final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    final String path = '$userPrefix${DateTime.now().millisecondsSinceEpoch}_$cleanName';
+    await supabase.storage.from('avatars').uploadBinary(
+      path,
+      fileBytes,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+    );
+    return supabase.storage.from('avatars').getPublicUrl(path);
   }
 
   /// Update a student
@@ -477,33 +564,19 @@ class AdminRepository {
   }
 
   /// Delete a student
+  /// Only super_admin may delete a student — branch_admin cannot, even for
+  /// their own branch. Enforced server-side too (delete_student_full
+  /// rejects any other caller); this check just fails fast with a clear
+  /// message instead of a raw RPC error.
   Future<void> deleteStudent(String id) async {
-    final profile = await _currentAdminProfile();
-    final isSuperAdmin = profile?['role']?.toString() == 'super_admin';
-    final branchId = profile?['branch_id'] as int?;
-
-    final student = await supabase
-        .from('students')
-        .select('id, branch_id, profile_id')
-        .eq('id', id)
-        .maybeSingle();
-
-    if (student == null) {
-      throw Exception('Student not found');
+    final isSuperAdmin = await _isSuperAdmin();
+    if (!isSuperAdmin) {
+      throw Exception('Only a super admin can delete a student.');
     }
 
-    final studentBranchId = student['branch_id'] as int?;
-    if (!isSuperAdmin && branchId != null && studentBranchId != branchId) {
-      throw Exception('You do not have permission to delete this student.');
-    }
-
-    final studentId = student['id'];
-    final profileId = student['profile_id']?.toString();
-
-    await supabase.from('students').delete().eq('id', studentId);
-    if (profileId != null && profileId.isNotEmpty) {
-      await supabase.from('profiles').delete().eq('id', profileId);
-    }
+    // Deletes the student row and its linked profile atomically (migration
+    // 018) so a mid-way failure can't orphan one without the other.
+    await supabase.rpc('delete_student_full', params: {'p_student_id': int.parse(id)});
   }
 
   // ===========================================
@@ -546,36 +619,71 @@ class AdminRepository {
 
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
-      final totalStudentsList = await supabase
-          .from('students')
-          .select('id')
-          .eq('status', 1);
+      final profile = await _currentAdminProfile();
+      final isSuperAdmin = profile?['role']?.toString() == 'super_admin';
+      final branchId = profile?['branch_id'] as int?;
+
+      dynamic studentsQuery = supabase.from('students').select('id').eq('status', 1);
+      if (!isSuperAdmin && branchId != null) {
+        studentsQuery = studentsQuery.eq('branch_id', branchId);
+      }
+      final totalStudentsList = await studentsQuery;
       final totalStudents = totalStudentsList.length;
 
       final today = DateTime.now().toIso8601String().substring(0, 10);
-      final paymentsToday = await supabase
+
+      dynamic paymentsQuery = supabase
           .from('fee_payments')
-          .select('amount_paid')
+          .select('amount')
           .gte('created_at', '${today}T00:00:00')
           .lte('created_at', '${today}T23:59:59');
+      if (!isSuperAdmin && branchId != null) {
+        paymentsQuery = paymentsQuery.eq('branch_id', branchId);
+      }
+      final paymentsToday = await paymentsQuery;
       double todaysCollection = 0;
       for (final p in paymentsToday) {
-        todaysCollection += (p['amount_paid'] as num?)?.toDouble() ?? 0;
+        todaysCollection += (p['amount'] as num?)?.toDouble() ?? 0;
       }
+
+      int presentStudents = 0;
+      try {
+        dynamic attendanceQuery = supabase
+            .from('student_attendance')
+            .select('id')
+            .eq('attendance_date', today)
+            .eq('status', 'P');
+        if (!isSuperAdmin && branchId != null) {
+          attendanceQuery = attendanceQuery.eq('branch_id', branchId);
+        }
+        final presentList = await attendanceQuery;
+        presentStudents = presentList.length;
+      } catch (_) {}
+      final attendanceRate = totalStudents > 0
+          ? ((presentStudents / totalStudents) * 100).round()
+          : 0;
 
       int pendingEnquiries = 0;
       try {
-        final pendingEnquiriesList = await supabase
+        dynamic enquiriesQuery = supabase
             .from('enquiries')
             .select('id')
             .eq('status', 'new');
+        if (!isSuperAdmin && branchId != null) {
+          enquiriesQuery = enquiriesQuery.eq('branch_id', branchId);
+        }
+        final pendingEnquiriesList = await enquiriesQuery;
         pendingEnquiries = pendingEnquiriesList.length;
       } catch (_) {
         try {
-          final pendingList = await supabase
+          dynamic contactsQuery = supabase
               .from('contacts')
               .select('id')
               .eq('status', 'new');
+          if (!isSuperAdmin && branchId != null) {
+            contactsQuery = contactsQuery.eq('branch_id', branchId);
+          }
+          final pendingList = await contactsQuery;
           pendingEnquiries = pendingList.length;
         } catch (_) {}
       }
@@ -583,9 +691,9 @@ class AdminRepository {
       return {
         'todays_collection': todaysCollection,
         'collection_growth': 0,
-        'present_students': 0,
+        'present_students': presentStudents,
         'total_students': totalStudents,
-        'attendance_rate': 0,
+        'attendance_rate': attendanceRate,
         'pending_enquiries': pendingEnquiries,
         'new_enquiries': pendingEnquiries > 0,
       };
@@ -603,48 +711,7 @@ class AdminRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getRecentActivity() async {
-    await Future.delayed(const Duration(milliseconds: 1000));
 
-    return [
-      {
-        'name': 'Aarav Patel',
-        'class': 'Class 5B',
-        'type': 'Tuition Fee',
-        'amount': 12000,
-        'time': '10:30 AM',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuCWSHhaZ8O90DgfOHsoFGzrX-t82eyc7IsSYBnqzAh4bPyFls3e-a2uTz_LDK-Wu1Quv0XONkR8mwemYReXNYLlOdi7Lak2pM-ySIxoPknF39kk-U319dmDtlZWYyyfWkSWJ_GWgsGWVebOqtbw32q2CiL056gEziBCwTUu2HVwBBxaYt2wUDcYj_gAWAyWC4Tm5B_0cgaIrvTARcgIEbDCP4Yq25YYDrQ7TFfILqiNkznnnQ0fRxycR0mxSJL6cVQvQdVibR3IGPY',
-      },
-      {
-        'name': 'Sneha Gupta',
-        'class': 'Class 10A',
-        'type': 'Exam Fee',
-        'amount': 8500,
-        'time': '10:15 AM',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAa-_STepkMgxKOk8C1Kck9qLnvH49pk-lZL8lvTQmgLXFjQbhxs5U9jMmqxCLmzy_kT-C1TLlc66apqhCZEbn9K244cm_FuvWavydcsj1VwwPewU2-vMxHbHs9E0T5Ja2aY8VAvqdKFcZ3SnKb3UUGP6DkKSlebBCzO-D_FRFziCKtxiPk6jhdLaMC5ORkNfxs_BYC4M9-mp2GI7QAohf0GJU_541fPpaS6f9sj2MTX-P443hJ6phW02IBTCUHECHalZdhx9r6YHM',
-      },
-      {
-        'name': 'Rohan Mehta',
-        'class': 'Class 8C',
-        'type': 'Transport',
-        'amount': 4200,
-        'time': '09:45 AM',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuDc0u7vdY0MIxsFHuXCYq2-EX8vfQVLhzXEFNKMtTnhACktdNada33DXOeg5AxOkMIWHwyj-ReN9jdgowDV7fdDF3SNfyo1bP3Wns94uiEWlMb8iD5-oFg2MVK4iVLsTKtpUQetFV1i29l0Ko8stOLrtggBXg0CgMqNsAWAlY1drAV49xDZMYdUfCzisDJVMGVWHCWfDL7w4CxwnUnhoAjlKHJkJXnY_mNnVNdId0Mwk0zz-2TT3G--0iTz6g0WcB0KuJa-MFL1I-8',
-      },
-      {
-        'name': 'Ananya Singh',
-        'class': 'Class 6A',
-        'type': 'Library Fine',
-        'amount': 150,
-        'time': '09:20 AM',
-        'photo_url':
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAIk1G3rT8x5eH0RtpP4SWG0qaRSOMwyiKPoafwxJVguElkFy-ucp5Yy0U_9-mTPLolGPRmKBDzwIY-6R6rBMjtHsGvOVHW0dCJh9h5CDcH6HaGvzkG65tgfi7oGPyA5TFmYKvuba4nbKkD_r5LEaVhdQR30TgD89RGz6oXxrM6_T-Jzadfo1qv-4XYmdtOL9loXI24TxL8nBhIpC9iRpDOR4Qlaia4tdyRoEjwoFPc4nf18Ax5eyF1geaJInKfNQW8Lhz7167tRPk',
-      },
-    ];
-  }
 
   Future<void> collectFee({
     required String studentId,
@@ -656,29 +723,71 @@ class AdminRepository {
     final session = supabase.auth.currentSession;
     if (session == null) throw Exception('Not authenticated');
 
-    final baseUrl = EnvConfig.apiBaseUrl.isNotEmpty 
-        ? EnvConfig.apiBaseUrl 
-        : 'http://localhost:3001/api/v1';
+    // Strategy 1: Direct Supabase insert into fee_payments
+    try {
+      final parsedStudentId = int.tryParse(studentId);
+      dynamic studentQuery = supabase
+          .from('students')
+          .select('id, branch_id, course_id');
 
-    final response = await Dio().post(
-      '$baseUrl/fees',
-      options: Options(headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.accessToken}',
-      }),
-      data: {
-        'student_id': int.tryParse(studentId) ?? studentId,
+      if (parsedStudentId != null) {
+        studentQuery = studentQuery.eq('id', parsedStudentId);
+      } else {
+        studentQuery = studentQuery.eq('reg_no', studentId);
+      }
+
+      final student = await studentQuery.maybeSingle();
+      final int sId = student != null ? (student['id'] as int) : (parsedStudentId ?? 0);
+      final int? branchId = student?['branch_id'] as int?;
+      final int? courseId = student?['course_id'] as int?;
+
+      final receiptNo = 'REC${DateTime.now().millisecondsSinceEpoch % 10000000}';
+      final paymentDate = date.length >= 10 ? date.substring(0, 10) : date;
+
+      final insertData = <String, dynamic>{
+        'student_id': sId,
         'amount': amount,
         'net_pay': amount,
-        'payment_date': date,
-        'payment_mode': paymentMode,
-        'description': remarks ?? 'Fee payment',
-      },
-    );
+        'payment_date': paymentDate,
+        'payment_mode': paymentMode.toUpperCase(),
+        'description': remarks ?? 'Fee collection',
+        'receipt_no': receiptNo,
+      };
+      if (branchId != null) insertData['branch_id'] = branchId;
+      if (courseId != null) insertData['course_id'] = courseId;
 
-    final body = response.data as Map<String, dynamic>;
-    if (response.statusCode != 201 && body['success'] != true) {
-      throw Exception(body['error'] ?? 'Fee collection failed');
+      await supabase.from('fee_payments').insert(insertData);
+      return;
+    } catch (dbError) {
+      // Strategy 2: Fallback to HTTP API if configured
+      try {
+        final baseUrl = EnvConfig.apiBaseUrl.isNotEmpty 
+            ? EnvConfig.apiBaseUrl 
+            : 'http://localhost:3001/api/v1';
+
+        final response = await Dio().post(
+          '$baseUrl/fees',
+          options: Options(headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.accessToken}',
+          }),
+          data: {
+            'student_id': int.tryParse(studentId) ?? studentId,
+            'amount': amount,
+            'net_pay': amount,
+            'payment_date': date,
+            'payment_mode': paymentMode,
+            'description': remarks ?? 'Fee payment',
+          },
+        );
+
+        final body = response.data as Map<String, dynamic>;
+        if (response.statusCode != 201 && body['success'] != true) {
+          throw Exception(body['error'] ?? 'Fee collection failed');
+        }
+      } catch (_) {
+        throw Exception('Failed to record fee payment: $dbError');
+      }
     }
   }
 
@@ -727,40 +836,117 @@ class AdminRepository {
   // PHASE 2: DUES + MARKSHEET + STUDY MATERIAL
   // ===========================================
 
-  Future<List<Map<String, dynamic>>> getDuesReport() async {
-    final studentsResponse = await supabase
-        .from('students')
-        .select('id, name, reg_no');
-    final paymentsResponse = await supabase
-        .from('fee_payments')
-        .select('student_id, amount, amount_paid, status, due_date')
-        .order('due_date', ascending: true);
+  /// Fetch all students in the branch with their computed fee payment status
+  Future<List<Map<String, dynamic>>> getBranchStudentsWithFeeStatus({int? branchId}) async {
+    final resolvedBranchId = await _resolveBranchId(branchId: branchId);
+    final isSuperAdmin = await _isSuperAdmin();
 
+    // 1. Fetch branch students with fee fields and course details
+    dynamic studentQuery = supabase.from('students').select(
+      'id, name, reg_no, contact, photo_url, branch_id, course_id, course_fee, reg_fee, admin_fee, discount, courses(name, fee)',
+    );
+
+    if (!isSuperAdmin && resolvedBranchId != null) {
+      studentQuery = studentQuery.eq('branch_id', resolvedBranchId);
+    }
+
+    final studentsResponse = await studentQuery.order('name');
     final students = List<Map<String, dynamic>>.from(studentsResponse);
-    final payments = List<Map<String, dynamic>>.from(paymentsResponse);
-    final studentById = {for (final s in students) s['id'].toString(): s};
 
-    final dues = <Map<String, dynamic>>[];
-    for (final p in payments) {
-      final total = (p['amount'] as num?)?.toDouble() ?? 0;
-      final paid = (p['amount_paid'] as num?)?.toDouble() ?? 0;
-      final dueAmount = total - paid;
-      final status = (p['status'] ?? '').toString().toLowerCase();
-      if (dueAmount <= 0 && status != 'pending' && status != 'overdue') {
-        continue;
+    if (students.isEmpty) return [];
+
+    // 2. Fetch payments for all these students
+    final studentIds = students.map((s) => s['id']).whereType<int>().toList();
+    final paymentsMap = <int, double>{};
+
+    if (studentIds.isNotEmpty) {
+      try {
+        final paymentsResponse = await supabase
+            .from('fee_payments')
+            .select('student_id, net_pay, amount')
+            .inFilter('student_id', studentIds);
+
+        for (final p in (paymentsResponse as List)) {
+          final sid = p['student_id'] as int?;
+          if (sid != null) {
+            final net = (p['net_pay'] as num?)?.toDouble() ??
+                (p['amount'] as num?)?.toDouble() ??
+                0.0;
+            paymentsMap[sid] = (paymentsMap[sid] ?? 0.0) + net;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Compute per-student status
+    final result = <Map<String, dynamic>>[];
+    for (final s in students) {
+      final sId = s['id'] as int;
+      final courseMap = s['courses'] as Map<String, dynamic>? ?? {};
+      final courseName = courseMap['name']?.toString() ?? 'General Course';
+      final courseDefaultFee = (courseMap['fee'] as num?)?.toDouble() ?? 0.0;
+
+      final courseFee = (s['course_fee'] as num?)?.toDouble() ?? 0.0;
+      final regFee = (s['reg_fee'] as num?)?.toDouble() ?? 0.0;
+      final adminFee = (s['admin_fee'] as num?)?.toDouble() ?? 0.0;
+      final discount = (s['discount'] as num?)?.toDouble() ?? 0.0;
+
+      var totalFee = (courseFee + regFee + adminFee) - discount;
+      if (totalFee <= 0 && courseDefaultFee > 0) {
+        totalFee = courseDefaultFee;
       }
 
-      final student = studentById[p['student_id']?.toString() ?? ''];
-      dues.add({
-        'student_id': p['student_id'],
-        'student_name': student?['name'] ?? 'Unknown',
-        'registration_number': student?['reg_no'] ?? '-',
-        'total_amount': total,
-        'amount_paid': paid,
-        'due_amount': dueAmount > 0 ? dueAmount : 0,
-        'status': status.isEmpty ? 'pending' : status,
-        'due_date': p['due_date'],
+      final paidAmount = paymentsMap[sId] ?? 0.0;
+      final dueAmount = totalFee > paidAmount ? (totalFee - paidAmount) : 0.0;
+      final isFullyPaid = (totalFee > 0 && dueAmount <= 0) || (totalFee == 0 && paidAmount > 0);
+
+      String status = 'unpaid';
+      if (isFullyPaid) {
+        status = 'paid';
+      } else if (paidAmount > 0) {
+        status = 'partial';
+      }
+
+      result.add({
+        'id': sId,
+        'name': s['name'] ?? 'Unknown',
+        'reg_no': s['reg_no'] ?? '-',
+        'contact': s['contact'] ?? '',
+        'photo_url': s['photo_url'],
+        'branch_id': s['branch_id'],
+        'course_id': s['course_id'],
+        'course_name': courseName,
+        'total_fee': totalFee,
+        'paid_amount': paidAmount,
+        'due_amount': dueAmount,
+        'is_fully_paid': isFullyPaid,
+        'status': status,
       });
+    }
+
+    return result;
+  }
+
+  Future<List<Map<String, dynamic>>> getDuesReport() async {
+    final studentsWithFee = await getBranchStudentsWithFeeStatus();
+    final dues = <Map<String, dynamic>>[];
+
+    for (final item in studentsWithFee) {
+      final due = (item['due_amount'] as num?)?.toDouble() ?? 0.0;
+      if (due > 0) {
+        dues.add({
+          'student_id': item['id'],
+          'student_name': item['name'],
+          'registration_number': item['reg_no'],
+          'branch_id': item['branch_id'],
+          'course_name': item['course_name'],
+          'total_amount': item['total_fee'],
+          'amount_paid': item['paid_amount'],
+          'due_amount': due,
+          'status': (item['paid_amount'] as num? ?? 0) > 0 ? 'partial' : 'pending',
+          'photo_url': item['photo_url'],
+        });
+      }
     }
 
     dues.sort(
@@ -774,43 +960,99 @@ class AdminRepository {
   Future<List<Map<String, dynamic>>> getStudentMarksheetData(
     String studentId,
   ) async {
-    final responseList = await supabase
-        .from('marksheets')
-        .select('marks')
-        .eq('student_id', int.parse(studentId))
-        .order('created_at', ascending: false)
-        .limit(1);
+    final parsedStudentId = int.tryParse(studentId);
 
-    if (responseList.isEmpty || responseList.first['marks'] == null) {
-      return [];
+    // 1. Check legacy/structured marksheets table first
+    if (parsedStudentId != null) {
+      try {
+        final responseList = await supabase
+            .from('marksheets')
+            .select('marks')
+            .eq('student_id', parsedStudentId)
+            .order('created_at', ascending: false)
+            .limit(1);
+
+        if (responseList.isNotEmpty && responseList.first['marks'] != null) {
+          final response = responseList.first;
+          final marksData = response['marks'] as Map<String, dynamic>;
+          final subjects = marksData['subjects'] as List<dynamic>? ?? [];
+
+          if (subjects.isNotEmpty) {
+            return subjects.map((sub) {
+              final s = sub as Map<String, dynamic>;
+              final obtained = (s['theory'] ?? 0) + (s['practical'] ?? 0) + (s['viva'] ?? 0);
+              final total = s['total_marks'] ?? 100;
+
+              final pct = (total > 0) ? (obtained / total) * 100 : 0;
+              String grade = 'F';
+              if (pct >= 90) grade = 'A+';
+              else if (pct >= 80) grade = 'A';
+              else if (pct >= 70) grade = 'B';
+              else if (pct >= 60) grade = 'C';
+              else if (pct >= 50) grade = 'D';
+
+              return {
+                'subject_name': s['name'] ?? 'Unknown',
+                'marks_obtained': obtained,
+                'total_marks': total,
+                'grade': s['grade'] ?? grade,
+              };
+            }).toList();
+          }
+        }
+      } catch (_) {}
     }
 
-    final response = responseList.first;
+    // 2. Fallback: check exam_results table where manual entries & online exam scores are stored
+    try {
+      dynamic query = supabase
+          .from('exam_results')
+          .select('subject_name, exam_name, marks_obtained, total_marks, grade, score, total_questions');
 
-    final marksData = response['marks'] as Map<String, dynamic>;
-    final subjects = marksData['subjects'] as List<dynamic>? ?? [];
-    
-    return subjects.map((sub) {
-      final s = sub as Map<String, dynamic>;
-      final obtained = (s['theory'] ?? 0) + (s['practical'] ?? 0) + (s['viva'] ?? 0);
-      final total = s['total_marks'] ?? 100;
-      
-      // Calculate grade
-      final pct = (total > 0) ? (obtained / total) * 100 : 0;
-      String grade = 'F';
-      if (pct >= 90) grade = 'A+';
-      else if (pct >= 80) grade = 'A';
-      else if (pct >= 70) grade = 'B';
-      else if (pct >= 60) grade = 'C';
-      else if (pct >= 50) grade = 'D';
-      
-      return {
-        'subject_name': s['name'] ?? 'Unknown',
-        'marks_obtained': obtained,
-        'total_marks': total,
-        'grade': s['grade'] ?? grade,
-      };
-    }).toList();
+      if (parsedStudentId != null) {
+        query = query.eq('student_id', parsedStudentId);
+      } else {
+        query = query.eq('student_id', studentId);
+      }
+
+      final List<dynamic> results = await query.order('calculated_at', ascending: false);
+      if (results.isNotEmpty) {
+        return results.map((r) {
+          final row = r as Map<String, dynamic>;
+          final obtained = (row['marks_obtained'] as num?)?.toDouble() ??
+              (row['score'] as num?)?.toDouble() ??
+              0.0;
+          final total = (row['total_marks'] as num?)?.toDouble() ??
+              (row['total_questions'] as num?)?.toDouble() ??
+              100.0;
+
+          final pct = (total > 0) ? (obtained / total) * 100 : 0;
+          String grade = row['grade']?.toString() ?? 'F';
+          if (row['grade'] == null || row['grade'].toString().isEmpty) {
+            if (pct >= 90) {
+              grade = 'A+';
+            } else if (pct >= 80) {
+              grade = 'A';
+            } else if (pct >= 70) {
+              grade = 'B';
+            } else if (pct >= 60) {
+              grade = 'C';
+            } else if (pct >= 50) {
+              grade = 'D';
+            }
+          }
+
+          return {
+            'subject_name': row['subject_name'] ?? row['exam_name'] ?? 'General Examination',
+            'marks_obtained': obtained,
+            'total_marks': total,
+            'grade': grade,
+          };
+        }).toList();
+      }
+    } catch (_) {}
+
+    return [];
   }
 
   Future<Map<String, dynamic>> addStudyMaterial({
@@ -1063,11 +1305,17 @@ class AdminRepository {
     }
   }
 
-  /// Super Admin: Reject a pending student registration (removes student & profile)
+  /// Super Admin only: Reject a pending student registration (soft-deletes student &
+  /// deactivates profile via delete_student_full which is enforced server-side too).
   Future<void> rejectStudent(int studentId) async {
+    final isSuperAdmin = await _isSuperAdmin();
+    if (!isSuperAdmin) {
+      throw Exception('Only a super admin can reject and remove a student.');
+    }
+
     final student = await supabase
         .from('students')
-        .select('profile_id')
+        .select('id')
         .eq('id', studentId)
         .maybeSingle();
 
@@ -1075,12 +1323,9 @@ class AdminRepository {
       throw Exception('Student not found');
     }
 
-    final profileId = student['profile_id']?.toString();
-
-    await supabase.from('students').delete().eq('id', studentId);
-    if (profileId != null && profileId.isNotEmpty) {
-      await supabase.from('profiles').delete().eq('id', profileId);
-    }
+    // Soft-deletes the student (status=-2) and deactivates linked profile
+    // atomically. Auth.users is also purged server-side.
+    await supabase.rpc('delete_student_full', params: {'p_student_id': studentId});
   }
 
   Future<List<Map<String, dynamic>>> getPendingExperienceCerts({int? branchId}) async {
@@ -1097,21 +1342,100 @@ class AdminRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  /// Direct Supabase update (was a separate Dart-backend REST call, which
+  /// bypassed Postgres entirely and never fired the signing trigger added
+  /// in 20240301000021 — matching approveDocument()'s pattern below fixes
+  /// that). approved_by is profiles(id), not the raw auth uid — resolved
+  /// via _currentAdminProfile() rather than supabase.auth.currentUser?.id.
   Future<void> approveExperienceCert(int certId) async {
-    final session = supabase.auth.currentSession;
-    if (session == null) throw Exception('Not authenticated');
-    final baseUrl = 'http://10.0.2.2:3001/api/v1'; // fallback
+    final profile = await _currentAdminProfile();
+    final response = await supabase
+        .from('experience_certificates')
+        .update({
+          'status': 1,
+          'approved_by': profile?['id'],
+        })
+        .eq('id', certId)
+        .select();
 
-    final response = await Dio().patch(
-      '$baseUrl/documents/experience-certificates/$certId/approve',
-      options: Options(headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.accessToken}',
-      }),
-    );
+    if (response.isEmpty) {
+      throw Exception('Approval failed. You might not have permission.');
+    }
+  }
 
-    if (response.statusCode != 200) {
-      throw Exception('Approval failed');
+  /// branch_admin/super_admin: propose a CTC change — takes effect only
+  /// once a super_admin approves it (employee_salary_revisions RLS
+  /// enforces that transition server-side too, this isn't just a UI rule).
+  Future<void> proposeSalaryRevision({
+    required int employeeId,
+    required double basicSalary,
+    required double hra,
+    required double da,
+    required double otherAllowance,
+    required int effectiveMonth,
+    required int effectiveYear,
+  }) async {
+    final profile = await _currentAdminProfile();
+    await supabase.from('employee_salary_revisions').insert({
+      'employee_id': employeeId,
+      'branch_id': profile?['branch_id'],
+      'basic_salary': basicSalary,
+      'hra': hra,
+      'da': da,
+      'other_allowance': otherAllowance,
+      'effective_month': effectiveMonth,
+      'effective_year': effectiveYear,
+      'proposed_by': profile?['id'],
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingSalaryRevisions({int? branchId}) async {
+    dynamic query = supabase
+        .from('employee_salary_revisions')
+        .select('*, employees!inner(name, designation, department, branch_id)')
+        .eq('status', 0);
+
+    if (branchId != null) {
+      query = query.eq('employees.branch_id', branchId);
+    }
+
+    final response = await query.order('created_at');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// super_admin only — RLS's WITH CHECK also restricts the approved
+  /// transition to super_admin, this isn't the only enforcement.
+  Future<void> approveSalaryRevision(int revisionId) async {
+    final profile = await _currentAdminProfile();
+    final response = await supabase
+        .from('employee_salary_revisions')
+        .update({
+          'status': 1,
+          'approved_by': profile?['id'],
+          'approved_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', revisionId)
+        .select();
+
+    if (response.isEmpty) {
+      throw Exception('Approval failed. You might not have permission.');
+    }
+  }
+
+  Future<void> rejectSalaryRevision(int revisionId) async {
+    final profile = await _currentAdminProfile();
+    final response = await supabase
+        .from('employee_salary_revisions')
+        .update({
+          'status': 2,
+          'approved_by': profile?['id'],
+          'approved_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', revisionId)
+        .select();
+
+    if (response.isEmpty) {
+      throw Exception('Rejection failed. You might not have permission.');
     }
   }
 
@@ -1212,7 +1536,46 @@ class AdminRepository {
     }
   }
 
-  /// Branch Admin: Setup or update franchise details
+  /// Auto-generate next unique branch code (e.g. GS001, GS002, ...)
+  Future<String> generateNextBranchCode() async {
+    // 1. Try server-side RPC if migration was applied
+    try {
+      final res = await supabase.rpc('get_next_branch_code');
+      if (res != null && res.toString().trim().isNotEmpty) {
+        return res.toString().trim();
+      }
+    } catch (_) {}
+
+    // 2. Client-side database scan fallback
+    try {
+      final rows = await supabase
+          .from('branches')
+          .select('code')
+          .like('code', 'GS%')
+          .limit(300);
+
+      int maxNum = 0;
+      final regex = RegExp(r'^GS(\d+)$', caseSensitive: false);
+      for (final row in (rows as List)) {
+        final code = (row['code'] ?? '').toString().trim();
+        final match = regex.firstMatch(code);
+        if (match != null) {
+          final n = int.tryParse(match.group(1)!) ?? 0;
+          if (n > maxNum) maxNum = n;
+        }
+      }
+      final nextNum = maxNum + 1;
+      return 'GS${nextNum.toString().padLeft(3, '0')}';
+    } catch (_) {
+      // 3. Fallback timestamp-based sequential code
+      final rand = (DateTime.now().millisecondsSinceEpoch % 900) + 100;
+      return 'GS$rand';
+    }
+  }
+
+  /// Branch Admin: Setup or update franchise details.
+  /// Uses Supabase directly (RPC + direct fallback) to avoid reliance on
+  /// external containers that may return 503 or fail health checks.
   Future<Map<String, dynamic>> setupFranchise({
     required String name,
     required String code,
@@ -1220,26 +1583,140 @@ class AdminRepository {
     String? phone,
     String? address,
   }) async {
-    final response = await supabase
-        .from('branches')
-        .upsert({
-          'admin_id': supabase.auth.currentUser?.id,
-          'name': name,
-          'code': code,
-          'owner_name': ownerName,
-          'contact_phone': phone,
-          'address': address,
-        }, onConflict: 'admin_id')
-        .select()
-        .single();
-    
-    // Update local profile branch_id
-    await supabase
-        .from('profiles')
-        .update({'branch_id': response['id']})
-        .eq('auth_uid', supabase.auth.currentUser!.id);
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
 
-    return response;
+    final cleanName = name.trim();
+    final cleanCode = code.trim().toUpperCase();
+    final cleanOwner = ownerName?.trim();
+    final cleanPhone = phone?.trim();
+    final cleanAddress = address?.trim();
+
+    // ── Strategy 1: Server-side atomic RPC (Migration 20240301000008) ────────
+    try {
+      final rpcResult = await supabase.rpc('setup_franchise', params: {
+        'p_name': cleanName,
+        'p_code': cleanCode,
+        'p_owner_name': cleanOwner,
+        'p_contact': cleanPhone,
+        'p_address': cleanAddress,
+      });
+
+      if (rpcResult is Map) {
+        return Map<String, dynamic>.from(rpcResult);
+      }
+    } catch (rpcError) {
+      // If RPC fails (e.g. not yet applied in DB), proceed to direct Supabase fallback
+    }
+
+    // ── Strategy 2: Direct Supabase Write Fallback ──────────────────────────
+    try {
+      final profile = await supabase
+          .from('profiles')
+          .select('id, branch_id')
+          .eq('auth_uid', user.id)
+          .maybeSingle();
+
+      final profileId = profile?['id'] as String?;
+      int? branchId = profile?['branch_id'] as int?;
+
+      if (branchId == null) {
+        // Try looking up branch by admin_id (could be profileId or user.id)
+        if (profileId != null) {
+          final existingByAdmin = await supabase
+              .from('branches')
+              .select('id')
+              .eq('admin_id', profileId)
+              .maybeSingle();
+          branchId = existingByAdmin?['id'] as int?;
+        }
+        if (branchId == null) {
+          final existingByAuth = await supabase
+              .from('branches')
+              .select('id')
+              .eq('admin_id', user.id)
+              .maybeSingle();
+          branchId = existingByAuth?['id'] as int?;
+        }
+      }
+
+      if (branchId != null) {
+        // Update existing branch
+        final existingBranch = await supabase
+            .from('branches')
+            .select('code')
+            .eq('id', branchId)
+            .maybeSingle();
+
+        // Preserve super admin assigned code if present
+        final currentCode = existingBranch?['code'] as String?;
+        final finalCode = (currentCode != null && currentCode.trim().isNotEmpty)
+            ? currentCode.trim()
+            : cleanCode;
+
+        final updateData = <String, dynamic>{
+          'name': cleanName,
+          'code': finalCode,
+          'owner_name': cleanOwner,
+          'contact': cleanPhone,
+          'address': cleanAddress,
+        };
+        // branches.admin_id references public.profiles(id)
+        if (profileId != null) {
+          updateData['admin_id'] = profileId;
+        }
+
+        await supabase.from('branches').update(updateData).eq('id', branchId);
+
+        if (profileId != null) {
+          await supabase.from('profiles').update({
+            'branch_id': branchId,
+          }).eq('id', profileId);
+        }
+
+        return {
+          'success': true,
+          'message': 'Franchise setup updated successfully',
+          'branch_id': branchId,
+        };
+      } else {
+        // Create new branch
+        final insertData = <String, dynamic>{
+          'name': cleanName,
+          'code': cleanCode,
+          'owner_name': cleanOwner,
+          'contact': cleanPhone,
+          'address': cleanAddress,
+          'status': 1,
+        };
+        // branches.admin_id references public.profiles(id)
+        if (profileId != null) {
+          insertData['admin_id'] = profileId;
+        }
+
+        final inserted = await supabase
+            .from('branches')
+            .insert(insertData)
+            .select('id')
+            .single();
+
+        final newBranchId = inserted['id'] as int;
+
+        if (profileId != null) {
+          await supabase.from('profiles').update({
+            'branch_id': newBranchId,
+          }).eq('id', profileId);
+        }
+
+        return {
+          'success': true,
+          'message': 'Franchise setup completed successfully',
+          'branch_id': newBranchId,
+        };
+      }
+    } catch (directError) {
+      throw Exception('Failed to save franchise setup: $directError');
+    }
   }
 
   /// Get current branch details
@@ -1247,12 +1724,90 @@ class AdminRepository {
     final user = supabase.auth.currentUser;
     if (user == null) return null;
 
-    final response = await supabase
-        .from('branches')
-        .select()
-        .eq('admin_id', user.id)
-        .maybeSingle();
-    return response;
+    try {
+      final profile = await supabase
+          .from('profiles')
+          .select('id, branch_id')
+          .eq('auth_uid', user.id)
+          .maybeSingle();
+
+      final profileId = profile?['id'] as String?;
+      final profileBranchId = profile?['branch_id'] as int?;
+
+      // 1. Try by profile.branch_id (assigned by super admin or saved during setup)
+      if (profileBranchId != null) {
+        final response = await supabase
+            .from('branches')
+            .select()
+            .eq('id', profileBranchId)
+            .maybeSingle();
+
+        if (response != null) {
+          // If branch admin_id is null and we have a valid profileId, link it safely
+          if (profileId != null && response['admin_id'] == null) {
+            try {
+              await supabase
+                  .from('branches')
+                  .update({'admin_id': profileId})
+                  .eq('id', profileBranchId);
+            } catch (_) {}
+          }
+          return response;
+        }
+      }
+
+      // 2. Try by admin_id = profileId
+      if (profileId != null) {
+        final response = await supabase
+            .from('branches')
+            .select()
+            .eq('admin_id', profileId)
+            .maybeSingle();
+
+        if (response != null) return response;
+      }
+
+      // 3. Fallback try by admin_id = user.id (for legacy rows)
+      final legacyResponse = await supabase
+          .from('branches')
+          .select()
+          .eq('admin_id', user.id)
+          .maybeSingle();
+
+      return legacyResponse;
+    } catch (e) {
+      debugPrint('Error in getMyBranch: $e');
+      return null;
+    }
+  }
+
+  /// All-time fee revenue totals grouped by branch. Super Admin only —
+  /// unlike other admin queries this is never branch-scoped by caller role.
+  Future<List<Map<String, dynamic>>> getRevenueByBranch() async {
+    final payments = await supabase.from('fee_payments').select('amount, branch_id');
+    final branches = await supabase.from('branches').select('id, name, code');
+
+    final branchNames = {
+      for (final b in branches) b['id']: (b['name'] ?? b['code'] ?? 'Branch ${b['id']}').toString(),
+    };
+
+    final totals = <dynamic, double>{};
+    for (final p in payments) {
+      final branchId = p['branch_id'];
+      final amount = (p['amount'] as num?)?.toDouble() ?? 0.0;
+      totals[branchId] = (totals[branchId] ?? 0.0) + amount;
+    }
+
+    final result = totals.entries
+        .map((e) => {
+              'branch_id': e.key,
+              'branch_name': e.key == null ? 'Unassigned' : (branchNames[e.key] ?? 'Branch ${e.key}'),
+              'total_revenue': e.value,
+            })
+        .toList();
+
+    result.sort((a, b) => (b['total_revenue'] as double).compareTo(a['total_revenue'] as double));
+    return result;
   }
 }
 
@@ -1261,8 +1816,16 @@ final adminRepositoryProvider = Provider<AdminRepository>((ref) {
   return AdminRepository();
 });
 
+final adminRevenueByBranchProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) => ref.watch(adminRepositoryProvider).getRevenueByBranch(),
+);
+
 final adminStudentsProvider = FutureProvider<List<Map<String, dynamic>>>(
   (ref) => ref.watch(adminRepositoryProvider).getStudents(),
+);
+
+final adminStudentsWithFeeStatusProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) => ref.watch(adminRepositoryProvider).getBranchStudentsWithFeeStatus(),
 );
 
 final adminCoursesProvider = FutureProvider<List<Map<String, dynamic>>>(

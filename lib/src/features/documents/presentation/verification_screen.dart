@@ -5,9 +5,10 @@ import 'package:gokul_shree_app/src/features/documents/data/document_repository.
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class VerificationScreen extends ConsumerStatefulWidget {
-  final String? documentId; // For deep linking
+  final String? documentType; // 'marksheet' | 'certificate' — for deep linking
+  final int? documentId;
 
-  const VerificationScreen({super.key, this.documentId});
+  const VerificationScreen({super.key, this.documentType, this.documentId});
 
   @override
   ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
@@ -20,8 +21,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.documentId != null) {
-      _verifyDocument(widget.documentId!);
+    if (widget.documentType != null && widget.documentId != null) {
+      _verifyDocument(widget.documentType!, widget.documentId!);
     }
   }
 
@@ -31,42 +32,45 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
-      if (code != null && code.contains('/verify/')) {
-        // Extract ID
-        final uri = Uri.parse(code);
-        // Assuming path is /verify/<id>
-        final segments = uri.pathSegments;
-        final index = segments.indexOf('verify');
-        if (index != -1 && index + 1 < segments.length) {
-          final docId = segments[index + 1];
-          _verifyDocument(docId);
+      if (code == null || !code.contains('/verify/')) continue;
+
+      // Expected shape: .../verify/<type>/<id> — type is 'marksheet' or
+      // 'certificate', matching what verify_document_signature expects.
+      final uri = Uri.parse(code);
+      final segments = uri.pathSegments;
+      final index = segments.indexOf('verify');
+      if (index != -1 && index + 2 < segments.length) {
+        final type = segments[index + 1];
+        final id = int.tryParse(segments[index + 2]);
+        if (id != null &&
+            (type == 'marksheet' ||
+                type == 'certificate' ||
+                type == 'payslip' ||
+                type == 'experience_certificate')) {
+          _verifyDocument(type, id);
           break;
         }
       }
     }
   }
 
-  Future<void> _verifyDocument(String docId) async {
+  Future<void> _verifyDocument(String type, int id) async {
     setState(() {
       _isScanning = false;
       _isLoading = true;
     });
 
     try {
-      final doc = await ref
+      final result = await ref
           .read(documentRepositoryProvider)
-          .getDocumentById(docId);
+          .verifyDocument(type, id);
 
       if (mounted) {
-        if (doc != null) {
-          _showResultDialog(true, doc);
-        } else {
-          _showResultDialog(false, null);
-        }
+        _showResultDialog(result);
       }
     } catch (e) {
       if (mounted) {
-        _showResultDialog(false, null);
+        _showResultDialog({'result': 'not_found', 'document': null});
       }
     } finally {
       if (mounted) {
@@ -75,11 +79,51 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     }
   }
 
-  void _showResultDialog(bool isValid, Map<String, dynamic>? doc) {
+  /// [outcome] is the map returned by DocumentRepository.verifyDocument:
+  /// {'result': 'valid'|'tampered'|'unsigned'|'not_found', 'document': {...}?}
+  void _showResultDialog(Map<String, dynamic> outcome) {
+    final result = (outcome['result'] ?? 'not_found').toString();
+    final doc = outcome['document'] as Map<String, dynamic>?;
+
+    late final IconData icon;
+    late final Color color;
+    late final String title;
+    late final String message;
+
+    switch (result) {
+      case 'valid':
+        icon = Icons.verified_rounded;
+        color = Colors.green;
+        title = 'Signature Valid';
+        message =
+            'This document is authentic and has not been altered since it was issued.';
+        break;
+      case 'tampered':
+        icon = Icons.cancel_rounded;
+        color = Colors.red;
+        title = 'Signature Invalid';
+        message =
+            'This document exists in our records but its data does not match what was originally signed — it may have been altered.';
+        break;
+      case 'unsigned':
+        icon = Icons.help_rounded;
+        color = Colors.amber.shade700;
+        title = 'Validity Unknown';
+        message =
+            'This document exists but has not been digitally signed (not yet approved, or issued before signing was enabled).';
+        break;
+      default:
+        icon = Icons.help_outline_rounded;
+        color = Colors.grey;
+        title = 'Not Found';
+        message =
+            'No document matches this code. It may be fake or the record may have been removed.';
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.textPrimary,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -89,23 +133,25 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              isValid ? Icons.verified : Icons.error_outline,
-              size: 64,
-              color: isValid ? Colors.green : Colors.red,
-            ),
+            Icon(icon, size: 64, color: color),
             const SizedBox(height: 16),
             Text(
-              isValid ? 'Valid Document' : 'Invalid Document',
+              title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isValid ? Colors.green : Colors.red,
+                color: color,
               ),
             ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 24),
-            if (isValid && doc != null) ...[
+            if (result == 'valid' && doc != null) ...[
               _buildDetailRow(
                 'Document Type',
                 (doc['type'] as String).toUpperCase(),
@@ -116,10 +162,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 doc['students']['registration_number'],
               ),
               const Divider(height: 24),
-              // Dynamic Data Fields
               if (doc['data'] != null)
                 ...(doc['data'] as Map<String, dynamic>).entries.map((e) {
-                  // Format key: "course_name" -> "Course Name"
                   String key = e.key
                       .replaceAll('_', ' ')
                       .split(' ')
@@ -131,24 +175,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                       .join(' ');
                   return _buildDetailRow(key, e.value.toString());
                 }),
-
               const Divider(height: 24),
               _buildDetailRow(
                 'Issued Date',
                 doc['created_at'].toString().split('T')[0],
               ),
               const SizedBox(height: 16),
-              const Text(
-                'This document is digitally signed and valid.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ] else
-              const Text(
-                'This document could not be verified in our system. It may be fake or revoked.',
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 32),
+            ],
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -189,7 +223,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A),
+              ),
             ),
           ),
         ],
@@ -241,7 +278,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                       const Text(
                         'Align certificate within the frame',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(

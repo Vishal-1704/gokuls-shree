@@ -41,12 +41,14 @@ class Question {
   final String text;
   final List<String> options;
   final int correctOptionIndex;
+  final String? imageUrl;
 
   Question({
     required this.id,
     required this.text,
     required this.options,
     required this.correctOptionIndex,
+    this.imageUrl,
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class Question {
       text: json['text'],
       options: List<String>.from(json['options']),
       correctOptionIndex: json['correct_option_index'],
+      imageUrl: json['image_url'] as String?,
     );
   }
 }

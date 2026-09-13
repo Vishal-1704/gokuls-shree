@@ -8,12 +8,14 @@ class ExamResultScreen extends StatefulWidget {
   final int score;
   final int totalQuestions;
   final String examTitle;
+  final bool? passed;
 
   const ExamResultScreen({
     super.key,
     required this.score,
     required this.totalQuestions,
     required this.examTitle,
+    this.passed,
   });
 
   @override
@@ -55,7 +57,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
     final percentage = widget.totalQuestions > 0
         ? (widget.score / widget.totalQuestions) * 100
         : 0.0;
-    final isPassed = percentage >= 40;
+    final isPassed = widget.passed ?? (percentage >= 40);
     final color = isPassed ? Colors.green : Colors.red;
 
     return Scaffold(

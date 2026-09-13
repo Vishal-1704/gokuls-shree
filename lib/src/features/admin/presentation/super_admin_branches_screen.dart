@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/branch_dashboard_screen.dart';
+import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
@@ -187,11 +188,11 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                   children: [
                                     Text(
                                       branch['name'] ?? 'Unnamed Branch',
-                                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14.5, fontWeight: FontWeight.bold),
                                     ),
                                     Text(
                                       'Code: ${branch['code'] ?? 'N/A'}',
-                                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                                     ),
                                   ],
                                 ),
@@ -204,7 +205,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                 ),
                                 child: Text(
                                   isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -235,7 +236,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                 const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                  child: Text('Owner: ${branch['owner_name']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -247,7 +248,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                 const Icon(Icons.phone_outlined, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                  child: Text('Phone: ${branch['contact_phone']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -260,7 +261,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                 const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text('Address: ${branch['address']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                  child: Text('Address: ${branch['address']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -302,15 +303,15 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
   }
 }
 
-class _BranchFormDialog extends StatefulWidget {
+class _BranchFormDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic>? branch;
   const _BranchFormDialog({this.branch});
 
   @override
-  State<_BranchFormDialog> createState() => _BranchFormDialogState();
+  ConsumerState<_BranchFormDialog> createState() => _BranchFormDialogState();
 }
 
-class _BranchFormDialogState extends State<_BranchFormDialog> {
+class _BranchFormDialogState extends ConsumerState<_BranchFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _codeCtrl;
@@ -318,6 +319,7 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
   bool _status = true;
+  bool _isGeneratingCode = false;
 
   @override
   void initState() {
@@ -326,9 +328,27 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
     _nameCtrl = TextEditingController(text: b?['name'] ?? '');
     _codeCtrl = TextEditingController(text: b?['code'] ?? '');
     _ownerCtrl = TextEditingController(text: b?['owner_name'] ?? '');
-    _phoneCtrl = TextEditingController(text: b?['contact_phone'] ?? '');
+    _phoneCtrl = TextEditingController(text: b?['contact_phone'] ?? b?['contact'] ?? '');
     _addressCtrl = TextEditingController(text: b?['address'] ?? '');
     _status = b?['status'] == true || b == null;
+
+    if (b == null || (b['code'] == null || b['code'].toString().trim().isEmpty)) {
+      Future.microtask(() async {
+        await _autoGenerate();
+      });
+    }
+  }
+
+  Future<void> _autoGenerate() async {
+    if (!mounted) return;
+    setState(() => _isGeneratingCode = true);
+    try {
+      final code = await ref.read(adminRepositoryProvider).generateNextBranchCode();
+      if (mounted && (_codeCtrl.text.trim().isEmpty || widget.branch == null)) {
+        setState(() => _codeCtrl.text = code);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isGeneratingCode = false);
   }
 
   @override
@@ -370,11 +390,22 @@ class _BranchFormDialogState extends State<_BranchFormDialog> {
               TextFormField(
                 controller: _codeCtrl,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Branch Code',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
+                  labelStyle: const TextStyle(color: AppColors.textSecondary),
+                  suffixIcon: IconButton(
+                    icon: _isGeneratingCode
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.goldCta),
+                          )
+                        : const Icon(Icons.auto_awesome, color: AppColors.goldCta, size: 20),
+                    tooltip: 'Auto-generate Code',
+                    onPressed: _isGeneratingCode ? null : _autoGenerate,
+                  ),
+                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.textMuted)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),

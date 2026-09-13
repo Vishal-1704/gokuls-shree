@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 
 class AdminAddStaffScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,7 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  final _departmentController = TextEditingController();
+  int? _selectedDepartmentId;
   final _dojController = TextEditingController();
   final _basicSalaryController = TextEditingController();
   final _hraController = TextEditingController();
@@ -42,7 +43,7 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
       _phoneController.text = widget.staff!['phone'] ?? '';
       _selectedRole = widget.staff!['role'] ?? 'Teacher';
 
-      _departmentController.text = widget.staff!['department'] ?? '';
+      _selectedDepartmentId = widget.staff!['department_id'] as int?;
       _dojController.text = widget.staff!['doj'] ?? '';
       _basicSalaryController.text = widget.staff!['basic_salary']?.toString() ?? '';
       _hraController.text = widget.staff!['hra']?.toString() ?? '';
@@ -62,8 +63,7 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    
-    _departmentController.dispose();
+
     _dojController.dispose();
     _basicSalaryController.dispose();
     _hraController.dispose();
@@ -84,7 +84,7 @@ class _AdminAddStaffScreenState extends ConsumerState<AdminAddStaffScreen> {
       final repo = ref.read(adminRepositoryProvider);
 
 final hrDetails = {
-        'department': _departmentController.text.trim(),
+        'department_id': _selectedDepartmentId,
         'doj': _dojController.text.trim(),
         'basic_salary': double.tryParse(_basicSalaryController.text.trim()) ?? 0.0,
         'hra': double.tryParse(_hraController.text.trim()) ?? 0.0,
@@ -147,6 +147,30 @@ final hrDetails = {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  InputDecoration _payrollInputDecoration(String label, {String? hint, Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      border: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.goldCta, width: 1.5),
+      ),
+      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      floatingLabelStyle: const TextStyle(color: AppColors.goldCta, fontSize: 11.5, fontWeight: FontWeight.w600),
+      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+      suffixIcon: suffixIcon,
+    );
   }
 
   @override
@@ -256,81 +280,124 @@ final hrDetails = {
               const SizedBox(height: 24),
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('HR & Payroll Details (Zoho)', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text('Payroll Details', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 16),
               Row(children: [
-                Expanded(child: TextFormField(
-                  controller: _departmentController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                Expanded(child: Consumer(
+                  builder: (context, ref, _) {
+                    final departmentsAsync = ref.watch(departmentsProvider);
+                    return departmentsAsync.when(
+                      data: (departments) {
+                        final active = departments.where((d) => d['status'] == 1).toList();
+                        final ids = active.map((d) => d['id'] as int).toSet();
+                        return DropdownButtonFormField<int>(
+                          value: ids.contains(_selectedDepartmentId) ? _selectedDepartmentId : null,
+                          dropdownColor: AppColors.inkNavy800,
+                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                          decoration: _payrollInputDecoration('Department'),
+                          items: active
+                              .map((d) => DropdownMenuItem(
+                                    value: d['id'] as int,
+                                    child: Text(d['name'] ?? '', style: const TextStyle(color: AppColors.textPrimary)),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setState(() => _selectedDepartmentId = v),
+                        );
+                      },
+                      loading: () => const SizedBox(
+                        height: 48,
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      error: (e, _) => Text('Failed to load departments: $e', style: const TextStyle(color: AppColors.danger, fontSize: 11)),
+                    );
+                  },
                 )),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(child: TextFormField(
                   controller: _dojController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(labelText: 'Date of Joining', hintText: 'YYYY-MM-DD', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  readOnly: true,
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.tryParse(_dojController.text) ?? now,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _dojController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                      });
+                    }
+                  },
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                  decoration: _payrollInputDecoration(
+                    'Date of Joining',
+                    hint: 'YYYY-MM-DD',
+                    suffixIcon: const Icon(Icons.calendar_today, size: 16, color: AppColors.goldCta),
+                  ),
                 )),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: TextFormField(
                   controller: _basicSalaryController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Basic Salary', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  decoration: _payrollInputDecoration('Basic Salary'),
                 )),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(child: TextFormField(
                   controller: _hraController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'HRA', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  decoration: _payrollInputDecoration('HRA'),
                 )),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: TextFormField(
                   controller: _daController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'DA', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  decoration: _payrollInputDecoration('DA'),
                 )),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(child: TextFormField(
                   controller: _otherAllowanceController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Other Allowances', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  decoration: _payrollInputDecoration('Other Allowances'),
                 )),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: TextFormField(
                   controller: _pfController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(labelText: 'PF Account No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                  decoration: _payrollInputDecoration('PF Account No'),
                 )),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(child: TextFormField(
                   controller: _esiController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(labelText: 'ESI No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                  decoration: _payrollInputDecoration('ESI No'),
                 )),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: TextFormField(
                   controller: _panController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(labelText: 'PAN No', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                  decoration: _payrollInputDecoration('PAN No'),
                 )),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(child: TextFormField(
                   controller: _leaveController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Causal Leaves (Yearly)', border: OutlineInputBorder(), labelStyle: TextStyle(color: AppColors.textSecondary)),
+                  decoration: _payrollInputDecoration('Casual Leaves (Yr)'),
                 )),
               ]),
               const SizedBox(height: 32),
@@ -340,13 +407,13 @@ final hrDetails = {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.goldCta,
-                    foregroundColor: AppColors.textPrimary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: _isLoading ? null : _saveStaff,
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: AppColors.textPrimary)
-                      : const Text('Save Staff', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Save Staff', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
             ],

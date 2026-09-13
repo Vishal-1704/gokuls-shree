@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 
 class AdminAdmitCardScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> student;
@@ -107,7 +108,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admit Card'),
-        backgroundColor: AppColors.textPrimary,
+        backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
         titleTextStyle: const TextStyle(
@@ -183,11 +184,19 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                           ],
                         ),
                         const Divider(height: 32),
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: NetworkImage(
-                            widget.student['photo_url'],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final avatar = resolveAvatarProvider(widget.student['photo_url']);
+                            return CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Colors.grey.shade200,
+                              backgroundImage: avatar,
+                              onBackgroundImageError: avatar != null ? (_, __) {} : null,
+                              child: avatar == null
+                                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                  : null,
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -212,7 +221,7 @@ class _AdminAdmitCardScreenState extends ConsumerState<AdminAdmitCardScreen> {
                         QrImageView(
                           data: _qrPayload,
                           size: 120,
-                          backgroundColor: AppColors.textPrimary,
+                          backgroundColor: Colors.white,
                         ),
                         const SizedBox(height: 8),
                         Text(

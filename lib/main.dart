@@ -1,4 +1,3 @@
-import 'dart:io' as dart_io;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/app.dart';
@@ -23,26 +22,6 @@ void main() async {
     debugPrint('⚠️ Failed to load .env file: $e');
   }
 
-  // --- NETWORK DIAGNOSTIC ---
-  try {
-    debugPrint('🔍 Running Network Diagnostic...');
-    final uri = Uri.parse(EnvConfig.supabaseUrl);
-    debugPrint('🔍 Testing connection to: ${uri.host} on port ${uri.port}');
-    
-    // Test DNS
-    final lookup = await dart_io.InternetAddress.lookup(uri.host);
-    debugPrint('🔍 DNS Lookup success: ${lookup.map((e) => e.address).toList()}');
-    
-    // Test Socket
-    final socket = await dart_io.Socket.connect(uri.host, 443, timeout: const Duration(seconds: 5));
-    debugPrint('✅ Raw Socket connected successfully! Remote: ${socket.remoteAddress.address}');
-    socket.destroy();
-  } catch (e, stacktrace) {
-    debugPrint('❌ NETWORK DIAGNOSTIC FAILED!');
-    debugPrint('Exception: $e');
-    debugPrint('Stacktrace: $stacktrace');
-  }
-  // --- END DIAGNOSTIC ---
 
   // Initialize Supabase with credentials from env
   try {

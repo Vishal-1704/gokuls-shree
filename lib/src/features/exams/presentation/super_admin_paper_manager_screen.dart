@@ -3,7 +3,6 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
-import 'package:gokul_shree_app/src/features/exams/domain/exam_model.dart';
 import 'package:gokul_shree_app/src/features/exams/presentation/question_manager_screen.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
 
@@ -68,10 +67,11 @@ class _SuperAdminPaperManagerScreenState
         title: result['title'],
         durationMinutes: result['duration'],
         totalMarks: result['marks'],
+        assessmentType: result['assessmentType'],
         branchId: result['branchId'],
         courseId: result['courseId'],
       );
-      _snack('✅ Paper set created!');
+      _snack('✅ Paper created!');
       await _loadPaperSets();
     } catch (e) {
       _snack('Error: $e', isError: true);
@@ -79,7 +79,7 @@ class _SuperAdminPaperManagerScreenState
   }
 
   Future<void> _toggleStatus(Map<String, dynamic> paper) async {
-    final newStatus = !(paper['is_active'] as bool? ?? false);
+    final newStatus = (paper['status'] as String?) != 'published';
     try {
       await ref
           .read(examRepositoryProvider)
@@ -99,7 +99,7 @@ class _SuperAdminPaperManagerScreenState
         title: const Text('Delete Paper Set?',
             style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
-          'This will permanently delete "${paper['name']}" and ALL its questions. This cannot be undone.',
+          'This will permanently delete "${paper['title']}" and remove it from any schedules. This cannot be undone.',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -133,7 +133,7 @@ class _SuperAdminPaperManagerScreenState
       MaterialPageRoute(
         builder: (_) => QuestionManagerScreen(
           paperSetId: paper['id'] as int,
-          paperTitle: paper['name'] as String? ?? 'Paper',
+          paperTitle: paper['title'] as String? ?? 'Paper',
         ),
       ),
     ).then((_) => _loadPaperSets());
@@ -230,11 +230,12 @@ class _PaperSetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = (paper['status'] as int? ?? 0) == 1;
+    final isActive = paper['status'] == 'published';
     final qCount = paper['total_questions'] ?? 0;
-    final duration = paper['time_limit'] ?? 0;
+    final duration = paper['duration_minutes'] ?? 0;
     final marks = paper['total_marks'] ?? 0;
     final branchName = paper['branches']?['name'] ?? 'All Branches';
+    final isTest = paper['assessment_type'] == 'test';
 
     return Container(
       decoration: BoxDecoration(
@@ -281,9 +282,25 @@ class _PaperSetCard extends StatelessWidget {
                             fontSize: 15),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        branchName,
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      Row(
+                        children: [
+                          Text(
+                            isTest ? 'TEST' : 'EXAM',
+                            style: TextStyle(
+                              color: isTest ? Colors.purple : AppColors.goldCta,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(' • ', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          Expanded(
+                            child: Text(
+                              branchName,
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -421,6 +438,7 @@ class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBotto
   final _durationCtrl = TextEditingController(text: '60');
   final _marksCtrl = TextEditingController(text: '100');
   int? _selectedCourseId;
+  String _assessmentType = 'exam';
 
   @override
   void dispose() {
@@ -485,6 +503,15 @@ class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBotto
                 hint: 'e.g. Computer Fundamentals – Unit 1',
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Title required' : null,
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'test', label: Text('Test')),
+                  ButtonSegment(value: 'exam', label: Text('Exam')),
+                ],
+                selected: {_assessmentType},
+                onSelectionChanged: (v) => setState(() => _assessmentType = v.first),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
@@ -559,6 +586,7 @@ class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBotto
                       'title': _titleCtrl.text.trim(),
                       'duration': int.parse(_durationCtrl.text),
                       'marks': int.parse(_marksCtrl.text),
+                      'assessmentType': _assessmentType,
                       'branchId': null,
                       'courseId': _selectedCourseId,
                     });

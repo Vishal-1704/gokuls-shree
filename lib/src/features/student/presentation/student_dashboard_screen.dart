@@ -10,6 +10,7 @@ import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/widgets/responsive_container.dart';
 import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 import 'package:gokul_shree_app/src/core/services/update_service.dart';
+import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -89,7 +90,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                           
                           _buildSectionTitle('Quick Actions'),
                           const SizedBox(height: 16),
-                          _buildQuickActionsGrid(context),
+                          _buildQuickActionsGrid(context, ref),
                           
                           const SizedBox(height: 100),
                         ],
@@ -123,7 +124,21 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     );
   }
 
-  Widget _buildQuickActionsGrid(BuildContext context) {
+  Widget _buildQuickActionsGrid(BuildContext context, WidgetRef ref) {
+    final resultsAsync = ref.watch(examResultsProvider);
+    final lastResultSubtitle = resultsAsync.maybeWhen(
+      data: (rows) {
+        if (rows.isEmpty) return 'No results yet';
+        final latest = rows.first;
+        final score = (latest['score'] as num?) ?? 0;
+        final total = (latest['total_marks'] as num?) ?? 0;
+        if (total <= 0) return 'No results yet';
+        final pct = (score / total) * 100;
+        return '${pct.toStringAsFixed(0)}%';
+      },
+      orElse: () => '…',
+    );
+
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 16,
@@ -139,10 +154,11 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           onTap: () => context.push('/attendance'),
         ),
         _buildActionCard(
-          title: 'Fee Status',
-          icon: Icons.account_balance_wallet_rounded,
+          title: 'Last Result',
+          subtitle: lastResultSubtitle,
+          icon: Icons.emoji_events_rounded,
           color: AppColors.success,
-          onTap: () => context.push('/fees'),
+          onTap: () => context.push('/student/academics'),
         ),
         _buildActionCard(
           title: 'Calendar',
@@ -160,7 +176,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     );
   }
 
-  Widget _buildActionCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildActionCard({required String title, String? subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -172,17 +188,22 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(title, style: AppTypography.labelMd.copyWith(color: AppColors.textPrimary)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(subtitle, style: AppTypography.bodySm.copyWith(color: color, fontWeight: FontWeight.bold)),
+            ],
           ],
         ),
       ),

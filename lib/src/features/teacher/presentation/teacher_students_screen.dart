@@ -32,9 +32,8 @@ class TeacherStudentsScreen extends ConsumerWidget {
               
               // Filter students
               final students = allStudents.where((s) {
-                 final cId = s['course']; // or whatever the course id field is
-                 // If we can't determine, just return all for now to avoid breaking
-                 if (teacherCourseIds.isEmpty) return true; 
+                 final cId = s['course_id'];
+                 if (teacherCourseIds.isEmpty) return true;
                  return teacherCourseIds.contains(cId);
               }).toList();
               

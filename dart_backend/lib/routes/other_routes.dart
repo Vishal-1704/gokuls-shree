@@ -405,6 +405,43 @@ Router buildCourseRouter() {
 Router buildBranchRouter() {
   final router = Router();
 
+  // Super Admin: list all branches
+  router.get('/', Pipeline()
+      .addMiddleware(requireAuth())
+      .addMiddleware(requirePermission('READ_ALL_BRANCHES'))
+      .addHandler((Request req) async {
+    try {
+      final res  = await SupabaseService.query('branches',
+          queryParams: {'select': '*', 'order': 'name.asc'});
+      final data = jsonDecode(res.body) as List;
+      return _json(200, {'success': true, 'data': data});
+    } catch (e) {
+      return _json(500, {'error': 'Failed to fetch branches'});
+    }
+  }));
+
+  // Super Admin: update any branch (e.g. activate/deactivate, edit details)
+  router.patch('/<id>', Pipeline()
+      .addMiddleware(requireAuth())
+      .addMiddleware(requirePermission('MANAGE_BRANCHES'))
+      .addMiddleware(auditLog('MANAGE_BRANCH'))
+      .addHandler((Request req) async {
+    try {
+      final id = req.params['id'] as String;
+      final branchId = int.tryParse(id);
+      if (branchId == null) return _json(400, {'error': 'Invalid branch ID'});
+
+      final body = await _body(req);
+      body.remove('admin_id'); // ownership is not reassignable via this endpoint
+
+      final updated = await SupabaseService.update('branches', body, filters: {'id': branchId});
+      if (updated.isEmpty) return _json(404, {'error': 'Branch not found'});
+      return _json(200, {'success': true, 'data': updated.first});
+    } catch (e) {
+      return _json(500, {'error': 'Failed to update branch'});
+    }
+  }));
+
   router.get('/my-branch', Pipeline()
       .addMiddleware(requireAuth())
       .addMiddleware(requirePermission('SETUP_OWN_BRANCH'))

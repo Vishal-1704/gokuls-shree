@@ -25,6 +25,7 @@ class ExamsRoutes {
           score: extra['score'],
           totalQuestions: extra['total'],
           examTitle: extra['title'],
+          passed: extra['passed'] as bool?,
         );
       },
     ),

@@ -6,7 +6,8 @@ import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 
 class AdminResultsEntryScreen extends ConsumerStatefulWidget {
-  const AdminResultsEntryScreen({super.key});
+  final String? initialStudentId;
+  const AdminResultsEntryScreen({super.key, this.initialStudentId});
 
   @override
   ConsumerState<AdminResultsEntryScreen> createState() =>
@@ -25,6 +26,12 @@ class _AdminResultsEntryScreenState
 
   bool _isSubmitting = false;
   String? _selectedStudentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStudentId = widget.initialStudentId;
+  }
 
   @override
   void dispose() {
@@ -118,17 +125,21 @@ class _AdminResultsEntryScreenState
                   DropdownButtonFormField<String>(
                     value: _selectedStudentId,
                     isExpanded: true,
+                    dropdownColor: Colors.white,
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'Select Student',
-                      prefixIcon: Icon(Icons.person_search_outlined),
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.person_search_outlined, color: AppColors.textMuted),
                     ),
                     items: students
                         .map(
                           (s) => DropdownMenuItem<String>(
                             value: s['id'].toString(),
                             child: Text(
-                                '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
+                              '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
                               overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.black87),
                             ),
                           ),
                         )
@@ -139,9 +150,11 @@ class _AdminResultsEntryScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _examController,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: const InputDecoration(
                       labelText: 'Exam Name',
-                      prefixIcon: Icon(Icons.assignment_outlined),
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.assignment_outlined, color: AppColors.textMuted),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Exam name is required'
@@ -150,9 +163,11 @@ class _AdminResultsEntryScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _subjectController,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: const InputDecoration(
                       labelText: 'Subject Name',
-                      prefixIcon: Icon(Icons.menu_book_outlined),
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.menu_book_outlined, color: AppColors.textMuted),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Subject is required'
@@ -164,9 +179,11 @@ class _AdminResultsEntryScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _obtainedController,
+                          style: const TextStyle(color: Colors.black87),
                           decoration: const InputDecoration(
                             labelText: 'Obtained Marks',
-                            prefixIcon: Icon(Icons.score_outlined),
+                            labelStyle: TextStyle(color: AppColors.textMuted),
+                            prefixIcon: Icon(Icons.score_outlined, color: AppColors.textMuted),
                           ),
                           keyboardType: TextInputType.number,
                           validator: (v) {
@@ -182,9 +199,11 @@ class _AdminResultsEntryScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _totalController,
+                          style: const TextStyle(color: Colors.black87),
                           decoration: const InputDecoration(
                             labelText: 'Total Marks',
-                            prefixIcon: Icon(Icons.straighten_outlined),
+                            labelStyle: TextStyle(color: AppColors.textMuted),
+                            prefixIcon: Icon(Icons.straighten_outlined, color: AppColors.textMuted),
                           ),
                           keyboardType: TextInputType.number,
                           validator: (v) {
@@ -201,18 +220,22 @@ class _AdminResultsEntryScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _gradeController,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: const InputDecoration(
                       labelText: 'Grade (Optional)',
-                      prefixIcon: Icon(Icons.workspace_premium_outlined),
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.workspace_premium_outlined, color: AppColors.textMuted),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _notesController,
                     maxLines: 3,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: const InputDecoration(
                       labelText: 'Notes (Optional)',
-                      prefixIcon: Icon(Icons.notes_outlined),
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.notes_outlined, color: AppColors.textMuted),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),

@@ -3,13 +3,13 @@
 // Decoupled sub-route bundles are imported from each feature module.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 
 import '../core/models/user_session.dart';
 import '../core/providers/session_provider.dart';
+import '../features/auth/data/auth_service.dart';
 
 // Import modular routes
 import '../features/auth/routing/auth_routes.dart';
@@ -21,30 +21,48 @@ import '../features/teacher/routing/teacher_routes.dart';
 import '../features/admin/routing/admin_routes.dart';
 import '../features/super_admin_app/routing/super_admin_routes.dart';
 import '../features/courses/presentation/courses_screen.dart';
-import '../features/public/presentation/public_home_screen.dart';
 import '../core/widgets/role_shell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROUTER PROVIDER
 // ─────────────────────────────────────────────────────────────────────────────
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final session = ref.watch(sessionProvider);
+  // Built once — does NOT ref.watch(sessionProvider), which used to force a
+  // brand-new GoRouter (and a full MaterialApp.router re-initialization,
+  // wiping the navigation stack) on every session change, not just at boot.
+  // refreshListenable below re-runs `redirect` on the *current* route
+  // instead, which is what go_router is actually designed for.
+  final authNotifier = ref.read(supabaseAuthNotifierProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/login',
     debugLogDiagnostics: false,
+    refreshListenable: authNotifier,
     redirect: (context, state) {
+      final authState = ref.read(supabaseAuthProvider);
+      final session = ref.read(sessionProvider);
       final loggedIn = session != null;
       final path = state.uri.path;
 
-      final publicPaths = ['/', '/login', '/forgot-password',
+      // No public browse-without-login landing page anymore — '/' just
+      // bounces to '/login' (see the GoRoute below), so it's intentionally
+      // not in this list.
+      final publicPaths = ['/login', '/forgot-password',
         '/contact', '/centre-finder', '/verify', '/courses'];
       final isPublic = publicPaths.any((p) => path == p || path.startsWith('/verify/') || path == '/courses');
 
-      // Not logged in → redirect to login
-      if (!loggedIn) {
-        if (path == '/' || !isPublic) return '/login';
+      // Session restoration still in flight (a persisted Supabase session
+      // exists but its profile hasn't loaded yet) — this is neither a
+      // confirmed logged-in nor logged-out state, so don't decide yet.
+      // Forcing '/login' here is exactly what caused an already-logged-in
+      // user to see the login screen on cold boot; refreshListenable will
+      // re-run this redirect the moment AuthLoading resolves either way.
+      if (authState is AuthLoading) {
+        return null;
       }
+
+      // Not logged in → redirect to login
+      if (!loggedIn && !isPublic) return '/login';
 
       // Already logged in → redirect away from public pages to role home
       if (loggedIn && isPublic) return session.homeRoute;
@@ -75,10 +93,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CoursesScreen(),
       ),
 
-      // Public Home
+      // '/' has no page of its own anymore — bounce any stray navigation
+      // to '/' (e.g. a stale bookmark) straight to '/login'.
       GoRoute(
-        path: '/', 
-        builder: (context, state) => const PublicHomeScreen(),
+        path: '/',
+        redirect: (context, state) => '/login',
       ),
 
       // ══════════════════════════════════════════════════
@@ -123,9 +142,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           role: UserRole.branchAdmin,
           tabs: const [
             GButton(icon: Icons.dashboard_rounded,    text: 'Dashboard'),
-            GButton(icon: Icons.people_alt_rounded,   text: 'Students'),
-            GButton(icon: Icons.payments_rounded,     text: 'Fees'),
-            GButton(icon: Icons.bar_chart_rounded,    text: 'Reports'),
+            GButton(icon: Icons.school,               text: 'Institute'),
+            GButton(icon: Icons.analytics_rounded,    text: 'Reports & Fees'),
             GButton(icon: Icons.person_rounded,       text: 'Profile'),
           ],
         ),
@@ -180,6 +198,8 @@ bool _isAllowedRouteForRole(UserSession session, String path) {
         '/admin/study-material',
         '/admin/branch-registration',
         '/admin/franchise-setup',
+        '/admin/schedule-results',
+        '/admin/fee-collection',
       };
       return allowed.contains(path);
 

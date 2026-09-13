@@ -4,6 +4,7 @@ import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
+import 'package:gokul_shree_app/src/features/admin/presentation/admin_fee_collection_screen.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -239,6 +240,44 @@ class AdminDuesReportScreen extends ConsumerWidget {
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => AdminFeeCollectionScreen(
+                                            student: {
+                                              'id': item['student_id'],
+                                              'name': item['student_name'],
+                                              'reg_no': item['registration_number'],
+                                              'course_name': item['course_name'],
+                                              'due_amount': due,
+                                              'total_fee': total,
+                                              'paid_amount': paid,
+                                              'photo_url': item['photo_url'],
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0284C7),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.payment_rounded, size: 16),
+                                    label: const Text(
+                                      'Collect Fee',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

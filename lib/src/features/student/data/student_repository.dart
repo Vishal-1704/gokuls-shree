@@ -10,7 +10,7 @@ class StudentRepository {
     try {
       final user = supabase.auth.currentUser;
       final profile = await _supabaseService.getStudentProfile();
-      
+
       if (profile == null) {
         final authName = user?.userMetadata?['name'] ?? 'Student';
         return {
@@ -19,7 +19,8 @@ class StudentRepository {
           'class_section': 'Pending Setup',
           'reg_no': 'Pending Approval',
           'streak': 0,
-          'photo_url': 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
+          'photo_url':
+              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
           'email': user?.email,
           'phone': user?.phone,
           'father_name': null,
@@ -33,33 +34,34 @@ class StudentRepository {
         };
       }
 
-      final resolvedName =
-          profile['name'] ?? profile['full_name'] ?? profile['student_name'];
-      final resolvedCourse =
-          profile['courses']?['title'] ?? profile['course'] ?? 'N/A';
+      final resolvedName = profile['name'];
+      final resolvedCourse = profile['courses']?['name'] ?? 'N/A';
+      final resolvedProgram = profile['courses']?['category'] ?? 'N/A';
 
-      // Map Supabase data to UI model
+      // Map Supabase data to UI model — keys here must match the actual
+      // students table columns (see master_schema.sql), not guessed names.
       return {
         'id': profile['id']?.toString(),
         'name': (resolvedName ?? 'Student').toString(),
         'class_section': resolvedCourse.toString(),
-        'reg_no': profile['registration_number'] ?? 'N/A',
-        'streak':
-            profile['streak'] ??
-            0, // Assuming streak column exists or default 0
+        'program': resolvedProgram.toString(),
+        'reg_no': profile['reg_no'] ?? 'N/A',
+        'streak': profile['streak'] ?? 0,
         'photo_url':
             profile['photo_url'] ??
             'https://ui-avatars.com/api/?name=${Uri.encodeComponent((resolvedName ?? 'Student').toString())}&background=random',
         'email': profile['email'],
-        'phone': profile['phone'],
+        'phone': profile['contact'],
         'father_name': profile['father_name'],
-        'guardian_name': profile['guardian_name'],
+        'guardian_name': profile['mother_name'],
+        'gender': profile['gender'],
         'address': profile['address'],
         'doj': profile['doj'],
-        'date_of_birth': profile['date_of_birth'],
+        'date_of_birth': profile['dob'],
         'course_id': profile['course_id'],
         'batch_id': profile['batch_id'],
         'branch_id': profile['branch_id'],
+        'fee_summary': profile['fee_summary'],
       };
     } catch (e) {
       final user = supabase.auth.currentUser;
@@ -71,7 +73,8 @@ class StudentRepository {
         'class_section': 'Pending Setup',
         'reg_no': 'Pending Approval',
         'streak': 0,
-        'photo_url': 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
+        'photo_url':
+            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(authName.toString())}&background=random',
         'email': user?.email,
         'phone': user?.phone,
         'father_name': null,
@@ -83,35 +86,6 @@ class StudentRepository {
         'batch_id': null,
         'branch_id': null,
       };
-    }
-  }
-
-  Future<String> markMyAttendance() async {
-    try {
-      final profile = await _supabaseService.getStudentProfile();
-      final studentId = profile?['id']?.toString();
-      if (studentId == null || studentId.isEmpty) {
-        throw Exception('Student profile not found');
-      }
-
-      final today = DateTime.now();
-      final dateOnly =
-          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-      await _supabaseService.markSmartAttendance(
-        studentId: studentId,
-        source: 'manual_tap',
-        status: 'present',
-        confidenceScore: 1,
-        meta: {'marked_from': 'student_dashboard', 'date': dateOnly},
-      );
-      return 'Attendance marked successfully';
-    } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('duplicate') || msg.contains('unique')) {
-        return 'Attendance already marked for today';
-      }
-      return 'Unable to mark attendance right now';
     }
   }
 
@@ -175,15 +149,20 @@ class StudentRepository {
     try {
       final results = await _supabaseService.getMyExamResults();
       return results.map((r) {
-        final session = r['exam_sessions'] as Map<String, dynamic>;
-        final paperSet = session['paper_sets'] as Map<String, dynamic>;
+        final marksObtained = (r['marks_obtained'] as num?) ?? 0;
+        final totalMarks = (r['total_marks'] as num?) ?? 100;
+        final grade = r['grade'] as String?;
 
         return {
-          'title': paperSet['name'] ?? 'Exam',
-          'score': r['marks_obtained'] ?? 0,
-          'total': r['total_marks'] ?? 100,
-          'date': _formatTime(session['ended_at']),
-          'status': (r['passed'] ?? false) ? 'Pass' : 'Fail',
+          'title': r['exam_name'] ?? r['subject_name'] ?? 'Exam',
+          'score': marksObtained,
+          'total': totalMarks,
+          'date': _formatTime(r['calculated_at']),
+          'status': grade == 'AB'
+              ? 'Absent'
+              : (totalMarks > 0 && marksObtained / totalMarks >= 0.33
+                    ? 'Pass'
+                    : 'Fail'),
         };
       }).toList();
     } catch (e) {
@@ -210,13 +189,19 @@ class StudentRepository {
         'and(assignment_type.eq.student,student_id.eq.${user.id})',
       ];
       if (courseIdDynamic != null) {
-        filters.add('and(assignment_type.eq.course,course_id.eq.$courseIdDynamic)');
+        filters.add(
+          'and(assignment_type.eq.course,course_id.eq.$courseIdDynamic)',
+        );
       }
       if (batchIdDynamic != null) {
-        filters.add('and(assignment_type.eq.batch,batch_id.eq.$batchIdDynamic)');
+        filters.add(
+          'and(assignment_type.eq.batch,batch_id.eq.$batchIdDynamic)',
+        );
       }
       if (branchIdDynamic != null) {
-        filters.add('and(assignment_type.eq.branch,branch_id.eq.$branchIdDynamic)');
+        filters.add(
+          'and(assignment_type.eq.branch,branch_id.eq.$branchIdDynamic)',
+        );
       }
 
       final response = await supabase
@@ -229,8 +214,10 @@ class StudentRepository {
       return (response as List).map((p) {
         final dateRaw = p['start_at'];
         final now = DateTime.now().toUtc();
-        final startAt = dateRaw != null ? DateTime.tryParse(dateRaw.toString())?.toUtc() : null;
-        
+        final startAt = dateRaw != null
+            ? DateTime.tryParse(dateRaw.toString())?.toUtc()
+            : null;
+
         String status = 'Available';
         if (startAt != null && startAt.isAfter(now)) {
           status = 'Upcoming';
@@ -447,6 +434,18 @@ final studentProfileProvider = FutureProvider<Map<String, dynamic>>((ref) {
   return repository.getStudentProfile();
 });
 
+final studentMarksheetsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) {
+  return ref.watch(supabaseServiceProvider).getMyMarksheets();
+});
+
+final studentCertificatesProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) {
+  return ref.watch(supabaseServiceProvider).getMyCertificates();
+});
+
 final studentAttendanceProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
@@ -461,12 +460,11 @@ final studentAttendanceProvider = FutureProvider<List<Map<String, dynamic>>>((
   return supabaseService.getStudentAttendance(studentId);
 });
 
-final studentAcademicCalendarProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) {
-  final repository = ref.watch(studentRepositoryProvider);
-  return repository.getAcademicCalendarEvents();
-});
+final studentAcademicCalendarProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+      final repository = ref.watch(studentRepositoryProvider);
+      return repository.getAcademicCalendarEvents();
+    });
 
 final studentFeeStatusProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
@@ -486,7 +484,9 @@ final studentFeeStatusProvider = FutureProvider<List<Map<String, dynamic>>>((
   }).toList();
 });
 
-final studentAttendanceStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
+final studentAttendanceStatsProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) {
   final repository = ref.watch(studentRepositoryProvider);
   return repository.getAttendanceStats();
 });
