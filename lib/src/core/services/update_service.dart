@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -106,25 +107,36 @@ class UpdateService {
     messenger
         .showSnackBar(
           SnackBar(
-            duration: const Duration(seconds: 8),
+            duration: const Duration(seconds: 10),
             content: Row(
               children: [
-                Expanded(child: Text('A new version ($version) is available.')),
-                if (downloadUrl != null)
-                  TextButton(
-                    onPressed: () => _downloadAndInstall(context, downloadUrl),
-                    child: const Text('UPDATE', style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    'v$version available',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                // Explicit close so this doesn't rely only on the 8s
-                // auto-timeout to go away.
+                ),
+                // Explicit close — the theme's dark snackbar background has
+                // no default foreground color for arbitrary child widgets
+                // (only SnackBar's own `action` slot is guaranteed a visible
+                // color), so anything placed in `content` needs its color
+                // set explicitly or it can blend invisibly into the
+                // background.
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: const Icon(Icons.close, size: 18, color: Colors.white70),
                   onPressed: () => messenger.hideCurrentSnackBar(),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),
+            action: downloadUrl == null
+                ? null
+                : SnackBarAction(
+                    label: 'UPDATE',
+                    textColor: AppColors.goldCta,
+                    onPressed: () => _downloadAndInstall(context, downloadUrl),
+                  ),
           ),
         )
         .closed
@@ -142,17 +154,33 @@ class UpdateService {
     final progressController = messenger.showSnackBar(
       SnackBar(
         duration: const Duration(minutes: 10),
+        // Column, not a single crammed Row — a floating SnackBar has a
+        // fairly narrow max width, and "Downloading update…" + a progress
+        // bar + a percentage all fighting for one row's horizontal space
+        // was silently overflowing/clipping on narrower phones. Stacking
+        // vertically has no such width risk.
         content: ValueListenableBuilder<double?>(
           valueListenable: downloadProgress,
-          builder: (context, progress, _) => Row(
+          builder: (context, progress, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Downloading update…'),
-              const SizedBox(width: 12),
-              Expanded(
-                child: LinearProgressIndicator(value: progress, color: Colors.white),
+              Text(
+                progress == null
+                    ? 'Downloading update…'
+                    : 'Downloading update… ${(progress * 100).toStringAsFixed(0)}%',
+                style: const TextStyle(color: Colors.white),
               ),
-              const SizedBox(width: 8),
-              Text(progress == null ? '' : '${(progress * 100).toStringAsFixed(0)}%'),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: Colors.white24,
+                  color: AppColors.goldCta,
+                ),
+              ),
             ],
           ),
         ),
