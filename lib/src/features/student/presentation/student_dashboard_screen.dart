@@ -11,6 +11,7 @@ import 'package:gokul_shree_app/src/core/widgets/responsive_container.dart';
 import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 import 'package:gokul_shree_app/src/core/services/update_service.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
+import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -25,6 +26,17 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService.checkForUpdate(context);
+
+      // The session's "pending approval" flag is a snapshot from whenever
+      // the profile was last loaded (often right after a legacy-claim
+      // registration, sometimes before the claim's status=1 update had
+      // fully landed) — it never re-checks itself otherwise, so a genuinely
+      // already-approved account could keep showing a stale pending banner
+      // until a full logout/login. One quiet re-check on dashboard mount
+      // self-heals that without needing a manual re-login.
+      if (!(ref.read(sessionProvider)?.isApproved ?? true)) {
+        ref.read(supabaseAuthNotifierProvider).refreshProfile();
+      }
     });
   }
 
