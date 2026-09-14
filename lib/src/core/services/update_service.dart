@@ -134,7 +134,7 @@ class UpdateService {
                 ? null
                 : SnackBarAction(
                     label: 'UPDATE',
-                    textColor: AppColors.goldCta,
+                    textColor: const Color.fromARGB(255, 150, 5, 234),
                     onPressed: () => _downloadAndInstall(context, downloadUrl),
                   ),
           ),

@@ -21,6 +21,7 @@ import '../features/teacher/routing/teacher_routes.dart';
 import '../features/admin/routing/admin_routes.dart';
 import '../features/super_admin_app/routing/super_admin_routes.dart';
 import '../features/courses/presentation/courses_screen.dart';
+import '../features/splash/presentation/splash_screen.dart';
 import '../core/widgets/role_shell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,14 +36,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.read(supabaseAuthNotifierProvider);
 
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     debugLogDiagnostics: false,
     refreshListenable: authNotifier,
     redirect: (context, state) {
+      final path = state.uri.path;
+
+      // The splash screen decides when to navigate onward itself (its own
+      // animation timing + waiting out AuthLoading) — the generic
+      // logged-in/logged-out rules below would otherwise redirect away
+      // from it immediately, before the bounce animation or the
+      // session-restore wait ever gets a chance to run.
+      if (path == '/splash') return null;
+
       final authState = ref.read(supabaseAuthProvider);
       final session = ref.read(sessionProvider);
       final loggedIn = session != null;
-      final path = state.uri.path;
 
       // No public browse-without-login landing page anymore — '/' just
       // bounces to '/login' (see the GoRoute below), so it's intentionally
@@ -78,6 +87,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Public / Auth
       ...AuthRoutes.routes,
       ...ContactRoutes.routes,
