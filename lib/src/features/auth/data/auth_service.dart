@@ -58,6 +58,13 @@ class SupabaseAuthNotifier extends ChangeNotifier {
 
   SupabaseAuthState get state => _state;
 
+  /// Set by registerWithPhone() — true if another unlinked students row
+  /// shares the just-registered phone number under a different name. The
+  /// login screen reads this once, right after a successful registration,
+  /// to show a "contact your branch admin" notice.
+  bool _hasPhoneNameConflict = false;
+  bool get hasPhoneNameConflict => _hasPhoneNameConflict;
+
   SupabaseAuthNotifier() {
     _init();
   }
@@ -249,6 +256,20 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       });
 
       if (linkResponse['success'] == true) {
+        // Informational only — does not block registration. True means
+        // another UNLINKED students row shares this phone number under a
+        // different name (a known legacy pattern: a branch admin may have
+        // entered a placeholder/their own number for a student who hadn't
+        // given theirs yet). The UI surfaces this as "contact your branch
+        // admin" rather than silently leaving that other row unexplained.
+        try {
+          _hasPhoneNameConflict = await _client.rpc('find_phone_name_conflict', params: {
+            'p_phone': phone.trim(),
+            'p_name': name.trim(),
+          }) as bool? ?? false;
+        } catch (_) {
+          _hasPhoneNameConflict = false;
+        }
         await _loadProfile(authResponse.user!);
       } else {
         _state = AuthError('Could not verify your record. Please contact your branch admin.');
@@ -519,8 +540,14 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       await _client.auth.updateUser(UserAttributes(data: metadataUpdate));
     }
 
+    // profiles.id is its own generated UUID, NOT the same value as
+    // auth.user.id (the Supabase auth uid) — using auth.user.id here
+    // would upsert against a row whose id essentially never matches the
+    // real profile, instead of updating it. auth.profile is already the
+    // loaded profile row, so its own 'id' is the correct value.
+    final resolvedProfileId = auth.profile?['id'];
     final profilePayload = <String, dynamic>{
-      'id': auth.user.id,
+      if (resolvedProfileId != null) 'id': resolvedProfileId,
       'full_name': trimmedName,
       'contact': trimmedPhone,
       'updated_at': now.toIso8601String(),
@@ -553,19 +580,27 @@ class SupabaseAuthNotifier extends ChangeNotifier {
       studentPayload['email_last_changed_at'] = now.toIso8601String();
     }
 
-    try {
-      await _client
-          .from('students')
-          .update(studentPayload)
-          .eq('profile_id', auth.user.id);
-    } catch (_) {
-      if (studentPayload.containsKey('email_last_changed_at')) {
-        final fallback = Map<String, dynamic>.from(studentPayload)
-          ..remove('email_last_changed_at');
+    // students.profile_id references profiles(id), not auth.user.id —
+    // same fix as the profile upsert above. Updates every students row
+    // for this profile (a profile can have more than one, one per course
+    // enrollment), since name/contact are person-level fields correct to
+    // update on all of them, not just whichever row a single-row query
+    // used to pick.
+    if (resolvedProfileId != null) {
+      try {
         await _client
             .from('students')
-            .update(fallback)
-            .eq('profile_id', auth.user.id);
+            .update(studentPayload)
+            .eq('profile_id', resolvedProfileId);
+      } catch (_) {
+        if (studentPayload.containsKey('email_last_changed_at')) {
+          final fallback = Map<String, dynamic>.from(studentPayload)
+            ..remove('email_last_changed_at');
+          await _client
+              .from('students')
+              .update(fallback)
+              .eq('profile_id', resolvedProfileId);
+        }
       }
     }
 

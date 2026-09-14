@@ -175,32 +175,49 @@ class StudentRepository {
       final user = supabase.auth.currentUser;
       if (user == null) return [];
 
-      final student = await supabase
-          .from('students')
-          .select('course_id, batch_id, branch_id')
-          .eq('profile_id', user.id)
+      // students.profile_id references profiles(id), not the raw auth
+      // uid — resolve profiles.id first, same two-hop pattern used
+      // elsewhere (e.g. supabase_service.dart's student id resolution).
+      final profile = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('auth_uid', user.id)
           .maybeSingle();
+      final profileId = profile?['id'];
+      if (profileId == null) return [];
 
-      final courseIdDynamic = student?['course_id'];
-      final batchIdDynamic = student?['batch_id'];
-      final branchIdDynamic = student?['branch_id'];
+      // A profile can have more than one students row (one per course
+      // enrollment) — collect course/batch/branch across ALL of them,
+      // not just whichever one a single-row query happened to pick.
+      final students = await supabase
+          .from('students')
+          .select('id, course_id, batch_id, branch_id')
+          .eq('profile_id', profileId);
+      final studentRows = List<Map<String, dynamic>>.from(students);
+      if (studentRows.isEmpty) return [];
+
+      final studentIds = studentRows.map((s) => s['id']).toSet();
+      final courseIds = studentRows.map((s) => s['course_id']).whereType<Object>().toSet();
+      final batchIds = studentRows.map((s) => s['batch_id']).whereType<Object>().toSet();
+      final branchIds = studentRows.map((s) => s['branch_id']).whereType<Object>().toSet();
 
       final filters = <String>[
-        'and(assignment_type.eq.student,student_id.eq.${user.id})',
+        for (final sid in studentIds)
+          'and(assignment_type.eq.student,student_id.eq.$sid)',
       ];
-      if (courseIdDynamic != null) {
+      for (final courseId in courseIds) {
         filters.add(
-          'and(assignment_type.eq.course,course_id.eq.$courseIdDynamic)',
+          'and(assignment_type.eq.course,course_id.eq.$courseId)',
         );
       }
-      if (batchIdDynamic != null) {
+      for (final batchId in batchIds) {
         filters.add(
-          'and(assignment_type.eq.batch,batch_id.eq.$batchIdDynamic)',
+          'and(assignment_type.eq.batch,batch_id.eq.$batchId)',
         );
       }
-      if (branchIdDynamic != null) {
+      for (final branchId in branchIds) {
         filters.add(
-          'and(assignment_type.eq.branch,branch_id.eq.$branchIdDynamic)',
+          'and(assignment_type.eq.branch,branch_id.eq.$branchId)',
         );
       }
 

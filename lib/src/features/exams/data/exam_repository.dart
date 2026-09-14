@@ -27,26 +27,47 @@ class ExamRepository {
 
   ExamRepository(this._client);
 
-  /// Resolves the current auth user to their `students.id` (the INT primary
-  /// key everything in this feature is keyed on — schedules, rosters,
-  /// attempts). Two hops: auth user -> profiles.id -> students.id.
-  Future<int?> _currentStudentId() async {
+  /// Resolves the current auth user to every `students.id` they're linked
+  /// to (the INT primary key everything in this feature is keyed on —
+  /// schedules, rosters, attempts). Two hops: auth user -> profiles.id ->
+  /// students.id — but a profile can have more than one students row (one
+  /// per course enrollment, see link_sibling_student_enrollments,
+  /// migration 20240301000024), so this returns every linked id, not one.
+  Future<List<int>> _currentStudentIds() async {
     final user = _client.auth.currentUser;
-    if (user == null) return null;
+    if (user == null) return [];
 
     final profile = await _client
         .from('profiles')
         .select('id')
         .eq('auth_uid', user.id)
         .maybeSingle();
-    if (profile == null) return null;
+    if (profile == null) return [];
 
-    final student = await _client
+    final students = await _client
         .from('students')
         .select('id')
-        .eq('profile_id', profile['id'])
+        .eq('profile_id', profile['id']);
+    return List<Map<String, dynamic>>.from(students)
+        .map((s) => s['id'] as int)
+        .toList();
+  }
+
+  /// Resolves which ONE of the caller's linked enrollment ids is actually
+  /// on a given schedule's roster — used wherever an action must attribute
+  /// to a single correct enrollment (starting an exam, counting attempts
+  /// against THAT enrollment specifically), never "any of my ids".
+  Future<int?> _rosterStudentId(int scheduleId) async {
+    final ids = await _currentStudentIds();
+    if (ids.isEmpty) return null;
+
+    final row = await _client
+        .from('schedule_roster')
+        .select('student_id')
+        .eq('schedule_id', scheduleId)
+        .inFilter('student_id', ids)
         .maybeSingle();
-    return student?['id'] as int?;
+    return row?['student_id'] as int?;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -56,8 +77,8 @@ class ExamRepository {
   /// All schedules the logged-in student is on the roster for (test + exam),
   /// regardless of whether their window is currently open.
   Future<List<Map<String, dynamic>>> getUpcomingExams() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     try {
       final response = await _client
@@ -67,7 +88,7 @@ class ExamRepository {
             'paper_sets(id, title, assessment_type, total_marks, duration_minutes, '
             'course_id, courses(name, short_name), paper_questions(count)))',
           )
-          .eq('student_id', studentId);
+          .inFilter('student_id', studentIds);
 
       final rows = (response as List)
           .map((r) => r['schedules'] as Map<String, dynamic>?)
@@ -122,14 +143,23 @@ class ExamRepository {
   }
 
   Future<Map<String, dynamic>> canStartExam(Exam exam) async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) {
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) {
       return {'allowed': false, 'reason': 'Login required'};
     }
 
     final scheduleId = exam.scheduleId;
     if (scheduleId == null || scheduleId.isEmpty) {
       return {'allowed': false, 'reason': 'This paper has not been scheduled'};
+    }
+
+    // Attempt counting must be scoped to whichever ONE of the student's
+    // enrollments is actually on this schedule's roster — not any of
+    // their ids — so attempts stay correctly attributed per enrollment,
+    // matching startExamSession()'s own attribution.
+    final rosterStudentId = await _rosterStudentId(int.parse(scheduleId));
+    if (rosterStudentId == null) {
+      return {'allowed': false, 'reason': 'You are not on the roster for this exam'};
     }
 
     final schedule = await _client
@@ -160,7 +190,7 @@ class ExamRepository {
     final attempts = await _client
         .from('attempts')
         .select('id')
-        .eq('student_id', studentId)
+        .eq('student_id', rosterStudentId)
         .eq('schedule_id', int.parse(scheduleId));
 
     if ((attempts as List).length >= maxAttempts) {
@@ -519,11 +549,16 @@ class ExamRepository {
     if (examScheduleId == null || examScheduleId.isEmpty) {
       throw Exception('This exam has no active schedule to attempt');
     }
-    final resolvedStudentId = await _currentStudentId();
+    final scheduleId = int.parse(examScheduleId);
+
+    // Must be the specific enrollment this schedule's roster lists — a
+    // student with two enrollments could otherwise have this attempt
+    // attributed to the wrong one, since _currentStudentIds() returns
+    // every linked id, not just the one relevant here.
+    final resolvedStudentId = await _rosterStudentId(scheduleId);
     if (resolvedStudentId == null) {
       throw Exception('Could not resolve your student record');
     }
-    final scheduleId = int.parse(examScheduleId);
 
     final inProgress = await _client
         .from('attempts')
@@ -623,14 +658,14 @@ class ExamRepository {
   }
 
   Future<List<Map<String, dynamic>>> getMyResults() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     try {
       final response = await _client
           .from('attempts')
           .select('id, score, total_marks, result, submitted_at, schedules(title, paper_sets(title))')
-          .eq('student_id', studentId)
+          .inFilter('student_id', studentIds)
           .eq('status', 'submitted')
           .order('submitted_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);

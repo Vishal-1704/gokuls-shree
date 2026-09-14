@@ -197,6 +197,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         content: Text('Registration successful. Please log in.'),
         backgroundColor: AppColors.success,
       ));
+
+      // Another unlinked students row shares this phone number under a
+      // different name — could be a different real person (a known
+      // legacy pattern: a branch admin entering a placeholder/their own
+      // number before a student gave theirs). Surface it rather than
+      // leave that other row silently unexplained.
+      if (ref.read(supabaseAuthNotifierProvider).hasPhoneNameConflict) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Please Contact Branch Admin'),
+            content: const Text(
+              'A profile already exists with this phone number under a '
+              'different name. If that record also belongs to you, please '
+              'contact your branch admin to have it linked correctly.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 
@@ -444,7 +469,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             hintText: 'Enter your registered mobile',
             prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.textSecondary),
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          validator: (v) {
+            final digits = v?.trim() ?? '';
+            if (digits.isEmpty) return 'Required';
+            if (!RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
+              return 'Enter a valid 10-digit mobile number';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 32),
         SizedBox(

@@ -132,9 +132,13 @@ class SupabaseService {
   /// first. Querying students.profile_id directly against the auth uid
   /// never matches, so every student saw the "pending approval" fallback
   /// regardless of actual approval status.
-  Future<int?> _currentStudentId() async {
+  ///
+  /// A profile can have MORE than one students row (one per course
+  /// enrollment) — see link_sibling_student_enrollments() in migration
+  /// 20240301000024. Returns every enrollment id, not just one.
+  Future<List<int>> _currentStudentIds() async {
     final authUid = _client.auth.currentUser?.id;
-    if (authUid == null) return null;
+    if (authUid == null) return [];
 
     final profile = await _client
         .from('profiles')
@@ -142,16 +146,24 @@ class SupabaseService {
         .eq('auth_uid', authUid)
         .maybeSingle();
     final profileId = profile?['id'];
-    if (profileId == null) return null;
+    if (profileId == null) return [];
 
-    final student = await _client
+    final students = await _client
         .from('students')
         .select('id')
-        .eq('profile_id', profileId)
-        .maybeSingle();
-    return student?['id'] as int?;
+        .eq('profile_id', profileId);
+    return List<Map<String, dynamic>>.from(students)
+        .map((s) => s['id'] as int)
+        .toList();
   }
 
+  /// Returns the student's identity (most recent enrollment's personal
+  /// fields — name/DOB/photo/etc., same as before) plus an `enrollments`
+  /// list covering every linked students row, and a combined `fee_summary`
+  /// across all of them. A profile can have more than one enrollment (see
+  /// link_sibling_student_enrollments, migration 20240301000024) — the
+  /// identity card still shows one person, but enrollments/fees are now a
+  /// combined list rather than assuming exactly one row.
   Future<Map<String, dynamic>?> getStudentProfile() async {
     final authUid = _client.auth.currentUser?.id;
     if (authUid == null) return null;
@@ -164,23 +176,45 @@ class SupabaseService {
     final profileId = profile?['id'];
     if (profileId == null) return null;
 
-    final response = await _client
+    final rows = await _client
         .from('students')
         .select('*, courses(name, category)')
         .eq('profile_id', profileId)
-        .maybeSingle();
+        .order('doj', ascending: false);
+    final enrollments = List<Map<String, dynamic>>.from(rows);
+    if (enrollments.isEmpty) return null;
 
-    if (response != null && response['id'] != null) {
+    final response = Map<String, dynamic>.from(enrollments.first);
+    response['enrollments'] = enrollments;
+
+    // get_student_fee_summary returns {course_fee, paid_total, discount,
+    // due_amount} for ONE enrollment (see 20240301000001_assessment_type_
+    // and_fees.sql) — sum each field across every linked enrollment for
+    // the combined total, and keep the per-enrollment summary too in case
+    // a caller wants a single course's figures.
+    double courseFee = 0, paidTotal = 0, discount = 0, dueAmount = 0;
+    for (final e in enrollments) {
       try {
-        final feeSummary = await _client.rpc(
+        final summary = await _client.rpc(
           'get_student_fee_summary',
-          params: {'p_student_id': response['id']},
+          params: {'p_student_id': e['id']},
         );
-        response['fee_summary'] = feeSummary;
-      } catch (e) {
-        response['fee_summary'] = null;
+        final map = summary is Map ? summary : <String, dynamic>{};
+        e['fee_summary'] = map;
+        courseFee += (map['course_fee'] as num?)?.toDouble() ?? 0;
+        paidTotal += (map['paid_total'] as num?)?.toDouble() ?? 0;
+        discount += (map['discount'] as num?)?.toDouble() ?? 0;
+        dueAmount += (map['due_amount'] as num?)?.toDouble() ?? 0;
+      } catch (_) {
+        e['fee_summary'] = null;
       }
     }
+    response['fee_summary'] = {
+      'course_fee': courseFee,
+      'paid_total': paidTotal,
+      'discount': discount,
+      'due_amount': dueAmount,
+    };
 
     return response;
   }
@@ -284,14 +318,26 @@ class SupabaseService {
   // ============================================
   // ENROLLMENTS
   // ============================================
+  /// student_enrollments.student_id is aliased FROM profile_id (one row
+  /// per enrollment, all sharing the same profile_id) — filter by the
+  /// resolved profile_id directly, not a students.id. No id-list helper
+  /// needed here, unlike the methods below.
   Future<List<Map<String, dynamic>>> getMyEnrollments() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final authUid = _client.auth.currentUser?.id;
+    if (authUid == null) return [];
+
+    final profile = await _client
+        .from('profiles')
+        .select('id')
+        .eq('auth_uid', authUid)
+        .maybeSingle();
+    final profileId = profile?['id'];
+    if (profileId == null) return [];
 
     final response = await _client
         .from('student_enrollments')
         .select('*, courses(title, code)')
-        .eq('student_id', studentId)
+        .eq('student_id', profileId)
         .order('enrolled_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
@@ -300,8 +346,8 @@ class SupabaseService {
   // MARKSHEETS & CERTIFICATES
   // ============================================
   Future<List<Map<String, dynamic>>> getMyMarksheets() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     // marksheet_details doesn't exist anywhere in the schema — that join
     // threw a PostgREST error on every call, silently swallowed by the
@@ -314,20 +360,20 @@ class SupabaseService {
     final response = await _client
         .from('marksheets')
         .select()
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .eq('status', 1)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<Map<String, dynamic>>> getMyCertificates() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     final response = await _client
         .from('certificates')
         .select()
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .order('issue_date', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
@@ -336,38 +382,39 @@ class SupabaseService {
   // FEE PAYMENTS
   // ============================================
   Future<List<Map<String, dynamic>>> getMyFeePayments() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     final response = await _client
         .from('fee_payments')
         .select()
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
   Future<List<Map<String, dynamic>>> getMyPaymentTransactions() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return [];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     final response = await _client
         .from('payment_transactions')
         .select()
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
-  /// Get pending fee amount for current student
+  /// Get pending fee amount for current student, summed across every
+  /// linked enrollment.
   Future<double> getPendingFees() async {
-    final studentId = await _currentStudentId();
-    if (studentId == null) return 0;
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return 0;
 
     final response = await _client
         .from('fee_payments')
         .select('amount, amount_paid')
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .eq('status', 'pending');
 
     double pending = 0;
@@ -462,10 +509,8 @@ class SupabaseService {
   // EXAM RESULTS
   // ============================================
   Future<List<Map<String, dynamic>>> getMyExamResults() async {
-    final student = await getStudentProfile();
-    if (student == null) return [];
-
-    final studentId = student['id'];
+    final studentIds = await _currentStudentIds();
+    if (studentIds.isEmpty) return [];
 
     // exam_results.student_id is a plain column — no join needed. The old
     // query required an inner join through exam_sessions, which nothing
@@ -474,7 +519,7 @@ class SupabaseService {
     final response = await _client
         .from('exam_results')
         .select()
-        .eq('student_id', studentId)
+        .inFilter('student_id', studentIds)
         .order('calculated_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);

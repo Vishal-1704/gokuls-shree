@@ -96,7 +96,15 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                             ),
                           DigitalIDCard(data: profile),
                           const SizedBox(height: 32),
-                          
+
+                          if ((profile['enrollments'] as List?)?.length != null &&
+                              (profile['enrollments'] as List).length > 1) ...[
+                            _buildSectionTitle('My Courses'),
+                            const SizedBox(height: 16),
+                            _buildEnrollmentsList(profile['enrollments'] as List),
+                            const SizedBox(height: 32),
+                          ],
+
                           _buildSectionTitle('Quick Actions'),
                           const SizedBox(height: 16),
                           _buildQuickActionsGrid(context, ref),
@@ -216,6 +224,43 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEnrollmentsList(List enrollments) {
+    return Column(
+      children: enrollments.map((e) {
+        final entry = e as Map<String, dynamic>;
+        final course = entry['courses'] as Map<String, dynamic>?;
+        final courseName = course?['name']?.toString() ?? 'Course';
+        final status = entry['status'] == 1 ? 'Active' : 'Pending';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.inkNavy800,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.divider10),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.school_rounded, color: AppColors.goldCta, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(courseName, style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (status == 'Active' ? AppColors.success : AppColors.warning).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(status, style: AppTypography.bodySm.copyWith(color: status == 'Active' ? AppColors.success : AppColors.warning)),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 

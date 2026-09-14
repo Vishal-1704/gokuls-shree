@@ -204,6 +204,7 @@ bool _isAllowedRouteForRole(UserSession session, String path) {
     case UserRole.branchAdmin:
       if (path.startsWith('/branch-admin')) return true;
       final allowed = {
+        '/admin/attendance',
         '/admin/add-student',
         '/admin/dues-report',
         '/admin/marksheet-generator',

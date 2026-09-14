@@ -5,7 +5,9 @@ class DocumentRepository {
   /// Get all documents for the current student. [authUid] is the Supabase
   /// auth uid — students.profile_id is a FK to profiles.id, not the auth
   /// uid directly, so it must be resolved through profiles first (same fix
-  /// as supabase_service.dart's _currentStudentId).
+  /// as supabase_service.dart's _currentStudentIds). A profile can have
+  /// more than one students row (one per course enrollment) — see
+  /// link_sibling_student_enrollments, migration 20240301000024.
   Future<Map<String, List<Map<String, dynamic>>>> getMyDocuments(
     String authUid,
   ) async {
@@ -16,15 +18,18 @@ class DocumentRepository {
         .maybeSingle();
     if (profile == null) return {'marksheets': [], 'certificates': []};
 
-    final student = await supabase
+    // A profile can have more than one students row (one per course
+    // enrollment, see link_sibling_student_enrollments, migration
+    // 20240301000024) — collect every linked id, not just one.
+    final students = await supabase
         .from('students')
         .select('id')
-        .eq('profile_id', profile['id'])
-        .maybeSingle();
+        .eq('profile_id', profile['id']);
+    final studentIds = List<Map<String, dynamic>>.from(students)
+        .map((s) => s['id'] as int)
+        .toList();
 
-    if (student == null) return {'marksheets': [], 'certificates': []};
-
-    final studentId = student['id'];
+    if (studentIds.isEmpty) return {'marksheets': [], 'certificates': []};
 
     final results = await Future.wait([
       supabase
@@ -32,14 +37,14 @@ class DocumentRepository {
           .select(
             '*, courses(name, duration), students(name, father_name, reg_no, session, doj)',
           )
-          .eq('student_id', studentId)
+          .inFilter('student_id', studentIds)
           .eq('status', 1), // Only approved
       supabase
           .from('certificates')
           .select(
             '*, courses(name, duration), students(name, father_name, reg_no, session, doj)',
           )
-          .eq('student_id', studentId)
+          .inFilter('student_id', studentIds)
           .eq('status', 1), // Only approved
     ]);
 

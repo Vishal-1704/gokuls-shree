@@ -5,11 +5,26 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
 
 
-class TeacherStudentsScreen extends ConsumerWidget {
+class TeacherStudentsScreen extends ConsumerStatefulWidget {
   const TeacherStudentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TeacherStudentsScreen> createState() => _TeacherStudentsScreenState();
+}
+
+class _TeacherStudentsScreenState extends ConsumerState<TeacherStudentsScreen> {
+  bool _isSearching = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final studentsAsync = ref.watch(adminStudentsProvider);
     final subjectsAsync = ref.watch(teacherSubjectsProvider);
 
@@ -18,9 +33,32 @@ class TeacherStudentsScreen extends ConsumerWidget {
       backgroundColor: AppColors.inkNavy900,
       appBar: AppBar(
         backgroundColor: AppColors.inkNavy800,
-        title: const Text('Students', style: TextStyle(color: AppColors.textPrimary)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'Search by name or reg. no.',
+                  hintStyle: TextStyle(color: AppColors.textMuted),
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+              )
+            : const Text('Students', style: TextStyle(color: AppColors.textPrimary)),
         actions: [
-          IconButton(icon: const Icon(Icons.search_rounded, color: AppColors.textSecondary), onPressed: () {}),
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close_rounded : Icons.search_rounded, color: AppColors.textSecondary),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _searchController.clear();
+                  _searchQuery = '';
+                }
+                _isSearching = !_isSearching;
+              });
+            },
+          ),
         ],
       ),
       body: studentsAsync.when(
@@ -29,18 +67,24 @@ class TeacherStudentsScreen extends ConsumerWidget {
             data: (subjects) {
               // Extract course IDs the teacher teaches
               final teacherCourseIds = subjects.map((s) => s['course_id']).where((id) => id != null).toSet();
-              
+
               // Filter students
               final students = allStudents.where((s) {
                  final cId = s['course_id'];
-                 if (teacherCourseIds.isEmpty) return true;
-                 return teacherCourseIds.contains(cId);
+                 if (teacherCourseIds.isNotEmpty && !teacherCourseIds.contains(cId)) return false;
+                 if (_searchQuery.isEmpty) return true;
+                 final name = (s['name'] ?? '').toString().toLowerCase();
+                 final regNo = (s['reg_no'] ?? '').toString().toLowerCase();
+                 return name.contains(_searchQuery) || regNo.contains(_searchQuery);
               }).toList();
-              
+
               if (students.isEmpty) {
 
-            return const Center(
-              child: Text('No students found for your branch', style: TextStyle(color: AppColors.textSecondary)),
+            return Center(
+              child: Text(
+                _searchQuery.isEmpty ? 'No students found for your branch' : 'No students match "$_searchQuery"',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
             );
           }
 

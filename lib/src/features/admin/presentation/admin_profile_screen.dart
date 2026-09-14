@@ -480,6 +480,10 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
                   ),
                   const SizedBox(height: 20),
 
+                  // 4b. QUICK ACCESS — MARK ATTENDANCE
+                  _buildAttendanceTile(context),
+                  const SizedBox(height: 20),
+
                   // 5. OFFICIAL CERTIFICATE CARD
                   _buildCertificateCard(
                     code: code,
@@ -878,6 +882,96 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
           ),
           if (action != null) action,
         ],
+      ),
+    );
+  }
+
+  // ── QUICK ACCESS — MARK ATTENDANCE ───────────────────────────────────
+  Widget _buildAttendanceTile(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/admin/attendance'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.how_to_reg_rounded,
+                    color: AppColors.success,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mark Attendance',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Record student attendance for your branch',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Open',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 11, color: AppColors.textMuted),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
