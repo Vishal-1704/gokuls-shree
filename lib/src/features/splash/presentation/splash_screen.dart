@@ -5,14 +5,20 @@ import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 
 /// The real first screen after the native static splash
-/// (android/app/src/main/res/drawable/splash_logo.png) hands off to
-/// Flutter. White background matches the native splash exactly so there's
-/// no color flash at the handoff. Plays a one-shot bounce-in on the logo,
-/// then waits for whichever is later — the animation actually finishing,
-/// or supabaseAuthProvider leaving AuthLoading (the same session-restore
-/// signal app_router.dart already uses) — before navigating on exactly
-/// once. This is also what stops an already-logged-in user from briefly
-/// seeing a bare login form while their session is still being restored.
+/// (android/app/src/main/res/drawable/splash_logo.jpeg) hands off to
+/// Flutter. The logo art (GSMT.jpeg) is a square emblem with its own dark
+/// wood-textured background baked in — _splashBg below is sampled to match
+/// it, so the square sits seamlessly on the portrait screen instead of
+/// looking boxed-in on a mismatched background, and matches the native
+/// splash's own background so there's no color flash at the handoff.
+/// Plays a one-shot bounce-in on the logo, then waits for whichever is
+/// later — the animation actually finishing, or supabaseAuthProvider
+/// leaving AuthLoading (the same session-restore signal app_router.dart
+/// already uses) — before navigating on exactly once. This is also what
+/// stops an already-logged-in user from briefly seeing a bare login form
+/// while their session is still being restored.
+const _splashBg = Color(0xFF1C1C1E);
+
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -66,15 +72,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // like app_router.dart's own redirect does via refreshListenable.
     ref.listen(supabaseAuthProvider, (previous, next) => _maybeNavigate());
 
+    // Square emblem, portrait screen — fill most of the width (not a
+    // fixed px size) so it scales sensibly across phone sizes, capped so
+    // it never dominates a tall/narrow screen or a wide tablet.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final logoSize = (screenWidth * 0.62).clamp(200.0, 360.0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _splashBg,
       body: Center(
         child: ScaleTransition(
           scale: _scale,
-          child: Image.asset(
-            'assets/images/splash_logo.png',
-            width: 220,
-            errorBuilder: (_, __, ___) => const SizedBox(width: 220, height: 220),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(logoSize * 0.08),
+            child: Image.asset(
+              'assets/images/GSMT.jpeg',
+              width: logoSize,
+              height: logoSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => SizedBox(width: logoSize, height: logoSize),
+            ),
           ),
         ),
       ),

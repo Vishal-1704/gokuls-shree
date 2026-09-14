@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launch background splash screen with fixed aspect ratio logo -->
+<!-- Launch background splash screen — GSMT.jpeg is a square emblem with
+     its own dark wood-textured background baked in, so the screen
+     background is dark to match rather than white (which boxed the
+     square in an ugly frame). android:gravity="center" (not "fill")
+     preserves the square aspect ratio instead of stretching it. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <item android:drawable="#FF1C1C1E" />
 
     <item
-        android:width="150dp"
-        android:height="150dp"
+        android:width="260dp"
+        android:height="260dp"
         android:gravity="center">
         <bitmap
-            android:gravity="fill"
+            android:gravity="center"
             android:src="@drawable/splash_logo" />
     </item>
 </layer-list>
