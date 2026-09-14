@@ -112,13 +112,21 @@ jobs:
             next_version="${major}.${minor}.$((patch + 1))"
           fi
 
-          # Guard against ever attempting a duplicate tag/release (the
-          # actual root cause of the immutable-release 422) instead of
-          # letting softprops/action-gh-release fail on it downstream.
-          if git rev-parse "$next_version" >/dev/null 2>&1; then
-            echo "::error::Computed tag $next_version already exists — refusing to create a duplicate release."
-            exit 1
-          fi
+          # A tag can exist without ever having a completed release attached
+          # (e.g. a prior run created the tag, then failed before/during
+          # upload) — softprops/action-gh-release then hits "Cannot upload
+          # assets to an immutable release" (422) trying to reuse it. Rather
+          # than fail the whole workflow on that, skip forward past every
+          # tag that already exists (checked via `git tag -l`, not
+          # `git rev-parse`, since the latter also matches branches/commits)
+          # until we land on a genuinely free one.
+          while git tag -l "$next_version" | grep -qx "$next_version"; do
+            echo "Tag $next_version already exists (no completed release) — skipping to the next patch."
+            major=$(echo "$next_version" | cut -d. -f1)
+            minor=$(echo "$next_version" | cut -d. -f2)
+            patch=$(echo "$next_version" | cut -d. -f3)
+            next_version="${major}.${minor}.$((patch + 1))"
+          done
 
           echo "tag_name=$next_version" >> $GITHUB_ENV
           echo "version_name=$next_version" >> $GITHUB_ENV
