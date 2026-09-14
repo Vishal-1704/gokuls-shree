@@ -19,6 +19,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          # Full tag history is required — Generate Release Tag below reads
+          # every existing tag to compute the next version. A shallow
+          # checkout (actions/checkout's default) only fetches the current
+          # commit and no tags at all.
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v3
@@ -60,10 +66,62 @@ jobs:
 
       - name: Generate Release Tag
         id: tag
+        # Semantic X.Y.Z tags, auto-incrementing the patch on every push to
+        # main. Manually pushing a bare "X.Y" tag (e.g. `git tag 2.3 &&
+        # git push origin 2.3`) resets the baseline — the next auto-build
+        # becomes X.Y.1, then X.Y.2, etc. This replaces the old
+        # timestamp-based tag (vYYYY.MM.DD-HHMM), which caused "Cannot
+        # upload assets to an immutable release" (422) whenever two runs
+        # landed in the same minute and generated an identical tag.
         run: |
-          version_stamp=$(date +'%Y.%m.%d-%H%M')
-          echo "tag_name=v$version_stamp" >> $GITHUB_ENV
-          echo "version_name=$version_stamp" >> $GITHUB_ENV
+          set -euo pipefail
+          git fetch --tags --force
+
+          # Highest existing full release tag (X.Y.Z), if any.
+          latest_release=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1 || true)
+
+          # Highest manually-pushed bare baseline tag (X.Y), if any.
+          latest_baseline=$(git tag -l | grep -E '^[0-9]+\.[0-9]+$' | sort -t. -k1,1n -k2,2n | tail -n1 || true)
+
+          if [ -n "$latest_baseline" ]; then
+            baseline_release="${latest_baseline}.0"
+            # Is the manual baseline strictly newer than the latest full
+            # release? Compare as version strings via sort -V so "2.3.0"
+            # correctly outranks "2.1.9", not just a plain string compare.
+            baseline_wins=false
+            if [ -z "$latest_release" ]; then
+              baseline_wins=true
+            elif [ "$baseline_release" != "$latest_release" ]; then
+              highest=$(printf '%s\n%s\n' "$baseline_release" "$latest_release" | sort -V | tail -n1)
+              if [ "$highest" = "$baseline_release" ]; then
+                baseline_wins=true
+              fi
+            fi
+            if [ "$baseline_wins" = true ]; then
+              latest_release="$baseline_release"
+            fi
+          fi
+
+          if [ -z "$latest_release" ]; then
+            # First-ever run under this scheme — no X.Y.Z or X.Y tags exist.
+            next_version="2.3.1"
+          else
+            major=$(echo "$latest_release" | cut -d. -f1)
+            minor=$(echo "$latest_release" | cut -d. -f2)
+            patch=$(echo "$latest_release" | cut -d. -f3)
+            next_version="${major}.${minor}.$((patch + 1))"
+          fi
+
+          # Guard against ever attempting a duplicate tag/release (the
+          # actual root cause of the immutable-release 422) instead of
+          # letting softprops/action-gh-release fail on it downstream.
+          if git rev-parse "$next_version" >/dev/null 2>&1; then
+            echo "::error::Computed tag $next_version already exists — refusing to create a duplicate release."
+            exit 1
+          fi
+
+          echo "tag_name=$next_version" >> $GITHUB_ENV
+          echo "version_name=$next_version" >> $GITHUB_ENV
           # versionCode must stay under Android's hard ceiling of
           # 2100000000 — a YYYYMMDDHHMM stamp is 12 digits and blows past
           # that immediately. Unix epoch seconds is ~1.7-1.8 billion today,
@@ -74,11 +132,11 @@ jobs:
       - name: Build APK
         # --build-name is embedded as the APK's own versionName, which the
         # in-app update check compares directly against this same release's
-        # tag_name (with its leading "v" stripped, same as update_service.dart
-        # does at runtime) — they must come from the same value for that
-        # comparison to be meaningful. --build-number must strictly increase
-        # release over release or Android refuses to install the new APK as
-        # an update over what's already installed.
+        # tag_name (update_service.dart strips any leading "v", a no-op now
+        # that tags are plain X.Y.Z) — they must come from the same value
+        # for that comparison to be meaningful. --build-number must
+        # strictly increase release over release or Android refuses to
+        # install the new APK as an update over what's already installed.
         run: |
           flutter build apk --release --android-skip-build-dependency-validation \
             --build-name=${{ env.version_name }} --build-number=${{ env.build_number }}
