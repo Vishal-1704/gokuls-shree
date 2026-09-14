@@ -5,7 +5,7 @@
      square in an ugly frame). android:gravity="center" (not "fill")
      preserves the square aspect ratio instead of stretching it. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="#FF1C1C1E" />
+    <item android:drawable="@color/splash_background" />
 
     <item
         android:width="260dp"
