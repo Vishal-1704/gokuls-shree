@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
@@ -28,6 +31,7 @@ class _AdminFeeCollectionScreenState
   bool _isLoading = false;
   String _filter = 'all'; // 'all', 'dues', 'paid'
   String _searchQuery = '';
+  int? _selectedBranchId;
 
   @override
   void initState() {
@@ -83,7 +87,7 @@ class _AdminFeeCollectionScreenState
             _selectedStudent!['reg_no']?.toString() ??
             '';
 
-        await ref.read(adminRepositoryProvider).collectFee(
+        final receipt = await ref.read(adminRepositoryProvider).collectFee(
               studentId: studentId,
               amount: amount,
               date: _selectedDate.toIso8601String(),
@@ -97,7 +101,7 @@ class _AdminFeeCollectionScreenState
         ref.invalidate(adminStudentsProvider);
 
         if (mounted) {
-          showDialog(
+          await showDialog(
             context: context,
             barrierDismissible: false,
             builder: (ctx) => AlertDialog(
@@ -127,8 +131,10 @@ class _AdminFeeCollectionScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Reg No: ${_selectedStudent!['reg_no'] ?? '-'}',
+                        Text('Receipt No: ${receipt['receipt_no']}',
                             style: const TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text('Reg No: ${_selectedStudent!['reg_no'] ?? '-'}'),
                         const SizedBox(height: 4),
                         Text('Date: ${DateFormat('dd MMM yyyy').format(_selectedDate)}'),
                       ],
@@ -137,6 +143,11 @@ class _AdminFeeCollectionScreenState
                 ],
               ),
               actions: [
+                TextButton.icon(
+                  onPressed: () => _printReceipt(receipt),
+                  icon: const Icon(Icons.print_outlined, size: 18),
+                  label: const Text('Print Receipt'),
+                ),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(ctx);
@@ -165,6 +176,57 @@ class _AdminFeeCollectionScreenState
         if (mounted) setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _printReceipt(Map<String, dynamic> receipt) async {
+    final student = _selectedStudent!;
+    final amount = (receipt['amount'] as num).toDouble();
+    final paymentDate = DateTime.tryParse(receipt['payment_date'] as String? ?? '') ?? _selectedDate;
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        build: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.all(32),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Fee Receipt', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text('Receipt No: ${receipt['receipt_no']}', style: const pw.TextStyle(fontSize: 12)),
+              pw.Divider(height: 24),
+              pw.Text('Student: ${student['name'] ?? 'Unknown'}', style: const pw.TextStyle(fontSize: 13)),
+              pw.SizedBox(height: 4),
+              pw.Text('Registration No: ${student['reg_no'] ?? '-'}', style: const pw.TextStyle(fontSize: 13)),
+              pw.SizedBox(height: 4),
+              pw.Text('Course: ${student['course_name'] ?? 'General'}', style: const pw.TextStyle(fontSize: 13)),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(width: 0.5),
+                children: [
+                  pw.TableRow(children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Date')),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(DateFormat('dd MMM yyyy').format(paymentDate))),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Payment Mode')),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(receipt['payment_mode'].toString())),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Amount Received', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Rs. ${amount.toStringAsFixed(0)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  ]),
+                ],
+              ),
+              pw.SizedBox(height: 32),
+              pw.Text('This is a computer-generated receipt.', style: const pw.TextStyle(fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save(), name: '${receipt['receipt_no']}.pdf');
   }
 
   @override
@@ -199,6 +261,7 @@ class _AdminFeeCollectionScreenState
   // ═════════════════════════════════════════════════════════════════════════════
   Widget _buildStudentSelector() {
     final studentsAsync = ref.watch(adminStudentsWithFeeStatusProvider);
+    final branches = ref.watch(branchesProvider).value ?? const <Map<String, dynamic>>[];
 
     return Column(
       children: [
@@ -248,6 +311,30 @@ class _AdminFeeCollectionScreenState
                   ),
                 ),
               ),
+              // Branch filter — only meaningful when there's more than one
+              // branch to choose from (superadmin); a single-branch admin
+              // never needs it.
+              if (branches.length > 1) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  value: _selectedBranchId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Branch',
+                    prefixIcon: const Icon(Icons.account_balance_outlined, color: Color(0xFF64748B), size: 20),
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Branches')),
+                    for (final b in branches)
+                      DropdownMenuItem<int?>(value: b['id'] as int?, child: Text((b['name'] ?? 'Branch ${b['id']}').toString(), overflow: TextOverflow.ellipsis)),
+                  ],
+                  onChanged: (v) => setState(() => _selectedBranchId = v),
+                ),
+              ],
               const SizedBox(height: 12),
               // Filter Chips
               studentsAsync.maybeWhen(
@@ -303,6 +390,8 @@ class _AdminFeeCollectionScreenState
             ),
             data: (students) {
               var filtered = students.where((s) {
+                if (_selectedBranchId != null && s['branch_id'] != _selectedBranchId) return false;
+
                 if (_filter == 'dues') {
                   if ((s['due_amount'] as num? ?? 0) <= 0) return false;
                 } else if (_filter == 'paid') {

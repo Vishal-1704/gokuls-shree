@@ -14,7 +14,13 @@ import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 /// Admin Panel screen for managing courses, notices, students, and downloads
 /// Only accessible by admin users
 class AdminPanelScreen extends ConsumerStatefulWidget {
-  const AdminPanelScreen({super.key});
+  const AdminPanelScreen({super.key, this.showStudentsTab = true});
+
+  /// The web console has its own dedicated Students page
+  /// (WebStudentsPage) — the "Courses & content" route reuses this same
+  /// screen for Courses/Notices/Downloads only, so it passes false here to
+  /// avoid showing a second, less capable Students tab alongside it.
+  final bool showStudentsTab;
 
   @override
   ConsumerState<AdminPanelScreen> createState() => _AdminPanelScreenState();
@@ -30,10 +36,12 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   List<Map<String, dynamic>> _downloads = [];
   bool _isLoading = true;
 
+  int get _tabCount => widget.showStudentsTab ? 4 : 3;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -119,7 +127,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               tabs: [
                 Tab(text: 'Courses (${_courses.length})'),
                 Tab(text: 'Notices (${_notices.length})'),
-                Tab(text: 'Students (${_students.length})'),
+                if (widget.showStudentsTab) Tab(text: 'Students (${_students.length})'),
                 Tab(text: 'Downloads (${_downloads.length})'),
               ],
             ),
@@ -151,7 +159,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                     children: [
                       _buildCoursesTab(),
                       _buildNoticesTab(),
-                      _buildStudentsTab(),
+                      if (widget.showStudentsTab) _buildStudentsTab(),
                       _buildDownloadsTab(),
                     ],
                   ),
@@ -586,12 +594,23 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   // ADD DIALOGS
   // ===========================================
   void _showAddDialog() {
-    final currentTab = _tabController.index;
+    // Tab indices shift when the Students tab is hidden (Courses & Content
+    // route), so match by name against the same list build() renders rather
+    // than a fixed index — a hardcoded switch here previously assumed
+    // Students was always index 2, which would open the wrong dialog once
+    // that tab could be absent.
+    final tabs = [
+      'courses',
+      'notices',
+      if (widget.showStudentsTab) 'students',
+      'downloads',
+    ];
+    final currentTab = tabs[_tabController.index];
     final role = ref.read(currentRoleProvider);
     final isSuperAdmin = role == UserRole.superAdmin;
 
     switch (currentTab) {
-      case 0:
+      case 'courses':
         if (!isSuperAdmin) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Courses are managed by Super Admin.')),
@@ -600,16 +619,16 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         }
         _showAddCourseDialog();
         break;
-      case 1:
+      case 'notices':
         _showAddNoticeDialog();
         break;
-      case 2:
+      case 'students':
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AdminAddStudentScreen()),
         ).then((_) => _loadData());
         break;
-      case 3:
+      case 'downloads':
         _showAddDownloadDialog();
         break;
     }

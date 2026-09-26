@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:open_filex/open_filex.dart';
@@ -37,7 +38,9 @@ class UpdateService {
     BuildContext context, {
     Duration delay = const Duration(seconds: 8),
   }) async {
-    if (_hasCheckedThisSession) return;
+    // This checks for a newer Android APK release; the web build is always
+    // served at its latest version, so there is nothing to offer there.
+    if (kIsWeb || _hasCheckedThisSession) return;
     _hasCheckedThisSession = true;
 
     await Future.delayed(delay);
@@ -113,7 +116,7 @@ class UpdateService {
                 Expanded(
                   child: Text(
                     'v$version available',
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                   ),
                 ),
                 // Explicit close — the theme's dark snackbar background has
@@ -123,7 +126,7 @@ class UpdateService {
                 // set explicitly or it can blend invisibly into the
                 // background.
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+                  icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
                   onPressed: () => messenger.hideCurrentSnackBar(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -169,7 +172,7 @@ class UpdateService {
                 progress == null
                     ? 'Downloading update…'
                     : 'Downloading update… ${(progress * 100).toStringAsFixed(0)}%',
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
               ClipRRect(

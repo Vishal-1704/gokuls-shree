@@ -27,30 +27,19 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
 
     setState(() => _isLoading = true);
     try {
-      final client = ref.read(supabaseClientProvider);
+      final repo = ref.read(adminRepositoryProvider);
+      final data = {
+        'name': result['name'],
+        'code': result['code'],
+        'owner_name': result['owner_name'],
+        'contact': result['contact_phone'],
+        'address': result['address'],
+        'status': result['status'],
+      };
       if (branch != null) {
-        // Update
-        await client
-            .from('branches')
-            .update({
-              'name': result['name'],
-              'code': result['code'],
-              'owner_name': result['owner_name'],
-              'contact_phone': result['contact_phone'],
-              'address': result['address'],
-              'status': result['status'],
-            })
-            .eq('id', branch['id']);
+        await repo.updateBranch(branch['id'] as int, data);
       } else {
-        // Insert
-        await client.from('branches').insert({
-          'name': result['name'],
-          'code': result['code'],
-          'owner_name': result['owner_name'],
-          'contact_phone': result['contact_phone'],
-          'address': result['address'],
-          'status': result['status'],
-        });
+        await repo.createBranch(data);
       }
       ref.invalidate(branchesProvider);
       if (mounted) {
@@ -76,14 +65,10 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
   }
 
   Future<void> _toggleStatus(Map<String, dynamic> branch) async {
-    final currentStatus = branch['status'] as bool? ?? false;
+    final currentStatus = branch['status'] == 1;
     setState(() => _isLoading = true);
     try {
-      final client = ref.read(supabaseClientProvider);
-      await client
-          .from('branches')
-          .update({'status': !currentStatus})
-          .eq('id', branch['id']);
+      await ref.read(adminRepositoryProvider).setBranchActive(branch['id'] as int, !currentStatus);
       ref.invalidate(branchesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,7 +146,7 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                 itemCount: branches.length,
                 itemBuilder: (context, index) {
                   final branch = branches[index];
-                  final isActive = branch['status'] == true;
+                  final isActive = branch['status'] == 1;
 
                   return Card(
                     color: AppColors.inkNavy800,
@@ -330,7 +315,7 @@ class _BranchFormDialogState extends ConsumerState<_BranchFormDialog> {
     _ownerCtrl = TextEditingController(text: b?['owner_name'] ?? '');
     _phoneCtrl = TextEditingController(text: b?['contact_phone'] ?? b?['contact'] ?? '');
     _addressCtrl = TextEditingController(text: b?['address'] ?? '');
-    _status = b?['status'] == true || b == null;
+    _status = b?['status'] == 1 || b == null;
 
     if (b == null || (b['code'] == null || b['code'].toString().trim().isEmpty)) {
       Future.microtask(() async {

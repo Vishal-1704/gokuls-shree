@@ -6,6 +6,7 @@ import 'package:gokul_shree_app/src/core/utils/registration_number_generator.dar
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:gokul_shree_app/src/core/config/env_config.dart';
+import 'package:gokul_shree_app/src/core/models/user_session.dart';
 
 
 class PhoneLookupResult {
@@ -22,6 +23,17 @@ class PhoneLookupResult {
     this.email,
     this.role,
   });
+}
+
+/// Result of verifyLegacyPassword — name/email are only ever populated
+/// when [verified] is true (same posture as PhoneLookupResult never
+/// reporting identity before ownership of the phone/password is proven).
+class LegacyVerifyResult {
+  final bool verified;
+  final String? name;
+  final String? email;
+
+  LegacyVerifyResult({required this.verified, this.name, this.email});
 }
 
 // ============================================
@@ -126,6 +138,20 @@ class SupabaseAuthNotifier extends ChangeNotifier {
           await _client.auth.signOut();
         } catch (_) {}
       } else {
+        // Superadmin is the only role allowed to sign in on the web build —
+        // everyone else must use the mobile app. Gated here (not in signIn()
+        // or session_provider.dart) since every sign-in path — password,
+        // OTP, and session restore on cold start — converges through this
+        // function.
+        final role = UserRoleExt.fromString(profile['role']?.toString());
+        if (kIsWeb && !role.isSuperAdmin) {
+          try {
+            await _client.auth.signOut();
+          } catch (_) {}
+          _state = AuthError('Please use the mobile app to sign in.');
+          notifyListeners();
+          return;
+        }
         _state = AuthAuthenticated(user, profile);
       }
     } catch (e) {
@@ -192,7 +218,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   /// previously anyone who knew a registered phone number could claim it
   /// with no proof at all. This must be verified before [registerWithPhone]
   /// is ever called.
-  Future<bool> verifyLegacyPassword({
+  Future<LegacyVerifyResult> verifyLegacyPassword({
     required String phone,
     required String legacyPassword,
   }) async {
@@ -203,7 +229,11 @@ class SupabaseAuthNotifier extends ChangeNotifier {
             'p_legacy_password': legacyPassword,
           })
           .timeout(const Duration(seconds: 5));
-      return response['verified'] == true;
+      return LegacyVerifyResult(
+        verified: response['verified'] == true,
+        name: response['name'] as String?,
+        email: response['email'] as String?,
+      );
     } on TimeoutException {
       throw Exception('Network timeout. Please check your internet connection.');
     } catch (e) {

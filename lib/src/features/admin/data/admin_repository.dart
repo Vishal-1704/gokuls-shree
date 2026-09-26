@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -413,6 +414,7 @@ class AdminRepository {
     String? courseId,
     String? photoUrl,
     int? branchId,
+    String? password,
   }) async {
     final resolvedRegistrationNumber =
         registrationNumber != null && registrationNumber.trim().isNotEmpty
@@ -439,6 +441,14 @@ class AdminRepository {
     if (resolvedBranchId != null) {
       payload['branch_id'] = resolvedBranchId;
     }
+    // Stored the same way a real legacy-imported row would be — this is
+    // what lets the student later pass verify_legacy_password and
+    // complete registration. Without it, an admin-created student has no
+    // password on file and can never claim their account (confirmed:
+    // verify_legacy_password requires legacy_data->>'password' IS NOT NULL).
+    if (password != null && password.trim().isNotEmpty) {
+      payload['legacy_data'] = {'password': password.trim()};
+    }
 
     final response = await supabase
         .from('students')
@@ -461,6 +471,8 @@ class AdminRepository {
     String? dateOfBirth,
     int? branchId,
     String? photoUrl,
+    String? signatureUrl,
+    String? password,
   }) async {
     final resolvedRegistrationNumber =
         registrationNumber != null && registrationNumber.trim().isNotEmpty
@@ -475,6 +487,14 @@ class AdminRepository {
       status = 1;
     }
 
+    // Same legacy_data.password write as addStudent() above — must land
+    // in BOTH the full and fallback payloads below, unlike the optional
+    // demographic fields, since this is the one thing that determines
+    // whether the student can ever log in at all.
+    final legacyData = (password != null && password.trim().isNotEmpty)
+        ? {'password': password.trim()}
+        : null;
+
     final fullPayload = <String, dynamic>{
       'name': name,
       'email': email,
@@ -485,11 +505,15 @@ class AdminRepository {
       'address': address,
       'date_of_birth': dateOfBirth,
       'photo_url': photoUrl,
+      'signature_url': signatureUrl,
       'status': status,
       'created_at': DateTime.now().toIso8601String(),
     };
     if (resolvedBranchId != null) {
       fullPayload['branch_id'] = resolvedBranchId;
+    }
+    if (legacyData != null) {
+      fullPayload['legacy_data'] = legacyData;
     }
 
     try {
@@ -511,6 +535,9 @@ class AdminRepository {
       };
       if (resolvedBranchId != null) {
         fallbackPayload['branch_id'] = resolvedBranchId;
+      }
+      if (legacyData != null) {
+        fallbackPayload['legacy_data'] = legacyData;
       }
 
       final response = await supabase
@@ -713,7 +740,11 @@ class AdminRepository {
 
 
 
-  Future<void> collectFee({
+  /// Records a fee payment and returns its receipt details (receipt_no,
+  /// amount, payment_date, payment_mode) so the caller can print/share an
+  /// actual receipt — previously discarded on return, so "Issue Receipt"
+  /// only ever showed a plain success message with nothing printable.
+  Future<Map<String, dynamic>> collectFee({
     required String studentId,
     required double amount,
     required String date,
@@ -722,6 +753,9 @@ class AdminRepository {
   }) async {
     final session = supabase.auth.currentSession;
     if (session == null) throw Exception('Not authenticated');
+
+    final receiptNo = 'REC${DateTime.now().millisecondsSinceEpoch % 10000000}';
+    final paymentDate = date.length >= 10 ? date.substring(0, 10) : date;
 
     // Strategy 1: Direct Supabase insert into fee_payments
     try {
@@ -741,9 +775,6 @@ class AdminRepository {
       final int? branchId = student?['branch_id'] as int?;
       final int? courseId = student?['course_id'] as int?;
 
-      final receiptNo = 'REC${DateTime.now().millisecondsSinceEpoch % 10000000}';
-      final paymentDate = date.length >= 10 ? date.substring(0, 10) : date;
-
       final insertData = <String, dynamic>{
         'student_id': sId,
         'amount': amount,
@@ -757,12 +788,17 @@ class AdminRepository {
       if (courseId != null) insertData['course_id'] = courseId;
 
       await supabase.from('fee_payments').insert(insertData);
-      return;
+      return {
+        'receipt_no': receiptNo,
+        'amount': amount,
+        'payment_date': paymentDate,
+        'payment_mode': paymentMode,
+      };
     } catch (dbError) {
       // Strategy 2: Fallback to HTTP API if configured
       try {
-        final baseUrl = EnvConfig.apiBaseUrl.isNotEmpty 
-            ? EnvConfig.apiBaseUrl 
+        final baseUrl = EnvConfig.apiBaseUrl.isNotEmpty
+            ? EnvConfig.apiBaseUrl
             : 'http://localhost:3001/api/v1';
 
         final response = await Dio().post(
@@ -785,6 +821,12 @@ class AdminRepository {
         if (response.statusCode != 201 && body['success'] != true) {
           throw Exception(body['error'] ?? 'Fee collection failed');
         }
+        return {
+          'receipt_no': body['receipt_no']?.toString() ?? receiptNo,
+          'amount': amount,
+          'payment_date': paymentDate,
+          'payment_mode': paymentMode,
+        };
       } catch (_) {
         throw Exception('Failed to record fee payment: $dbError');
       }
@@ -1267,7 +1309,10 @@ class AdminRepository {
   Future<List<Map<String, dynamic>>> getPendingStudents({int? branchId}) async {
     dynamic query = supabase
         .from('students')
-        .select('id, name, reg_no, contact, email, doj, courses(name, short_name), branches(name)')
+        .select(
+          'id, name, reg_no, contact, email, doj, father_name, mother_name, dob, gender, address, '
+          'branch_id, course_id, courses(name, short_name), branches(name)',
+        )
         .eq('status', 0);
         
     if (branchId != null) {
@@ -1808,6 +1853,69 @@ class AdminRepository {
 
     result.sort((a, b) => (b['total_revenue'] as double).compareTo(a['total_revenue'] as double));
     return result;
+  }
+
+  // ===========================================
+  // BRANCHES (Super Admin)
+  // branches.contact is the phone column (there is no contact_phone) and
+  // branches.status is SMALLINT: 1 = active, 0 = inactive.
+  // ===========================================
+
+  Future<void> createBranch(Map<String, dynamic> data) async {
+    await supabase.from('branches').insert(_branchPayload(data));
+  }
+
+  Future<void> updateBranch(int id, Map<String, dynamic> data) async {
+    await supabase.from('branches').update(_branchPayload(data)).eq('id', id);
+  }
+
+  Future<void> setBranchActive(int id, bool active) async {
+    await supabase.from('branches').update({'status': active ? 1 : 0}).eq('id', id);
+  }
+
+  Map<String, dynamic> _branchPayload(Map<String, dynamic> data) {
+    const allowed = {'name', 'code', 'owner_name', 'contact', 'email', 'address', 'city', 'state', 'pincode'};
+    final payload = <String, dynamic>{
+      for (final e in data.entries)
+        if (allowed.contains(e.key)) e.key: (e.value is String) ? (e.value as String).trim() : e.value,
+    };
+    if (data.containsKey('status')) {
+      final s = data['status'];
+      payload['status'] = (s == true || s == 1) ? 1 : 0;
+    }
+    return payload;
+  }
+
+  // ===========================================
+  // OWN PROFILE (signed-in admin)
+  // ===========================================
+
+  Future<Map<String, dynamic>> getOwnProfile() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return {};
+    final res = await supabase.from('profiles').select().eq('auth_uid', user.id).maybeSingle();
+    return res != null ? Map<String, dynamic>.from(res) : {};
+  }
+
+  /// Uploads a new avatar for the signed-in user and stores it on both the
+  /// auth metadata and the profiles row. Falls back to an inline data URL
+  /// if storage upload fails. Returns the URL that was saved.
+  Future<String> updateOwnAvatar(String fileName, Uint8List bytes) async {
+    String url;
+    try {
+      url = await uploadProfilePhoto(fileName, bytes);
+    } catch (e) {
+      debugPrint('Storage upload failed ($e). Storing inline image data.');
+      url = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    }
+    await supabase.auth.updateUser(UserAttributes(data: {'avatar_url': url, 'photo_url': url}));
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        await supabase.from('profiles').update({'photo_url': url}).eq('auth_uid', user.id);
+      } catch (_) {}
+    }
+    return url;
   }
 }
 

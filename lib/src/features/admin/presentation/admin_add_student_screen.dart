@@ -26,6 +26,7 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
   final _phoneController = TextEditingController();
   final _parentContactController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   // Additional Info
   final _genderController = TextEditingController(text: 'Male');
@@ -60,9 +61,14 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
   String? _courseId;
   double _standardCourseFee = 0.0;
   bool _isSubmitting = false;
+  int _step = 0;
+
+  static const _stepTitles = ['Course & Fee', 'Personal Details', 'Address & Identification'];
 
   XFile? _selectedImage;
   Uint8List? _imageBytes;
+  XFile? _selectedSignature;
+  Uint8List? _signatureBytes;
 
   // Static Dropdown Data
   static const List<String> kGenderList = ['Male', 'Female', 'Other'];
@@ -196,6 +202,7 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
     _phoneController.dispose();
     _parentContactController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     _genderController.dispose();
     _categoryController.dispose();
     _religionController.dispose();
@@ -264,6 +271,18 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
     }
   }
 
+  Future<void> _pickSignature() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      setState(() {
+        _selectedSignature = pickedFile;
+        _signatureBytes = bytes;
+      });
+    }
+  }
+
   Future<void> _selectDate({
     required TextEditingController controller,
     required DateTime initialDate,
@@ -303,6 +322,11 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
         photoUrl = await repo.uploadProfilePhoto(_selectedImage!.name, _imageBytes!);
       }
 
+      String? signatureUrl;
+      if (_signatureBytes != null && _selectedSignature != null) {
+        signatureUrl = await repo.uploadProfilePhoto(_selectedSignature!.name, _signatureBytes!);
+      }
+
       await repo.addStudentAdmission(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -312,6 +336,8 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
         address: "${_currentAddressController.text.trim()} ${_districtController.text.trim()} ${_stateController.text.trim()} ${_pincodeController.text.trim()}".trim(),
         dateOfBirth: _dobController.text.trim(),
         photoUrl: photoUrl,
+        signatureUrl: signatureUrl,
+        password: _passwordController.text.trim(),
       );
 
       if (mounted) {
@@ -336,6 +362,39 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
     }
   }
 
+  bool get _isLastStep => _step == _stepTitles.length - 1;
+
+  void _goNext() {
+    // Only the fields actually on screen for this step get built into the
+    // Form right now, so validate() here only checks this step's fields —
+    // advancing is the only way forward, so a later step can never be
+    // reached with an earlier one left invalid.
+    if (!_formKey.currentState!.validate()) return;
+    if (_isLastStep) {
+      _submitForm();
+      return;
+    }
+    setState(() => _step++);
+  }
+
+  void _goBack() {
+    if (_step == 0) return;
+    setState(() => _step--);
+  }
+
+  Widget _currentStepBody() {
+    switch (_step) {
+      case 0:
+        return _buildCourseDetailsStep();
+      case 1:
+        return _buildPersonalDetailsStep();
+      default:
+        return _buildAddressDetailsStep();
+    }
+  }
+
+  static const _stepIcons = [Icons.school_rounded, Icons.person_rounded, Icons.badge_rounded];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -346,53 +405,81 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
         foregroundColor: AppColors.textPrimary,
         elevation: 1,
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Course Section
-              _buildSectionHeader('Course Details', Icons.school_rounded),
-              const SizedBox(height: 12),
-              _buildCourseDetailsStep(),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 20),
-
-              // Personal Section
-              _buildSectionHeader('Personal Details', Icons.person_rounded),
-              const SizedBox(height: 12),
-              _buildPersonalDetailsStep(),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 20),
-
-              // Address & Identification Section
-              _buildSectionHeader('Address & Identification', Icons.badge_rounded),
-              const SizedBox(height: 12),
-              _buildAddressDetailsStep(),
-
-              const SizedBox(height: 32),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.goldCta,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit Registration', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      body: Column(
+        children: [
+          _buildStepIndicator(),
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSectionHeader(_stepTitles[_step], _stepIcons[_step]),
+                    const SizedBox(height: 12),
+                    _currentStepBody(),
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        if (_step > 0) ...[
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isSubmitting ? null : _goBack,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Back', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting ? null : _goNext,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.goldCta,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text(
+                                    _isLastStep ? 'Submit Registration' : 'Next',
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          for (var i = 0; i < _stepTitles.length; i++) ...[
+            if (i > 0)
+              Expanded(
+                child: Container(height: 2, color: i <= _step ? AppColors.goldCta : Colors.grey.shade300),
+              ),
+            _StepDot(index: i, label: _stepTitles[i], active: i == _step, done: i < _step),
+          ],
+        ],
       ),
     );
   }
@@ -582,6 +669,45 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
           ],
         ),
         const SizedBox(height: 16),
+        // Signature picker row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: _pickSignature,
+              child: Container(
+                width: 140,
+                height: 70,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade100,
+                ),
+                child: _signatureBytes != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(_signatureBytes!, fit: BoxFit.contain),
+                      )
+                    : const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.draw_outlined, color: AppColors.goldCta, size: 24),
+                          SizedBox(height: 4),
+                          Text('Upload Signature', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Text(
+                'Upload signature scan (PNG recommended, transparent background looks best)',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(child: _buildTextField('Student Name *', _nameController, isRequired: true)),
@@ -619,6 +745,32 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
             Expanded(child: _buildTextField('Contact No *', _phoneController, isRequired: true, keyboardType: TextInputType.phone)),
             const SizedBox(width: 12),
             Expanded(child: _buildTextField('Email Id *', _emailController, isRequired: true, keyboardType: TextInputType.emailAddress)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _passwordController,
+                obscureText: true,
+                style: const TextStyle(fontSize: 13.5, color: Colors.black87),
+                decoration: _fieldInputDecoration('Set Initial Password *'),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) return 'Required';
+                  if (value.length < 6) return 'At least 6 characters';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'The student will use this to log in for the first time — they can keep it or set a new one when they register.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -813,6 +965,51 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
       style: const TextStyle(fontSize: 13.5, color: Colors.black87),
       decoration: _fieldInputDecoration(label),
       validator: isRequired ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({required this.index, required this.label, required this.active, required this.done});
+
+  final int index;
+  final String label;
+  final bool active;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = (active || done) ? AppColors.goldCta : Colors.grey.shade300;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: (active || done) ? AppColors.goldCta : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Center(
+            child: done
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Text(
+                    '${index + 1}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: active ? Colors.white : Colors.grey.shade500),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            color: active ? AppColors.textPrimary : AppColors.textMuted,
+          ),
+        ),
+      ],
     );
   }
 }

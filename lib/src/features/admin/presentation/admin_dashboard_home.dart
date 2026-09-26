@@ -127,8 +127,18 @@ class _AdminDashboardHomeState extends ConsumerState<AdminDashboardHome> {
                   if (snapshot.connectionState == ConnectionState.waiting)
                     return const SizedBox.shrink();
 
-                  final hasBranch = snapshot.data != null;
-                  if (hasBranch) return const SizedBox.shrink();
+                  // A branch row existing isn't enough — Branch Registration
+                  // only creates the login, leaving name/owner/contact/
+                  // address blank until Franchise Setup is run. Checking
+                  // just != null missed that case entirely.
+                  final branch = snapshot.data;
+                  bool missing(String key) => (branch?[key] ?? '').toString().trim().isEmpty;
+                  final needsSetup = branch == null ||
+                      missing('name') ||
+                      missing('owner_name') ||
+                      missing('contact') ||
+                      missing('address');
+                  if (!needsSetup) return const SizedBox.shrink();
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(

@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
@@ -33,16 +31,8 @@ class _SuperAdminProfileScreenState extends ConsumerState<SuperAdminProfileScree
   }
 
   Future<Map<String, dynamic>> _loadProfile() async {
-    final supabase = ref.read(supabaseServiceProvider);
-    final currentUser = supabase.currentUser;
-    if (currentUser == null) return {};
     try {
-      final res = await Supabase.instance.client
-          .from('profiles')
-          .select()
-          .eq('auth_uid', currentUser.id)
-          .maybeSingle();
-      return res != null ? Map<String, dynamic>.from(res) : {};
+      return await ref.read(adminRepositoryProvider).getOwnProfile();
     } catch (_) {
       return {};
     }
@@ -117,26 +107,7 @@ class _SuperAdminProfileScreenState extends ConsumerState<SuperAdminProfileScree
 
       setState(() => _isUploadingPhoto = true);
       final bytes = await pickedFile.readAsBytes();
-      String uploadedUrl;
-      try {
-        final repo = ref.read(adminRepositoryProvider);
-        uploadedUrl = await repo.uploadProfilePhoto(pickedFile.name, bytes);
-      } catch (storageErr) {
-        debugPrint('⚠️ Storage upload failed ($storageErr). Storing optimized inline image data.');
-        final base64Str = base64Encode(bytes);
-        uploadedUrl = 'data:image/jpeg;base64,$base64Str';
-      }
-
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(data: {'avatar_url': uploadedUrl, 'photo_url': uploadedUrl}),
-      );
-
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser != null) {
-        try {
-          await Supabase.instance.client.from('profiles').update({'photo_url': uploadedUrl}).eq('auth_uid', currentUser.id);
-        } catch (_) {}
-      }
+      final uploadedUrl = await ref.read(adminRepositoryProvider).updateOwnAvatar(pickedFile.name, bytes);
 
       if (mounted) {
         setState(() {

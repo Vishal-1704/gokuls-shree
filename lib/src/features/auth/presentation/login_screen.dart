@@ -41,6 +41,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _signupConfirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _keepOldPassword = false;
+  bool _keepOldName = false;
+  bool _keepOldEmail = false;
   bool _isVerifyingLegacy = false;
 
   late AnimationController _fadeController;
@@ -144,15 +146,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     setState(() => _isVerifyingLegacy = true);
     try {
-      final verified = await ref.read(supabaseAuthNotifierProvider).verifyLegacyPassword(
+      final result = await ref.read(supabaseAuthNotifierProvider).verifyLegacyPassword(
             phone: _mobileController.text.trim(),
             legacyPassword: legacyPassword,
           );
       if (!mounted) return;
       setState(() => _isVerifyingLegacy = false);
 
-      if (verified) {
-        setState(() => _currentStep = LoginStep.register);
+      if (result.verified) {
+        setState(() {
+          // Prefill from the record already on file (e.g. set by an admin
+          // at creation time) and default to "keep" whenever a real value
+          // exists — the student can still uncheck and change it. A
+          // legacy-imported row with no email on file simply forces entry,
+          // same as today.
+          if (result.name != null && result.name!.trim().isNotEmpty) {
+            _signupNameController.text = result.name!.trim();
+            _keepOldName = true;
+          } else {
+            _keepOldName = false;
+          }
+          if (result.email != null && result.email!.trim().isNotEmpty) {
+            _signupEmailController.text = result.email!.trim();
+            _keepOldEmail = true;
+          } else {
+            _keepOldEmail = false;
+          }
+          _currentStep = LoginStep.register;
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('That password doesn\'t match our records. Please try again or contact your branch admin.'), backgroundColor: AppColors.danger),
@@ -603,31 +624,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           style: AppTypography.bodyMd.copyWith(color: AppColors.success),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _signupNameController,
-          style: AppTypography.bodyMd,
-          decoration: _buildGlassInputDecoration(
-            labelText: 'Display Name',
-            hintText: 'Enter your full name',
-            prefixIcon: const Icon(Icons.person_outline, color: AppColors.textSecondary),
+        if (_signupNameController.text.trim().isNotEmpty) ...[
+          CheckboxListTile(
+            value: _keepOldName,
+            onChanged: (v) => setState(() => _keepOldName = v ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppColors.goldCta,
+            title: Text(
+              'This is my name — keep it',
+              style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              _signupNameController.text,
+              style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Name is required' : null,
-        ),
+          const SizedBox(height: 8),
+        ],
+        if (!_keepOldName)
+          TextFormField(
+            controller: _signupNameController,
+            style: AppTypography.bodyMd,
+            decoration: _buildGlassInputDecoration(
+              labelText: 'Display Name',
+              hintText: 'Enter your full name',
+              prefixIcon: const Icon(Icons.person_outline, color: AppColors.textSecondary),
+            ),
+            validator: (v) => (_keepOldName || (v != null && v.isNotEmpty)) ? null : 'Name is required',
+          ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _signupEmailController,
-          style: AppTypography.bodyMd,
-          decoration: _buildGlassInputDecoration(
-            labelText: 'Email Address',
-            hintText: 'Enter your email address',
-            prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textSecondary),
+        if (_signupEmailController.text.trim().isNotEmpty) ...[
+          CheckboxListTile(
+            value: _keepOldEmail,
+            onChanged: (v) => setState(() => _keepOldEmail = v ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppColors.goldCta,
+            title: Text(
+              'This is my email — keep it',
+              style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              _signupEmailController.text,
+              style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+            ),
           ),
-          validator: (v) {
-            if (v == null || v.isEmpty) return 'Email is required';
-            if (!v.contains('@')) return 'Enter a valid email';
-            return null;
-          },
-        ),
+          const SizedBox(height: 8),
+        ],
+        if (!_keepOldEmail)
+          TextFormField(
+            controller: _signupEmailController,
+            style: AppTypography.bodyMd,
+            decoration: _buildGlassInputDecoration(
+              labelText: 'Email Address',
+              hintText: 'Enter your email address',
+              prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textSecondary),
+            ),
+            validator: (v) {
+              if (_keepOldEmail) return null;
+              if (v == null || v.isEmpty) return 'Email is required';
+              if (!v.contains('@')) return 'Enter a valid email';
+              return null;
+            },
+          ),
         const SizedBox(height: 16),
         CheckboxListTile(
           value: _keepOldPassword,

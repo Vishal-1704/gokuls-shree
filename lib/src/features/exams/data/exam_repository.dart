@@ -253,7 +253,7 @@ class ExamRepository {
         .from('paper_sets')
         .select(
           'id, title, assessment_type, total_marks, duration_minutes, status, created_at, '
-          'branches(name), paper_questions(count)',
+          'paper_questions(count)',
         )
         .order('created_at', ascending: false);
 

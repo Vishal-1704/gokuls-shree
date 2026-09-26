@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
@@ -26,6 +27,7 @@ class _AdminResultsEntryScreenState
 
   bool _isSubmitting = false;
   String? _selectedStudentId;
+  int? _selectedBranchId;
 
   @override
   void initState() {
@@ -103,6 +105,7 @@ class _AdminResultsEntryScreenState
   @override
   Widget build(BuildContext context) {
     final studentsFuture = ref.watch(adminStudentsProvider);
+    final branchesFuture = ref.watch(branchesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
@@ -115,6 +118,11 @@ class _AdminResultsEntryScreenState
       ),
       body: studentsFuture.when(
         data: (students) {
+          final filteredStudents = _selectedBranchId == null
+              ? students
+              : students.where((s) => s['branch_id'] == _selectedBranchId).toList();
+          final branches = branchesFuture.value ?? const <Map<String, dynamic>>[];
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.screenPadding),
             child: Form(
@@ -122,6 +130,44 @@ class _AdminResultsEntryScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Every student's branch is already in the list this
+                  // screen already fetches (adminStudentsProvider returns
+                  // every branch for superadmin) — this filters that same
+                  // list client-side, no new query needed.
+                  DropdownButtonFormField<int?>(
+                    value: _selectedBranchId,
+                    isExpanded: true,
+                    dropdownColor: Colors.white,
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    decoration: const InputDecoration(
+                      labelText: 'Filter by Branch',
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                      prefixIcon: Icon(Icons.account_balance_outlined, color: AppColors.textMuted),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('All Branches', style: TextStyle(color: Colors.black87))),
+                      for (final b in branches)
+                        DropdownMenuItem<int?>(
+                          value: b['id'] as int?,
+                          child: Text(
+                            (b['name'] ?? 'Branch ${b['id']}').toString(),
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _selectedBranchId = value;
+                      // A student picked before switching branches may no
+                      // longer be in the filtered list — clear it rather
+                      // than silently submit a result for a hidden student.
+                      if (_selectedStudentId != null &&
+                          !filteredStudents.any((s) => s['id'].toString() == _selectedStudentId)) {
+                        _selectedStudentId = null;
+                      }
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     value: _selectedStudentId,
                     isExpanded: true,
@@ -132,7 +178,7 @@ class _AdminResultsEntryScreenState
                       labelStyle: TextStyle(color: AppColors.textMuted),
                       prefixIcon: Icon(Icons.person_search_outlined, color: AppColors.textMuted),
                     ),
-                    items: students
+                    items: filteredStudents
                         .map(
                           (s) => DropdownMenuItem<String>(
                             value: s['id'].toString(),

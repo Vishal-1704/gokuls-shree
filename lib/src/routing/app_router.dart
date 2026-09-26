@@ -2,6 +2,7 @@
 // Complete role-based navigation.
 // Decoupled sub-route bundles are imported from each feature module.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +21,7 @@ import '../features/student/routing/student_routes.dart';
 import '../features/teacher/routing/teacher_routes.dart';
 import '../features/admin/routing/admin_routes.dart';
 import '../features/super_admin_app/routing/super_admin_routes.dart';
+import '../features/super_admin_web/web_routes.dart';
 import '../features/courses/presentation/courses_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import '../core/widgets/role_shell.dart';
@@ -36,7 +38,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.read(supabaseAuthNotifierProvider);
 
   return GoRouter(
-    initialLocation: '/splash',
+    // Splash exists to mask the Android native-splash handoff — there is no
+    // equivalent native splash on web, so its bounce animation + fixed
+    // delay are pure dead time there. Skip straight to login; the redirect
+    // logic below still bounces an already-logged-in session to its home
+    // route.
+    initialLocation: kIsWeb ? '/login' : '/splash',
     debugLogDiagnostics: false,
     refreshListenable: authNotifier,
     redirect: (context, state) {
@@ -76,6 +83,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Already logged in → redirect away from public pages to role home
       if (loggedIn && isPublic) return session.homeRoute;
 
+      // Web is superadmin-only. auth_service.dart already rejects a
+      // non-superadmin sign-in, but that only runs once at login — it does
+      // nothing for a session that was already authenticated before that
+      // check existed (or a tab left open) and then navigates by typing a
+      // URL. This is the guard every navigation actually passes through, so
+      // enforce it here too: sign out immediately rather than just bouncing
+      // to their own home route, which would still render a page.
+      if (kIsWeb && loggedIn && !session.role.isSuperAdmin) {
+        ref.read(supabaseAuthNotifierProvider).signOut();
+        return '/login';
+      }
+
       // Allow all students (approved or unapproved) to access the normal shell.
       // Unapproved students will see a banner on the dashboard and empty states
       // on other tabs.
@@ -98,8 +117,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ...DocumentsRoutes.routes,
       ...ExamsRoutes.routes,
       ...StudentRoutes.standaloneRoutes,
-      ...AdminRoutes.standaloneRoutes,
-      ...SuperAdminRoutes.standaloneRoutes,
+      // On web these live inside the super-admin console shell instead (a
+      // path can only be registered once).
+      if (!kIsWeb) ...AdminRoutes.standaloneRoutes,
+      if (!kIsWeb) ...SuperAdminRoutes.standaloneRoutes,
       ...TeacherRoutes.standaloneRoutes,
       
       GoRoute(
@@ -165,9 +186,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ══════════════════════════════════════════════════
-      // SUPER ADMIN SHELL
+      // SUPER ADMIN — desktop console on web, bottom-nav shell on mobile
       // ══════════════════════════════════════════════════
-      StatefulShellRoute.indexedStack(
+      if (kIsWeb)
+        SuperAdminWebRoutes.shell
+      else
+        StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => RoleShell(
           shell: shell,
           role: UserRole.superAdmin,
@@ -175,6 +199,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             GButton(icon: Icons.admin_panel_settings_rounded, text: 'Dashboard'),
             GButton(icon: Icons.verified_rounded,             text: 'Approvals'),
             GButton(icon: Icons.account_balance_rounded,      text: 'Branches'),
+            GButton(icon: Icons.people_alt_rounded,           text: 'Students'),
             GButton(icon: Icons.bar_chart_rounded,            text: 'Reports'),
             GButton(icon: Icons.person_rounded,               text: 'Profile'),
           ],

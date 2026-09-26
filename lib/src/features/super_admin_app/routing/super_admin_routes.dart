@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../../admin/presentation/super_admin_dashboard_screen.dart';
 import '../../admin/presentation/super_admin_approvals_screen.dart';
 import '../../admin/presentation/super_admin_branches_screen.dart';
+import '../../admin/presentation/admin_panel_screen.dart';
 import '../../admin/presentation/manage_departments_screen.dart';
 import '../../admin/presentation/admin_payslip_generator_screen.dart';
 import '../../admin/presentation/admin_propose_salary_screen.dart';
@@ -21,7 +22,7 @@ import '../../teacher/presentation/teacher_attendance_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // SUPER ADMIN ROUTES
 // All routes scoped to /super-admin prefix.
-// This shell has 5 tabs: Dashboard | Approvals | Branches | Reports | Profile
+// This shell has 6 tabs: Dashboard | Approvals | Branches | Students | Reports | Profile
 // ─────────────────────────────────────────────────────────────────────────────
 class SuperAdminRoutes {
   /// Branches for the SuperAdmin StatefulShellRoute in app_router.dart
@@ -47,6 +48,14 @@ class SuperAdminRoutes {
         GoRoute(
           path: '/super-admin/branches',
           builder: (c, s) => const SuperAdminBranchesScreen(),
+        ),
+      ],
+    ),
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: '/super-admin/students',
+          builder: (c, s) => const AdminPanelScreen(),
         ),
       ],
     ),
