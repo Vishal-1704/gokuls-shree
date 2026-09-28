@@ -15,7 +15,6 @@ import '../../admin/presentation/admin_results_entry_screen.dart';
 import '../../admin/presentation/admin_exam_scheduler_screen.dart';
 import '../../admin/presentation/admin_study_material_upload_screen.dart';
 import '../../admin/presentation/branch_registration_screen.dart';
-import '../../admin/presentation/franchise_setup_screen.dart';
 import '../../exams/presentation/admin_schedule_results_screen.dart';
 import '../../teacher/presentation/teacher_attendance_screen.dart';
 
@@ -107,10 +106,11 @@ class SuperAdminRoutes {
       path: '/super-admin/branch-registration',
       builder: (c, s) => const BranchRegistrationScreen(),
     ),
-    GoRoute(
-      path: '/super-admin/franchise-setup',
-      builder: (c, s) => const FranchiseSetupScreen(),
-    ),
+    // Franchise Setup is deliberately NOT registered for superadmin — it's
+    // a branch admin's own onboarding form (fills in their own branch's
+    // details via getMyBranch(), which is role-blind and would show
+    // whatever branch happens to be linked to whoever is signed in, super
+    // admin included). Branch admins still reach it via /admin/franchise-setup.
     GoRoute(
       path: '/super-admin/schedule-results',
       builder: (c, s) => const AdminScheduleResultsScreen(),

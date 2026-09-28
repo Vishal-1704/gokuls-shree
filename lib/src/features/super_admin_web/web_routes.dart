@@ -20,13 +20,18 @@ import 'web_shell.dart';
 class SuperAdminWebRoutes {
   static Page<void> _page(Widget child) => NoTransitionPage(child: child);
 
-  /// Screens with their own desktop page below — skipped in the generic
-  /// legacy loop so their path isn't registered twice.
+  /// Screens with their own desktop page below (skipped so their path isn't
+  /// registered twice), plus screens superadmin should never reach at all —
+  /// Franchise Setup is a branch admin's own onboarding form and reads
+  /// getMyBranch() (role-blind: whatever branch is linked to whoever is
+  /// signed in), so it doesn't belong in superadmin's route table under
+  /// either the /super-admin or /admin prefix.
   static const _redesignedPaths = {
     '/super-admin/manage-departments',
     '/super-admin/paper-manager',
     '/super-admin/schedule-results',
     '/admin/dues-report',
+    '/admin/franchise-setup',
   };
 
   /// Single-form screens (fill fields, submit) — centered, no border box.
@@ -38,8 +43,6 @@ class SuperAdminWebRoutes {
     '/admin/add-student',
     '/super-admin/branch-registration',
     '/admin/branch-registration',
-    '/super-admin/franchise-setup',
-    '/admin/franchise-setup',
     '/super-admin/propose-salary',
     '/super-admin/payslip-generator',
     '/super-admin/study-material',
@@ -70,7 +73,15 @@ class SuperAdminWebRoutes {
           // until each gets its own desktop layout.
           GoRoute(
             path: '/super-admin/content',
-            pageBuilder: (_, __) => _page(const WebLegacyFrame(child: AdminPanelScreen(showStudentsTab: false))),
+            pageBuilder: (_, state) => _page(
+              WebLegacyFrame(
+                child: AdminPanelScreen(
+                  showStudentsTab: false,
+                  initialTab: state.uri.queryParameters['tab'],
+                  initialCourseId: int.tryParse(state.uri.queryParameters['course'] ?? ''),
+                ),
+              ),
+            ),
           ),
           GoRoute(path: '/super-admin/manage-departments', pageBuilder: (_, __) => _page(const WebDepartmentsPage())),
           GoRoute(path: '/super-admin/paper-manager', pageBuilder: (_, __) => _page(const WebPaperManagerPage())),

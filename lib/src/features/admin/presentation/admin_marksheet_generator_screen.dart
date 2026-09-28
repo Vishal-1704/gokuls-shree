@@ -164,26 +164,25 @@ class _AdminMarksheetGeneratorScreenState
           }
           final years = yearsSet.toList()..sort();
 
-          // Filter logic
-          var filteredStudents = <Map<String, dynamic>>[];
-          final hasFilter = _branchId != null || _courseId != null || _year != null;
-          
-          if (hasFilter) {
-            filteredStudents = students;
-            if (_branchId != null) {
-               filteredStudents = filteredStudents.where((s) => s['branch_id']?.toString() == _branchId.toString()).toList();
-            }
-            if (_courseId != null) {
-               filteredStudents = filteredStudents.where((s) => s['course_id']?.toString() == _courseId.toString()).toList();
-            }
-            if (_year != null) {
-               filteredStudents = filteredStudents.where((s) {
-                   if (s['doj'] == null) return false;
-                   try {
-                       return DateTime.parse(s['doj'].toString()).year.toString() == _year;
-                   } catch(_) { return false; }
-               }).toList();
-            }
+          // Filter logic — "All Branches"/"All Courses" carry value: null,
+          // so this must default to showing everyone and narrow from there,
+          // not default to empty and only populate once a specific filter
+          // is picked (that previously made the list look like it could
+          // never load any students at all).
+          var filteredStudents = students;
+          if (_branchId != null) {
+             filteredStudents = filteredStudents.where((s) => s['branch_id']?.toString() == _branchId.toString()).toList();
+          }
+          if (_courseId != null) {
+             filteredStudents = filteredStudents.where((s) => s['course_id']?.toString() == _courseId.toString()).toList();
+          }
+          if (_year != null) {
+             filteredStudents = filteredStudents.where((s) {
+                 if (s['doj'] == null) return false;
+                 try {
+                     return DateTime.parse(s['doj'].toString()).year.toString() == _year;
+                 } catch(_) { return false; }
+             }).toList();
           }
 
           final selectedStudent = students
@@ -277,11 +276,9 @@ class _AdminMarksheetGeneratorScreenState
                     labelStyle: TextStyle(color: AppColors.textMuted),
                     prefixIcon: Icon(Icons.person_search_outlined),
                   ),
-                  hint: Text(
-                    hasFilter ? 'Select a student' : 'Select Branch, Course, and Year first...',
-                    style: TextStyle(
-                      color: hasFilter ? AppColors.textMuted : Colors.orangeAccent,
-                    ),
+                  hint: const Text(
+                    'Select a student',
+                    style: TextStyle(color: AppColors.textMuted),
                   ),
                   items: filteredStudents
                       .map(
@@ -293,7 +290,7 @@ class _AdminMarksheetGeneratorScreenState
                         ),
                       )
                       .toList(),
-                  onChanged: hasFilter ? (v) => setState(() => _studentId = v) : null,
+                  onChanged: (v) => setState(() => _studentId = v),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (_studentId != null && selectedStudent.isNotEmpty)

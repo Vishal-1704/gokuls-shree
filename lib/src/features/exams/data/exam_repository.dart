@@ -249,17 +249,19 @@ class ExamRepository {
 
   /// Get all papers for admin management view
   Future<List<Map<String, dynamic>>> getAdminPaperSets() async {
+    // paper_questions.paper_id references a different table (papers), not
+    // paper_sets — questions.paper_set_id is the actual FK to paper_sets.
     final response = await _client
         .from('paper_sets')
         .select(
           'id, title, assessment_type, total_marks, duration_minutes, status, created_at, '
-          'paper_questions(count)',
+          'subject_id, subjects(name), questions(count)',
         )
         .order('created_at', ascending: false);
 
     return (response as List).map((p) {
       final map = Map<String, dynamic>.from(p);
-      final countRows = map['paper_questions'] as List?;
+      final countRows = map['questions'] as List?;
       map['total_questions'] = countRows != null && countRows.isNotEmpty
           ? countRows.first['count']
           : 0;
@@ -269,6 +271,17 @@ class ExamRepository {
 
   /// Create a new paper (question paper shell — questions added afterwards)
   /// Returns the created paper's ID
+  /// Subjects for one course, for the Course → Subject cascade in the
+  /// create-paper dialog.
+  Future<List<Map<String, dynamic>>> getSubjectsForCourse(int courseId) async {
+    final response = await _client
+        .from('subjects')
+        .select('id, name, code')
+        .eq('course_id', courseId)
+        .order('name');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   Future<int> createPaperSet({
     required String title,
     required int durationMinutes,
@@ -276,6 +289,7 @@ class ExamRepository {
     required String assessmentType, // 'test' or 'exam'
     int? branchId,
     int? courseId,
+    int? subjectId,
   }) async {
     final response = await _client
         .from('paper_sets')
@@ -286,6 +300,7 @@ class ExamRepository {
           'total_marks': totalMarks,
           'branch_id': branchId,
           'course_id': courseId,
+          'subject_id': subjectId,
           'status': 'draft', // Draft by default until questions are added
           'created_by': _client.auth.currentUser?.id,
         })

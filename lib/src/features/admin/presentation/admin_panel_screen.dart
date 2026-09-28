@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
+import 'package:gokul_shree_app/src/features/super_admin_web/widgets/web_ui.dart' show DetailPanel, webPrimaryButton, webSecondaryButton;
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
@@ -14,13 +16,24 @@ import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 /// Admin Panel screen for managing courses, notices, students, and downloads
 /// Only accessible by admin users
 class AdminPanelScreen extends ConsumerStatefulWidget {
-  const AdminPanelScreen({super.key, this.showStudentsTab = true});
+  const AdminPanelScreen({
+    super.key,
+    this.showStudentsTab = true,
+    this.initialTab,
+    this.initialCourseId,
+  });
 
   /// The web console has its own dedicated Students page
   /// (WebStudentsPage) — the "Courses & content" route reuses this same
   /// screen for Courses/Notices/Downloads only, so it passes false here to
   /// avoid showing a second, less capable Students tab alongside it.
   final bool showStudentsTab;
+
+  /// Deep-link support (web console only): which tab opens initially, and
+  /// — when on Courses — which course's detail view to push once courses
+  /// have loaded. Matches `_showAddDialog`'s tab-name list below.
+  final String? initialTab;
+  final int? initialCourseId;
 
   @override
   ConsumerState<AdminPanelScreen> createState() => _AdminPanelScreenState();
@@ -35,17 +48,56 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> _downloads = [];
   bool _isLoading = true;
+  bool _openedInitialCourse = false;
+
+  /// Web-only in-page panel (vs. mobile's showModalBottomSheet): 'notice',
+  /// 'download', or null. A bottom sheet pushes onto the root Navigator, a
+  /// different stack than the web console's ShellRoute — switching sidebar
+  /// pages swaps the shell's child but never pops that route, so the sheet
+  /// stayed visually stuck on top. This panel instead lives in this
+  /// screen's own widget tree, so it can't outlive the screen.
+  String? _openPanel;
 
   int get _tabCount => widget.showStudentsTab ? 4 : 3;
+
+  /// Same order as the visible Tab/TabBarView list below.
+  List<String> get _tabNames => [
+        'courses',
+        'notices',
+        if (widget.showStudentsTab) 'students',
+        'downloads',
+      ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabCount, vsync: this);
+    final initialIndex = widget.initialTab == null ? 0 : _tabNames.indexOf(widget.initialTab!).clamp(0, _tabCount - 1);
+    // The URL only seeds the initial tab/course on first load (real
+    // deep-linking) — it deliberately does NOT stay synced while switching
+    // tabs afterward: a go_router .go() call here would re-match this same
+    // route and rebuild a brand-new AdminPanelScreen (this screen's own
+    // constructor is what reads the query params), refetching all data and
+    // flashing a loading spinner on every tab click. Not worth it for a
+    // URL that's only useful when shared/refreshed, not while already open.
+    _tabController = TabController(length: _tabCount, vsync: this, initialIndex: initialIndex);
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
     _loadData();
+  }
+
+  void _maybeOpenInitialCourse() {
+    if (_openedInitialCourse || widget.initialCourseId == null) return;
+    final course = _courses.where((c) => c['id'] == widget.initialCourseId).firstOrNull;
+    if (course == null) return;
+    _openedInitialCourse = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(builder: (_) => AdminCourseDetailScreen(course: course)),
+        ).then((_) => _loadData());
+      }
+    });
   }
 
   @override
@@ -74,6 +126,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         _downloads = results[3];
         _isLoading = false;
       });
+      _maybeOpenInitialCourse();
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -132,6 +185,15 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               ],
             ),
             actions: [
+              if (_tabController.index == 0 && ref.watch(currentRoleProvider) == UserRole.superAdmin)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TextButton.icon(
+                    onPressed: _showAddCourseDialog,
+                    icon: const Icon(Icons.add_rounded, color: AppColors.goldCta),
+                    label: const Text('New Course', style: TextStyle(color: AppColors.goldCta, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
             ],
           ),
@@ -139,30 +201,39 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.goldCta),
                 )
-              : Theme(
-                  data: Theme.of(context).copyWith(
-                    scaffoldBackgroundColor: AppColors.inkNavy900,
-                    canvasColor: AppColors.inkNavy900,
-                    cardColor: AppColors.inkNavy800,
-                    dividerColor: AppColors.divider,
-                    listTileTheme: const ListTileThemeData(
-                      iconColor: AppColors.textSecondary,
-                      textColor: AppColors.textPrimary,
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          scaffoldBackgroundColor: AppColors.inkNavy900,
+                          canvasColor: AppColors.inkNavy900,
+                          cardColor: AppColors.inkNavy800,
+                          dividerColor: AppColors.divider,
+                          listTileTheme: const ListTileThemeData(
+                            iconColor: AppColors.textSecondary,
+                            textColor: AppColors.textPrimary,
+                          ),
+                          textTheme: Theme.of(context).textTheme.apply(
+                            bodyColor: AppColors.textPrimary,
+                            displayColor: AppColors.textPrimary,
+                          ),
+                        ),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildCoursesTab(),
+                            _buildNoticesTab(),
+                            if (widget.showStudentsTab) _buildStudentsTab(),
+                            _buildDownloadsTab(),
+                          ],
+                        ),
+                      ),
                     ),
-                    textTheme: Theme.of(context).textTheme.apply(
-                      bodyColor: AppColors.textPrimary,
-                      displayColor: AppColors.textPrimary,
-                    ),
-                  ),
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildCoursesTab(),
-                      _buildNoticesTab(),
-                      if (widget.showStudentsTab) _buildStudentsTab(),
-                      _buildDownloadsTab(),
-                    ],
-                  ),
+                    if (_openPanel == 'notice') _buildNoticePanel(),
+                    if (_openPanel == 'download') _buildDownloadPanel(),
+                  ],
                 ),
           floatingActionButton: _tabController.index == 0
               ? null
@@ -620,7 +691,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         _showAddCourseDialog();
         break;
       case 'notices':
-        _showAddNoticeDialog();
+        kIsWeb ? setState(() => _openPanel = 'notice') : _showAddNoticeDialog();
         break;
       case 'students':
         Navigator.push(
@@ -629,7 +700,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
         ).then((_) => _loadData());
         break;
       case 'downloads':
-        _showAddDownloadDialog();
+        kIsWeb ? setState(() => _openPanel = 'download') : _showAddDownloadDialog();
         break;
     }
   }
@@ -953,6 +1024,30 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
           ],
         ),
       ),
+    );
+  }
+
+  // ===========================================
+  // WEB SIDE PANELS (same fields as the mobile dialogs above, laid out in
+  // DetailPanel instead of a bottom sheet — see _openPanel's doc comment)
+  // ===========================================
+  Widget _buildNoticePanel() {
+    return _NoticePanel(
+      onClose: () => setState(() => _openPanel = null),
+      onSaved: () {
+        setState(() => _openPanel = null);
+        _loadData();
+      },
+    );
+  }
+
+  Widget _buildDownloadPanel() {
+    return _DownloadPanel(
+      onClose: () => setState(() => _openPanel = null),
+      onSaved: () {
+        setState(() => _openPanel = null);
+        _loadData();
+      },
     );
   }
 
@@ -1419,6 +1514,163 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoticePanel extends ConsumerStatefulWidget {
+  const _NoticePanel({required this.onClose, required this.onSaved});
+  final VoidCallback onClose;
+  final VoidCallback onSaved;
+
+  @override
+  ConsumerState<_NoticePanel> createState() => _NoticePanelState();
+}
+
+class _NoticePanelState extends ConsumerState<_NoticePanel> {
+  final _titleController = TextEditingController();
+  final _categoryController = TextEditingController(text: 'General');
+  final _contentController = TextEditingController();
+  bool _showAuthor = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _categoryController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(String status) async {
+    if (_titleController.text.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(adminRepositoryProvider).addNotice(
+            title: _titleController.text,
+            category: _categoryController.text,
+            content: _contentController.text,
+            status: status,
+            showAuthor: _showAuthor,
+          );
+      widget.onSaved();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailPanel(
+      onClose: widget.onClose,
+      header: const Text('Post new notice', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      actions: [
+        OutlinedButton(
+          style: webSecondaryButton(),
+          onPressed: _saving ? null : () => _save('draft'),
+          child: const Text('Save as draft'),
+        ),
+        FilledButton(
+          style: webPrimaryButton(),
+          onPressed: _saving ? null : () => _save('published'),
+          child: const Text('Publish now'),
+        ),
+      ],
+      children: [
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(labelText: 'Notice headline', prefixIcon: Icon(Icons.campaign_outlined)),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _categoryController,
+          decoration: const InputDecoration(labelText: 'Category', prefixIcon: Icon(Icons.tag)),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _contentController,
+          maxLines: 5,
+          decoration: const InputDecoration(labelText: 'Notice content', prefixIcon: Icon(Icons.description_outlined)),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Show author name', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          subtitle: const Text('Users will see who posted this notice', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          value: _showAuthor,
+          onChanged: (v) => setState(() => _showAuthor = v),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownloadPanel extends ConsumerStatefulWidget {
+  const _DownloadPanel({required this.onClose, required this.onSaved});
+  final VoidCallback onClose;
+  final VoidCallback onSaved;
+
+  @override
+  ConsumerState<_DownloadPanel> createState() => _DownloadPanelState();
+}
+
+class _DownloadPanelState extends ConsumerState<_DownloadPanel> {
+  final _titleController = TextEditingController();
+  final _categoryController = TextEditingController(text: 'Forms');
+  final _urlController = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _categoryController.dispose();
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_titleController.text.isEmpty || _urlController.text.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(adminRepositoryProvider).addDownload(
+            title: _titleController.text,
+            category: _categoryController.text,
+            url: _urlController.text,
+          );
+      widget.onSaved();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailPanel(
+      onClose: widget.onClose,
+      header: const Text('Add new download', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      actions: [
+        FilledButton(
+          style: webPrimaryButton(),
+          onPressed: _saving ? null : _save,
+          child: const Text('Add download'),
+        ),
+      ],
+      children: [
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(labelText: 'File title', prefixIcon: Icon(Icons.insert_drive_file_outlined)),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _categoryController,
+          decoration: const InputDecoration(labelText: 'Category', prefixIcon: Icon(Icons.folder_open_outlined)),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _urlController,
+          decoration: const InputDecoration(labelText: 'Download URL', prefixIcon: Icon(Icons.link)),
         ),
       ],
     );

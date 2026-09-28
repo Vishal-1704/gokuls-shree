@@ -627,82 +627,77 @@ class _AdminAddStudentScreenState extends ConsumerState<AdminAddStudentScreen> {
     );
   }
 
+  /// Shared tap-to-upload preview box for the photo/signature pair below —
+  /// same size for both so they sit evenly in a two-column row instead of
+  /// the previous mismatched 90x100 / 140x70 boxes crammed against a
+  /// paragraph of instructions.
+  Widget _uploadPreviewTile({
+    required VoidCallback onTap,
+    required Uint8List? bytes,
+    required IconData icon,
+    required String label,
+    required String caption,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey.shade100,
+              ),
+              child: bytes != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(bytes, fit: fit),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: AppColors.goldCta, size: 28),
+                        const SizedBox(height: 4),
+                        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(caption, style: const TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+      ],
+    );
+  }
+
   Widget _buildPersonalDetailsStep() {
     return Column(
       children: [
-        // Photo picker row
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 90,
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey.shade100,
-                ),
-                child: _imageBytes != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo, color: AppColors.goldCta, size: 28),
-                          SizedBox(height: 4),
-                          Text('Upload Photo', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                        ],
-                      ),
+            Expanded(
+              child: _uploadPreviewTile(
+                onTap: _pickImage,
+                bytes: _imageBytes,
+                icon: Icons.add_a_photo,
+                label: 'Upload Photo',
+                caption: 'Passport photo (.jpg / .jpeg / .png, < 500KB)',
               ),
             ),
             const SizedBox(width: 16),
-            const Expanded(
-              child: Text(
-                'Upload passport photo (.jpg / .jpeg / .png, < 500KB)',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Signature picker row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: _pickSignature,
-              child: Container(
-                width: 140,
-                height: 70,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey.shade100,
-                ),
-                child: _signatureBytes != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(_signatureBytes!, fit: BoxFit.contain),
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.draw_outlined, color: AppColors.goldCta, size: 24),
-                          SizedBox(height: 4),
-                          Text('Upload Signature', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Text(
-                'Upload signature scan (PNG recommended, transparent background looks best)',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            Expanded(
+              child: _uploadPreviewTile(
+                onTap: _pickSignature,
+                bytes: _signatureBytes,
+                icon: Icons.draw_outlined,
+                label: 'Upload Signature',
+                caption: 'Signature scan (PNG, transparent background preferred)',
+                fit: BoxFit.contain,
               ),
             ),
           ],

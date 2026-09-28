@@ -36,7 +36,6 @@ const webNavSections = <WebNavSection>[
   WebNavSection('Branches', [
     WebNavItem('Branches', Icons.account_balance_outlined, '/super-admin/branches'),
     WebNavItem('Register branch admin', Icons.how_to_reg_outlined, '/super-admin/branch-registration'),
-    WebNavItem('Franchise setup', Icons.storefront_outlined, '/super-admin/franchise-setup'),
   ]),
   WebNavSection('Academics', [
     WebNavItem('Courses & content', Icons.menu_book_outlined, '/super-admin/content'),

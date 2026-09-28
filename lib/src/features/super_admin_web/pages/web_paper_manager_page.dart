@@ -36,6 +36,7 @@ class _WebPaperManagerPageState extends ConsumerState<WebPaperManagerPage> {
             assessmentType: result['assessmentType'],
             branchId: result['branchId'],
             courseId: result['courseId'],
+            subjectId: result['subjectId'],
           );
       ref.invalidate(_paperSetsProvider);
       if (mounted) showToast(context, 'Paper set created.');
@@ -154,6 +155,7 @@ class _WebPaperManagerPageState extends ConsumerState<WebPaperManagerPage> {
                       child: WebTable<_Row>(
                         columns: const [
                           WebColumn('Paper', flex: 3),
+                          WebColumn('Subject', flex: 2),
                           WebColumn('Type'),
                           WebColumn('Duration'),
                           WebColumn('Questions', alignEnd: true),
@@ -167,6 +169,7 @@ class _WebPaperManagerPageState extends ConsumerState<WebPaperManagerPage> {
                         emptyMessage: all.isEmpty ? 'Create the first one with “New paper”.' : 'Try a different search or status.',
                         cells: (p) => [
                           CellText(str(p['title'], 'Untitled'), secondary: '${str(p['total_marks'], '0')} marks'),
+                          PlainCell(str((p['subjects'] as Map?)?['name'], '—'), muted: true),
                           StatusChip(
                             (p['assessment_type'] == 'test') ? 'Test' : 'Exam',
                             (p['assessment_type'] == 'test') ? AppColors.primaryViolet : AppColors.goldDeep,
@@ -206,6 +209,7 @@ class _WebPaperManagerPageState extends ConsumerState<WebPaperManagerPage> {
                         ],
                         children: [
                           DetailSection('Paper', [
+                            ('Subject', str((open['subjects'] as Map?)?['name'], 'Not set')),
                             ('Type', (open['assessment_type'] == 'test') ? 'Test' : 'Exam'),
                             ('Duration', '${str(open['duration_minutes'], '0')} minutes'),
                             ('Total marks', str(open['total_marks'])),
@@ -238,7 +242,9 @@ class _CreatePaperDialogState extends ConsumerState<_CreatePaperDialog> {
   final _duration = TextEditingController(text: '60');
   final _marks = TextEditingController(text: '100');
   int? _courseId;
+  int? _subjectId;
   String _type = 'exam';
+  Future<List<Map<String, dynamic>>>? _subjectsFuture;
 
   @override
   void dispose() {
@@ -287,10 +293,33 @@ class _CreatePaperDialogState extends ConsumerState<_CreatePaperDialog> {
                 DropdownButtonFormField<int>(
                   isExpanded: true,
                   value: _courseId,
+                  dropdownColor: AppColors.surfaceCard,
+                  style: AppTypography.bodyMd,
                   decoration: _dec('Course *'),
                   items: [for (final c in courses) DropdownMenuItem(value: c['id'] as int, child: Text(str(c['name']), overflow: TextOverflow.ellipsis))],
-                  onChanged: (v) => setState(() => _courseId = v),
+                  onChanged: (v) => setState(() {
+                    _courseId = v;
+                    _subjectId = null;
+                    _subjectsFuture = v == null ? null : ref.read(examRepositoryProvider).getSubjectsForCourse(v);
+                  }),
                   validator: (v) => v == null ? 'Select a course' : null,
+                ),
+                const SizedBox(height: 14),
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _subjectsFuture,
+                  builder: (context, snap) {
+                    final subjects = snap.data ?? const <Map<String, dynamic>>[];
+                    final disabled = _courseId == null;
+                    return DropdownButtonFormField<int>(
+                      isExpanded: true,
+                      value: _subjectId,
+                      dropdownColor: AppColors.surfaceCard,
+                      style: AppTypography.bodyMd,
+                      decoration: _dec(disabled ? 'Subject (pick a course first)' : 'Subject (optional)'),
+                      items: [for (final s in subjects) DropdownMenuItem(value: s['id'] as int, child: Text(str(s['name']), overflow: TextOverflow.ellipsis))],
+                      onChanged: disabled ? null : (v) => setState(() => _subjectId = v),
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
                 Row(children: [
@@ -330,6 +359,7 @@ class _CreatePaperDialogState extends ConsumerState<_CreatePaperDialog> {
               'assessmentType': _type,
               'branchId': null,
               'courseId': _courseId,
+              'subjectId': _subjectId,
             });
           },
           child: const Text('Create'),

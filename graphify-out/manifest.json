@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/admin/presentation/admin_add_student_screen.dart": {
-    "mtime": 1790421362.300074,
-    "seen": 1790421366.547366,
-    "ast_hash": "156919524cead08b16c268cd8413cb96",
+    "mtime": 1790447956.574051,
+    "seen": 1790447961.586761,
+    "ast_hash": "19b01df8a2b125e9a1da4e74ab1543b3",
     "semantic_hash": ""
   },
   "lib/src/features/admin/presentation/admin_admit_card_screen.dart": {
@@ -348,10 +348,10 @@
     "semantic_hash": ""
   },
   "lib/src/features/admin/presentation/admin_marksheet_generator_screen.dart": {
-    "mtime": 1789209776.5119548,
-    "seen": 1789210853.4230924,
-    "ast_hash": "f7c0242c2b5a7dd5e602793b06cd18ba",
-    "semantic_hash": "f7c0242c2b5a7dd5e602793b06cd18ba"
+    "mtime": 1790447497.4963436,
+    "seen": 1790447507.141521,
+    "ast_hash": "1164c3a7a52b533ea5b85fc5d5448abf",
+    "semantic_hash": ""
   },
   "lib/src/features/admin/presentation/admin_notices_screen.dart": {
     "mtime": 1787863909.9716604,
@@ -360,9 +360,9 @@
     "semantic_hash": "5153a6425780e5f95b6465056b7c0514"
   },
   "lib/src/features/admin/presentation/admin_panel_screen.dart": {
-    "mtime": 1790422637.6033795,
-    "seen": 1790422649.3900976,
-    "ast_hash": "1b81a2837796793eb75a74b8c76bac61",
+    "mtime": 1790448381.1995156,
+    "seen": 1790448386.7944357,
+    "ast_hash": "461f56e10e5eeee67318e3cc14d4e9a9",
     "semantic_hash": ""
   },
   "lib/src/features/admin/presentation/admin_profile_screen.dart": {
@@ -564,9 +564,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/exams/data/exam_repository.dart": {
-    "mtime": 1790419103.1668835,
-    "seen": 1790419115.4301605,
-    "ast_hash": "2b313d0a56eea04ee53903530e2ed682",
+    "mtime": 1790447852.8731978,
+    "seen": 1790447853.4525218,
+    "ast_hash": "d29a2aa246ecfffea858b060dc67bd8a",
     "semantic_hash": ""
   },
   "lib/src/features/exams/domain/exam_model.dart": {
@@ -696,9 +696,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_app/routing/super_admin_routes.dart": {
-    "mtime": 1790412310.5422275,
-    "seen": 1790412341.839494,
-    "ast_hash": "ba1c99f7f9f5dc273559a5ec116aa6b6",
+    "mtime": 1790516456.2741919,
+    "seen": 1790516477.499634,
+    "ast_hash": "1ead65caef6099631005aa9b46bb817f",
     "semantic_hash": ""
   },
   "lib/src/features/teacher/data/attendance_repository.dart": {
@@ -1758,9 +1758,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/web_shell.dart": {
-    "mtime": 1790420750.3132522,
-    "seen": 1790420761.7472703,
-    "ast_hash": "7c715026f45c884d8367d8bae387d57a",
+    "mtime": 1790516431.3324337,
+    "seen": 1790516477.499634,
+    "ast_hash": "2b557824fb4606f06a0c55b31f4d87ab",
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/widgets/web_ui.dart": {
@@ -1794,9 +1794,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/web_routes.dart": {
-    "mtime": 1790422761.6827722,
-    "seen": 1790422764.7665613,
-    "ast_hash": "c913b80652007376b3e5ca43adec1571",
+    "mtime": 1790516496.2985995,
+    "seen": 1790516528.6139166,
+    "ast_hash": "9e0fac71546f6583fc26cfe641073064",
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/pages/web_departments_page.dart": {
@@ -1806,9 +1806,9 @@
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/pages/web_paper_manager_page.dart": {
-    "mtime": 1790420886.1148322,
-    "seen": 1790420897.959797,
-    "ast_hash": "90a469fc8bf38ac2395c0f359861925f",
+    "mtime": 1790447920.2778728,
+    "seen": 1790447939.8738065,
+    "ast_hash": "6ea1c7ad28bd201c3dd1c18e966d977a",
     "semantic_hash": ""
   },
   "lib/src/features/super_admin_web/pages/web_schedule_results_page.dart": {
@@ -1821,6 +1821,18 @@
     "mtime": 1790422511.0807347,
     "seen": 1790422518.9406924,
     "ast_hash": "efeba2b8afb68e2864f69ab8f5cece21",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20240301000026_new_courses_and_subjects.sql": {
+    "mtime": 1790440524.4182384,
+    "seen": 1790446959.7005572,
+    "ast_hash": "c36894b28a22d880c06fbe78c676b77f",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20240301000027_paper_subject_link.sql": {
+    "mtime": 1790447583.1939762,
+    "seen": 1790447853.4525218,
+    "ast_hash": "08ab769c251878d578bf7522bb348c6a",
     "semantic_hash": ""
   }
 }
