@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:gokul_shree_app/src/core/config/env_config.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
@@ -29,10 +30,7 @@ class _SuperAdminResetPasswordScreenState
   List<Map<String, dynamic>> _profiles = [];
   Map<String, dynamic>? _selectedProfile;
 
-  static const String _apiBase = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:3001/api/v1',
-  );
+  String get _apiBase => EnvConfig.apiBaseUrl;
 
   @override
   void initState() {

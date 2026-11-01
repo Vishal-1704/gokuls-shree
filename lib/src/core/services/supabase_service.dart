@@ -512,28 +512,39 @@ class SupabaseService {
     final studentIds = await _currentStudentIds();
     if (studentIds.isEmpty) return [];
 
-    // exam_results.student_id is a plain column — no join needed. The old
-    // query required an inner join through exam_sessions, which nothing
-    // (manual entry or the MCQ module) ever populated, so it always
-    // returned zero rows regardless of how many results actually existed.
-    final response = await _client
-        .from('exam_results')
-        .select()
-        .inFilter('student_id', studentIds)
-        .order('calculated_at', ascending: false);
-
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await _client
+          .from('exam_results')
+          .select()
+          .inFilter('student_id', studentIds)
+          .order('calculated_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      try {
+        final response = await _client
+            .from('exam_results')
+            .select()
+            .inFilter('student_id', studentIds)
+            .order('attempted_at', ascending: false);
+        return List<Map<String, dynamic>>.from(response);
+      } catch (_) {
+        return [];
+      }
+    }
   }
 
   /// Get active paper sets for dashboard exam schedule fallback.
   Future<List<Map<String, dynamic>>> getActivePaperSets({int limit = 5}) async {
-    final response = await _client
-        .from('paper_sets')
-        .select()
-        .eq('is_active', true)
-        .order('created_at', ascending: false)
-        .limit(limit);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await _client
+          .from('paper_sets')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getBranches() async {

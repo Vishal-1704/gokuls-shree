@@ -26,7 +26,10 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        // Local builds auto-increment (epoch seconds, same scheme release.yml
+        // uses, so codes stay monotonic across both); CI passes --build-number.
+        versionCode = if (System.getenv("CI") != null) flutter.versionCode
+                      else (System.currentTimeMillis() / 1000).toInt()
         versionName = flutter.versionName
     }
 

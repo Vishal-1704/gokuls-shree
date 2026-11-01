@@ -23,7 +23,7 @@ class EnvConfig {
   // ===========================================
 
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3000/api';
+      dotenv.env['API_BASE_URL'] ?? 'https://gokulshree-backend-860363218365.asia-south1.run.app/api/v1';
 
   static int get apiTimeoutSeconds =>
       int.tryParse(dotenv.env['API_TIMEOUT_SECONDS'] ?? '30') ?? 30;

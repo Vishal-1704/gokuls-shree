@@ -157,7 +157,7 @@ class StudentRepository {
           'title': r['exam_name'] ?? r['subject_name'] ?? 'Exam',
           'score': marksObtained,
           'total': totalMarks,
-          'date': _formatTime(r['calculated_at']),
+          'date': _formatTime(r['calculated_at'] ?? r['attempted_at'] ?? r['created_at']),
           'status': grade == 'AB'
               ? 'Absent'
               : (totalMarks > 0 && marksObtained / totalMarks >= 0.33

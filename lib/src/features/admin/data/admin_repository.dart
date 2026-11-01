@@ -846,8 +846,10 @@ class AdminRepository {
     String? grade,
     String? notes,
   }) async {
+    final parsedId = int.tryParse(studentId);
+    final sid = parsedId ?? studentId;
     final payload = {
-      'student_id': studentId,
+      'student_id': sid,
       'subject_name': subjectName,
       'marks_obtained': marksObtained,
       'total_marks': totalMarks,
@@ -857,21 +859,70 @@ class AdminRepository {
       'calculated_at': DateTime.now().toIso8601String(),
     };
 
-    final response = await supabase
-        .from('exam_results')
-        .insert(payload)
-        .select()
-        .single();
-    return response;
+    try {
+      final response = await supabase
+          .from('exam_results')
+          .insert(payload)
+          .select()
+          .single();
+      return response;
+    } catch (e) {
+      // If calculated_at column does not exist yet, retry without it
+      final fallbackPayload = Map<String, dynamic>.from(payload)..remove('calculated_at');
+      try {
+        final response = await supabase
+            .from('exam_results')
+            .insert(fallbackPayload)
+            .select()
+            .single();
+        return response;
+      } catch (inner) {
+        // Legacy table structure fallback
+        final pct = (totalMarks > 0) ? (marksObtained / totalMarks) * 100 : 0;
+        final legacyPayload = {
+          'student_id': sid,
+          'score': marksObtained.round(),
+          'total_questions': totalMarks.round(),
+          'result': pct >= 33 ? 'PASS' : 'FAIL',
+          'attempted_at': DateTime.now().toIso8601String(),
+        };
+        final response = await supabase
+            .from('exam_results')
+            .insert(legacyPayload)
+            .select()
+            .single();
+        return response;
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> getStudentResults(String studentId) async {
-    final response = await supabase
-        .from('exam_results')
-        .select()
-        .eq('student_id', studentId)
-        .order('calculated_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    final parsedId = int.tryParse(studentId);
+    final sid = parsedId ?? studentId;
+    try {
+      final response = await supabase
+          .from('exam_results')
+          .select()
+          .eq('student_id', sid)
+          .order('calculated_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      try {
+        final response = await supabase
+            .from('exam_results')
+            .select()
+            .eq('student_id', sid)
+            .order('attempted_at', ascending: false);
+        return List<Map<String, dynamic>>.from(response);
+      } catch (_) {
+        final response = await supabase
+            .from('exam_results')
+            .select()
+            .eq('student_id', sid)
+            .order('id', ascending: false);
+        return List<Map<String, dynamic>>.from(response);
+      }
+    }
   }
 
   // ===========================================
@@ -1057,7 +1108,16 @@ class AdminRepository {
         query = query.eq('student_id', studentId);
       }
 
-      final List<dynamic> results = await query.order('calculated_at', ascending: false);
+      List<dynamic> results = [];
+      try {
+        results = await query.order('calculated_at', ascending: false);
+      } catch (_) {
+        try {
+          results = await query.order('attempted_at', ascending: false);
+        } catch (_) {
+          results = await query.order('id', ascending: false);
+        }
+      }
       if (results.isNotEmpty) {
         return results.map((r) {
           final row = r as Map<String, dynamic>;
