@@ -617,29 +617,50 @@ class ExamRepository {
       throw Exception('Invalid id for assignment');
     }
 
-    final schedule = await _client
-        .from('schedules')
-        .insert({
-          'paper_id': paperSetId,
-          'title': title,
-          'status': 'published',
-          'publish_at': (publishAt ?? DateTime.now()).toUtc().toIso8601String(),
-          'start_at': startAt.toUtc().toIso8601String(),
-          'end_at': endAt?.toUtc().toIso8601String(),
-          'max_attempts': maxAttempts,
-          'negative_marking_enabled': negativeMarkingEnabled,
-          'marks_correct': marksCorrect,
-          'marks_wrong': marksWrong,
-          'marks_unanswered': marksUnanswered,
-          'assignment_type': assignmentType,
-          'assignment_value': rawAssignment,
-          'created_by': _client.auth.currentUser?.id,
-        })
-        .select('id')
-        .single();
+    try {
+      final schedule = await _client
+          .from('schedules')
+          .insert({
+            'paper_id': paperSetId,
+            'title': title,
+            'status': 'published',
+            'publish_at': (publishAt ?? DateTime.now()).toUtc().toIso8601String(),
+            'start_at': startAt.toUtc().toIso8601String(),
+            'end_at': endAt?.toUtc().toIso8601String(),
+            'max_attempts': maxAttempts,
+            'negative_marking_enabled': negativeMarkingEnabled,
+            'marks_correct': marksCorrect,
+            'marks_wrong': marksWrong,
+            'marks_unanswered': marksUnanswered,
+            'assignment_type': assignmentType,
+            'assignment_value': rawAssignment,
+            'created_by': _client.auth.currentUser?.id,
+          })
+          .select('id')
+          .single();
 
-    final scheduleId = schedule['id'] as int;
-    await _client.rpc('materialize_schedule_roster', params: {'p_schedule_id': scheduleId});
+      final scheduleId = schedule['id'] as int;
+      try {
+        await _client.rpc('materialize_schedule_roster', params: {'p_schedule_id': scheduleId});
+      } catch (_) {}
+    } catch (e) {
+      // Fallback: save to legacy exam_schedules
+      await _client.from('exam_schedules').insert({
+        'category_id': paperSetId,
+        'name': title,
+        'status': 'published',
+        'publish_at': (publishAt ?? DateTime.now()).toUtc().toIso8601String(),
+        'start_at': startAt.toUtc().toIso8601String(),
+        'end_at': endAt?.toUtc().toIso8601String(),
+        'time_limit': durationMinutes,
+        'max_attempts': maxAttempts,
+        'negative_marking_enabled': negativeMarkingEnabled,
+        'marks_correct': marksCorrect,
+        'marks_wrong': marksWrong,
+        'marks_unanswered': marksUnanswered,
+        'created_by': _client.auth.currentUser?.id,
+      });
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 019: Fix App Errors (Paper Sets, Question Bank & RLS, Storage, Payslips)
+-- Migration 019: Fix App Errors (Paper Sets, Schedules, Question Bank, Storage)
 -- ============================================================================
 
 BEGIN;
@@ -24,7 +24,7 @@ UPDATE public.paper_sets
 SET title = COALESCE(title, name, 'Paper Set #' || id::text),
     name = COALESCE(name, title, 'Paper Set #' || id::text);
 
--- 2. Fix RLS Policies for paper_sets (Resolves 42501 Forbidden on INSERT/UPDATE/DELETE)
+-- 2. Fix RLS Policies for paper_sets (Resolves 42501 Forbidden)
 ALTER TABLE public.paper_sets ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "paper_sets_select" ON public.paper_sets;
@@ -33,19 +33,12 @@ DROP POLICY IF EXISTS "paper_sets_insert" ON public.paper_sets;
 DROP POLICY IF EXISTS "paper_sets_update" ON public.paper_sets;
 DROP POLICY IF EXISTS "paper_sets_delete" ON public.paper_sets;
 
-CREATE POLICY "paper_sets_select" ON public.paper_sets
-  FOR SELECT USING (true);
+CREATE POLICY "paper_sets_select" ON public.paper_sets FOR SELECT USING (true);
+CREATE POLICY "paper_sets_insert" ON public.paper_sets FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "paper_sets_update" ON public.paper_sets FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "paper_sets_delete" ON public.paper_sets FOR DELETE USING (auth.role() = 'authenticated');
 
-CREATE POLICY "paper_sets_insert" ON public.paper_sets
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "paper_sets_update" ON public.paper_sets
-  FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "paper_sets_delete" ON public.paper_sets
-  FOR DELETE USING (auth.role() = 'authenticated');
-
--- 3. Create question_bank & paper_questions tables (Resolves PGRST205 table not found)
+-- 3. Create question_bank & paper_questions tables
 CREATE TABLE IF NOT EXISTS public.question_bank (
   id              SERIAL PRIMARY KEY,
   course_id       INT,
@@ -86,30 +79,26 @@ CREATE TABLE IF NOT EXISTS public.exam_questions (
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Enable RLS and setup policies for question tables
 ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.paper_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exam_questions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "question_bank_all" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_select" ON public.question_bank;
-DROP POLICY IF EXISTS "question_bank_admin_all" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_insert" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_update" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_delete" ON public.question_bank;
-DROP POLICY IF EXISTS "question_bank_all" ON public.question_bank;
 
 CREATE POLICY "question_bank_select" ON public.question_bank FOR SELECT USING (true);
 CREATE POLICY "question_bank_insert" ON public.question_bank FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "question_bank_update" ON public.question_bank FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "question_bank_delete" ON public.question_bank FOR DELETE USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "paper_questions_all" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_select" ON public.paper_questions;
-DROP POLICY IF EXISTS "paper_questions_admin_all" ON public.paper_questions;
-DROP POLICY IF EXISTS "paper_questions_student_read" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_insert" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_update" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_delete" ON public.paper_questions;
-DROP POLICY IF EXISTS "paper_questions_all" ON public.paper_questions;
 
 CREATE POLICY "paper_questions_select" ON public.paper_questions FOR SELECT USING (true);
 CREATE POLICY "paper_questions_insert" ON public.paper_questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
@@ -117,30 +106,174 @@ CREATE POLICY "paper_questions_update" ON public.paper_questions FOR UPDATE USIN
 CREATE POLICY "paper_questions_delete" ON public.paper_questions FOR DELETE USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "exam_questions_all" ON public.exam_questions;
-DROP POLICY IF EXISTS "exam_questions_select" ON public.exam_questions;
-DROP POLICY IF EXISTS "exam_questions_all_admin" ON public.exam_questions;
-
 CREATE POLICY "exam_questions_all" ON public.exam_questions FOR ALL USING (true) WITH CHECK (true);
 
--- 5. Fix RLS Policies for papers (if papers table exists)
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'papers') THEN
-    ALTER TABLE public.papers ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "papers_select" ON public.papers;
-    DROP POLICY IF EXISTS "papers_super_admin_all" ON public.papers;
-    DROP POLICY IF EXISTS "papers_admin_all" ON public.papers;
-    DROP POLICY IF EXISTS "papers_insert" ON public.papers;
-    DROP POLICY IF EXISTS "papers_update" ON public.papers;
-    DROP POLICY IF EXISTS "papers_delete" ON public.papers;
+-- 4. Create schedules, schedule_roster, attempts, and attempt_answers tables
+CREATE TABLE IF NOT EXISTS public.schedules (
+  id                        SERIAL PRIMARY KEY,
+  paper_id                  INT NOT NULL,
+  title                     TEXT NOT NULL,
+  start_at                  TIMESTAMPTZ NOT NULL,
+  end_at                    TIMESTAMPTZ,
+  publish_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  assignment_type           TEXT NOT NULL CHECK (assignment_type IN ('student', 'course', 'batch', 'branch')),
+  assignment_value          TEXT NOT NULL,
+  max_attempts              INT NOT NULL DEFAULT 1,
+  negative_marking_enabled  BOOLEAN NOT NULL DEFAULT false,
+  marks_correct             NUMERIC(6,2) NOT NULL DEFAULT 1,
+  marks_wrong               NUMERIC(6,2) NOT NULL DEFAULT 0,
+  marks_unanswered          NUMERIC(6,2) NOT NULL DEFAULT 0,
+  status                    TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'closed')),
+  created_by                UUID,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-    CREATE POLICY "papers_select" ON public.papers FOR SELECT USING (true);
-    CREATE POLICY "papers_insert" ON public.papers FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "papers_update" ON public.papers FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "papers_delete" ON public.papers FOR DELETE USING (auth.role() = 'authenticated');
-    GRANT ALL ON public.papers TO authenticated, service_role;
+CREATE TABLE IF NOT EXISTS public.schedule_roster (
+  id            SERIAL PRIMARY KEY,
+  schedule_id   INT NOT NULL REFERENCES public.schedules(id) ON DELETE CASCADE,
+  student_id    INT NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (schedule_id, student_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.attempts (
+  id            SERIAL PRIMARY KEY,
+  schedule_id   INT NOT NULL REFERENCES public.schedules(id) ON DELETE CASCADE,
+  student_id    INT NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  attempt_no    INT NOT NULL DEFAULT 1,
+  started_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  submitted_at  TIMESTAMPTZ,
+  status        TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'submitted')),
+  score         NUMERIC(8,2),
+  total_marks   NUMERIC(8,2),
+  result        TEXT CHECK (result IN ('pass', 'fail')),
+  UNIQUE (schedule_id, student_id, attempt_no)
+);
+
+CREATE TABLE IF NOT EXISTS public.attempt_answers (
+  id                SERIAL PRIMARY KEY,
+  attempt_id        INT NOT NULL REFERENCES public.attempts(id) ON DELETE CASCADE,
+  question_id       INT NOT NULL,
+  selected_option   SMALLINT CHECK (selected_option BETWEEN 1 AND 4),
+  is_correct        BOOLEAN,
+  marks_awarded     NUMERIC(6,2),
+  answered_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (attempt_id, question_id)
+);
+
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.schedule_roster ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attempt_answers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "schedules_all" ON public.schedules;
+CREATE POLICY "schedules_all" ON public.schedules FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "schedule_roster_all" ON public.schedule_roster;
+CREATE POLICY "schedule_roster_all" ON public.schedule_roster FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "attempts_all" ON public.attempts;
+CREATE POLICY "attempts_all" ON public.attempts FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "attempt_answers_all" ON public.attempt_answers;
+CREATE POLICY "attempt_answers_all" ON public.attempt_answers FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Roster Materialization & Grading Stored Procedures
+CREATE OR REPLACE FUNCTION public.materialize_schedule_roster(p_schedule_id INT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_type  TEXT;
+  v_value TEXT;
+BEGIN
+  SELECT assignment_type, assignment_value INTO v_type, v_value
+  FROM public.schedules WHERE id = p_schedule_id;
+
+  IF v_type = 'student' THEN
+    INSERT INTO public.schedule_roster (schedule_id, student_id)
+    VALUES (p_schedule_id, v_value::INT)
+    ON CONFLICT DO NOTHING;
+  ELSIF v_type = 'course' THEN
+    INSERT INTO public.schedule_roster (schedule_id, student_id)
+    SELECT p_schedule_id, id FROM public.students
+    WHERE course_id = v_value::INT AND status = 1
+    ON CONFLICT DO NOTHING;
+  ELSIF v_type = 'batch' THEN
+    INSERT INTO public.schedule_roster (schedule_id, student_id)
+    SELECT p_schedule_id, id FROM public.students
+    WHERE batch_id = v_value::INT AND status = 1
+    ON CONFLICT DO NOTHING;
+  ELSIF v_type = 'branch' THEN
+    INSERT INTO public.schedule_roster (schedule_id, student_id)
+    SELECT p_schedule_id, id FROM public.students
+    WHERE branch_id = v_value::INT AND status = 1
+    ON CONFLICT DO NOTHING;
   END IF;
-END $$;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.materialize_schedule_roster(INT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.grade_attempt(p_attempt_id INT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_schedule_id         INT;
+  v_paper_id            INT;
+  v_marks_correct       NUMERIC(6,2);
+  v_marks_wrong         NUMERIC(6,2);
+  v_marks_unanswered    NUMERIC(6,2);
+  v_paper_total_marks   INT;
+  v_paper_pass_marks    INT;
+  v_total_questions     INT;
+  v_answered            INT;
+  v_score               NUMERIC(8,2);
+BEGIN
+  SELECT a.schedule_id, s.paper_id, s.marks_correct, s.marks_wrong, s.marks_unanswered
+    INTO v_schedule_id, v_paper_id, v_marks_correct, v_marks_wrong, v_marks_unanswered
+  FROM public.attempts a
+  JOIN public.schedules s ON s.id = a.schedule_id
+  WHERE a.id = p_attempt_id;
+
+  SELECT total_marks, pass_marks INTO v_paper_total_marks, v_paper_pass_marks
+  FROM public.paper_sets WHERE id = v_paper_id;
+  IF v_paper_total_marks IS NULL THEN
+    SELECT total_marks, pass_marks INTO v_paper_total_marks, v_paper_pass_marks
+    FROM public.papers WHERE id = v_paper_id;
+  END IF;
+
+  UPDATE public.attempt_answers aa
+  SET is_correct = (qb.correct_option = aa.selected_option),
+      marks_awarded = qb.marks * CASE
+        WHEN qb.correct_option = aa.selected_option THEN v_marks_correct
+        ELSE v_marks_wrong
+      END
+  FROM public.question_bank qb
+  WHERE aa.question_id = qb.id AND aa.attempt_id = p_attempt_id;
+
+  SELECT COUNT(*) INTO v_total_questions FROM public.paper_questions WHERE paper_id = v_paper_id;
+  SELECT COUNT(*) INTO v_answered FROM public.attempt_answers WHERE attempt_id = p_attempt_id;
+
+  SELECT COALESCE(SUM(marks_awarded), 0) INTO v_score
+  FROM public.attempt_answers WHERE attempt_id = p_attempt_id;
+  v_score := v_score + GREATEST(v_total_questions - v_answered, 0)
+    * (SELECT COALESCE(AVG(marks), 1) FROM public.paper_questions pq JOIN public.question_bank qb2 ON qb2.id = pq.question_id WHERE pq.paper_id = v_paper_id)
+    * v_marks_unanswered;
+
+  UPDATE public.attempts
+  SET score = v_score,
+      total_marks = COALESCE(v_paper_total_marks, 0),
+      result = CASE WHEN v_score >= COALESCE(v_paper_pass_marks, 0) THEN 'pass' ELSE 'fail' END,
+      status = 'submitted'
+  WHERE id = p_attempt_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.grade_attempt(INT) TO authenticated;
 
 -- 6. Ensure exam_results has all required columns for Results Entry & Marksheets
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS subject_name TEXT;
@@ -181,8 +314,6 @@ BEGIN
     RETURN json_build_object('success', false, 'reason', 'not_authorized');
   END IF;
 
-  -- generated_by references public.profiles(id).
-  -- auth.uid() matches profiles.auth_uid, so resolve the corresponding profiles.id.
   SELECT id INTO v_profile_id FROM public.profiles WHERE (auth_uid = auth.uid() OR id = auth.uid()) LIMIT 1;
   IF v_profile_id IS NULL THEN
     v_profile_id := current_profile_id();
@@ -221,16 +352,18 @@ GRANT ALL ON public.paper_sets TO authenticated, service_role;
 GRANT ALL ON public.question_bank TO authenticated, service_role;
 GRANT ALL ON public.paper_questions TO authenticated, service_role;
 GRANT ALL ON public.exam_questions TO authenticated, service_role;
+GRANT ALL ON public.schedules TO authenticated, service_role;
+GRANT ALL ON public.schedule_roster TO authenticated, service_role;
+GRANT ALL ON public.attempts TO authenticated, service_role;
+GRANT ALL ON public.attempt_answers TO authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
 
--- 9. Create Storage Buckets (question-images, avatars) & Policies
+-- 9. Storage Buckets (Safe insert without touching storage.objects ownership)
 INSERT INTO storage.buckets (id, name, public)
 VALUES 
   ('question-images', 'question-images', true),
   ('avatars', 'avatars', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
-
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow authenticated users to upload question images" ON storage.objects;
 CREATE POLICY "Allow authenticated users to upload question images"
@@ -251,21 +384,6 @@ DROP POLICY IF EXISTS "Allow public to view question images" ON storage.objects;
 CREATE POLICY "Allow public to view question images"
 ON storage.objects FOR SELECT TO public, anon, authenticated
 USING (bucket_id = 'question-images');
-
-DROP POLICY IF EXISTS "Allow authenticated to upload avatars" ON storage.objects;
-CREATE POLICY "Allow authenticated to upload avatars"
-ON storage.objects FOR INSERT TO authenticated, anon
-WITH CHECK (bucket_id = 'avatars');
-
-DROP POLICY IF EXISTS "Allow authenticated to update avatars" ON storage.objects;
-CREATE POLICY "Allow authenticated to update avatars"
-ON storage.objects FOR UPDATE TO authenticated, anon
-USING (bucket_id = 'avatars');
-
-DROP POLICY IF EXISTS "Allow public to view avatars" ON storage.objects;
-CREATE POLICY "Allow public to view avatars"
-ON storage.objects FOR SELECT TO public, anon, authenticated
-USING (bucket_id = 'avatars');
 
 -- 10. Refresh PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
