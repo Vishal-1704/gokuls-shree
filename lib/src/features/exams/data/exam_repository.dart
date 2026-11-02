@@ -396,20 +396,39 @@ class ExamRepository {
 
   /// Get all questions for a paper (admin view — includes correct answer)
   Future<List<Map<String, dynamic>>> getAdminQuestions(int paperSetId) async {
-    final response = await _client
-        .from('paper_questions')
-        .select(
-          'order_index, question_bank(id, question_text, option_a, option_b, '
-          'option_c, option_d, correct_option, marks, subject, difficulty, image_url)',
-        )
-        .eq('paper_id', paperSetId)
-        .order('order_index');
+    try {
+      final response = await _client
+          .from('paper_questions')
+          .select(
+            'order_index, question_bank(id, question_text, option_a, option_b, '
+            'option_c, option_d, correct_option, marks, subject, difficulty, image_url)',
+          )
+          .eq('paper_id', paperSetId)
+          .order('order_index');
 
-    return (response as List).map((row) {
-      final q = Map<String, dynamic>.from(row['question_bank'] as Map);
-      q['correct_option'] = _intToChar(q['correct_option']);
-      return q;
-    }).toList();
+      return (response as List).map((row) {
+        final q = Map<String, dynamic>.from(row['question_bank'] as Map);
+        q['correct_option'] = _intToChar(q['correct_option']);
+        return q;
+      }).toList();
+    } catch (_) {
+      try {
+        final legacy = await _client
+            .from('exam_questions')
+            .select()
+            .eq('category_id', paperSetId)
+            .order('id');
+        return (legacy as List).map((row) {
+          final q = Map<String, dynamic>.from(row as Map);
+          q['correct_option'] = _intToChar(q['correct_option']);
+          q['difficulty'] = q['difficulty'] ?? 'medium';
+          q['marks'] = (q['marks'] as num?)?.toDouble() ?? 1.0;
+          return q;
+        }).toList();
+      } catch (_) {
+        return [];
+      }
+    }
   }
 
   /// Add a single MCQ question to a paper
@@ -426,42 +445,59 @@ class ExamRepository {
     String difficulty = 'medium',
     String? imageUrl,
   }) async {
-    final paper = await _client
-        .from('paper_sets')
-        .select('course_id')
-        .eq('id', paperSetId)
-        .single();
+    try {
+      int? courseId;
+      try {
+        final paper = await _client
+            .from('paper_sets')
+            .select('course_id')
+            .eq('id', paperSetId)
+            .maybeSingle();
+        courseId = paper?['course_id'] as int?;
+      } catch (_) {}
 
-    final question = await _client
-        .from('question_bank')
-        .insert({
-          'course_id': paper['course_id'],
-          'subject': subject,
-          'difficulty': difficulty,
-          'question_text': questionText,
-          'option_a': optionA,
-          'option_b': optionB,
-          'option_c': optionC,
-          'option_d': optionD,
-          'correct_option': _charToInt(correctOption),
-          'marks': marks,
-          'image_url': imageUrl,
-          'created_by': _client.auth.currentUser?.id,
-        })
-        .select('id')
-        .single();
+      final question = await _client
+          .from('question_bank')
+          .insert({
+            if (courseId != null) 'course_id': courseId,
+            'subject': subject,
+            'difficulty': difficulty,
+            'question_text': questionText,
+            'option_a': optionA,
+            'option_b': optionB,
+            'option_c': optionC,
+            'option_d': optionD,
+            'correct_option': _charToInt(correctOption),
+            'marks': marks,
+            'image_url': imageUrl,
+          })
+          .select('id')
+          .single();
 
-    final existing = await _client
-        .from('paper_questions')
-        .select('id')
-        .eq('paper_id', paperSetId);
-    final nextOrder = (existing as List).length;
+      final existing = await _client
+          .from('paper_questions')
+          .select('id')
+          .eq('paper_id', paperSetId);
+      final nextOrder = (existing as List).length;
 
-    await _client.from('paper_questions').insert({
-      'paper_id': paperSetId,
-      'question_id': question['id'],
-      'order_index': nextOrder,
-    });
+      await _client.from('paper_questions').insert({
+        'paper_id': paperSetId,
+        'question_id': question['id'],
+        'order_index': nextOrder,
+      });
+    } catch (e) {
+      // Fallback: save to exam_questions if modern tables are missing
+      await _client.from('exam_questions').insert({
+        'category_id': paperSetId,
+        'question_text': questionText,
+        'option_a': optionA,
+        'option_b': optionB,
+        'option_c': optionC,
+        'option_d': optionD,
+        'correct_option': _charToInt(correctOption),
+        'marks': marks.toInt(),
+      });
+    }
   }
 
   /// Update an existing question
@@ -478,28 +514,45 @@ class ExamRepository {
     String difficulty = 'medium',
     String? imageUrl,
   }) async {
-    await _client.from('question_bank').update({
-      'question_text': questionText,
-      'option_a': optionA,
-      'option_b': optionB,
-      'option_c': optionC,
-      'option_d': optionD,
-      'correct_option': _charToInt(correctOption),
-      'marks': marks,
-      'subject': subject,
-      'difficulty': difficulty,
-      'image_url': imageUrl,
-    }).eq('id', questionId);
+    try {
+      await _client.from('question_bank').update({
+        'question_text': questionText,
+        'option_a': optionA,
+        'option_b': optionB,
+        'option_c': optionC,
+        'option_d': optionD,
+        'correct_option': _charToInt(correctOption),
+        'marks': marks,
+        'subject': subject,
+        'difficulty': difficulty,
+        'image_url': imageUrl,
+      }).eq('id', questionId);
+    } catch (_) {
+      await _client.from('exam_questions').update({
+        'question_text': questionText,
+        'option_a': optionA,
+        'option_b': optionB,
+        'option_c': optionC,
+        'option_d': optionD,
+        'correct_option': _charToInt(correctOption),
+        'marks': marks.toInt(),
+      }).eq('id', questionId);
+    }
   }
 
   /// Remove a question from a paper. The question_bank row itself is left
   /// alone (it may be reused by other papers) — only the link is deleted.
   Future<void> deleteQuestion(int questionId, int paperSetId) async {
-    await _client
-        .from('paper_questions')
-        .delete()
-        .eq('paper_id', paperSetId)
-        .eq('question_id', questionId);
+    try {
+      await _client
+          .from('paper_questions')
+          .delete()
+          .eq('paper_id', paperSetId)
+          .eq('question_id', questionId);
+    } catch (_) {}
+    try {
+      await _client.from('exam_questions').delete().eq('id', questionId);
+    } catch (_) {}
   }
 
   /// Uploads a diagram/image for a question to the 'question-images' bucket

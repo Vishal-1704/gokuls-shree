@@ -445,15 +445,23 @@ class _QuestionFormSheetState extends State<_QuestionFormSheet> {
               const SizedBox(height: 16),
               const Text('Correct Answer', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'A', label: Text('A')),
-                  ButtonSegment(value: 'B', label: Text('B')),
-                  ButtonSegment(value: 'C', label: Text('C')),
-                  ButtonSegment(value: 'D', label: Text('D')),
-                ],
-                selected: {_correctOption},
-                onSelectionChanged: (v) => setState(() => _correctOption = v.first),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: const [
+                    ButtonSegment(value: 'A', label: Text('A')),
+                    ButtonSegment(value: 'B', label: Text('B')),
+                    ButtonSegment(value: 'C', label: Text('C')),
+                    ButtonSegment(value: 'D', label: Text('D')),
+                  ],
+                  selected: {_correctOption},
+                  onSelectionChanged: (v) => setState(() => _correctOption = v.first),
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -466,14 +474,23 @@ class _QuestionFormSheetState extends State<_QuestionFormSheet> {
               const SizedBox(height: 14),
               const Text('Difficulty', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'easy', label: Text('Easy')),
-                  ButtonSegment(value: 'medium', label: Text('Medium')),
-                  ButtonSegment(value: 'hard', label: Text('Hard')),
-                ],
-                selected: {_difficulty},
-                onSelectionChanged: (v) => setState(() => _difficulty = v.first),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 4)),
+                  ),
+                  segments: const [
+                    ButtonSegment(value: 'easy', label: Text('Easy', maxLines: 1, softWrap: false)),
+                    ButtonSegment(value: 'medium', label: Text('Medium', maxLines: 1, softWrap: false)),
+                    ButtonSegment(value: 'hard', label: Text('Hard', maxLines: 1, softWrap: false)),
+                  ],
+                  selected: {_difficulty},
+                  onSelectionChanged: (v) => setState(() => _difficulty = v.first),
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(

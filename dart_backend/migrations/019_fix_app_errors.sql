@@ -45,7 +45,84 @@ CREATE POLICY "paper_sets_update" ON public.paper_sets
 CREATE POLICY "paper_sets_delete" ON public.paper_sets
   FOR DELETE USING (auth.role() = 'authenticated');
 
--- 3. Fix RLS Policies for papers (if papers table exists)
+-- 3. Create question_bank & paper_questions tables (Resolves PGRST205 table not found)
+CREATE TABLE IF NOT EXISTS public.question_bank (
+  id              SERIAL PRIMARY KEY,
+  course_id       INT,
+  subject         TEXT,
+  difficulty      TEXT DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
+  question_text   TEXT NOT NULL,
+  option_a        TEXT NOT NULL,
+  option_b        TEXT NOT NULL,
+  option_c        TEXT NOT NULL,
+  option_d        TEXT NOT NULL,
+  correct_option  SMALLINT NOT NULL CHECK (correct_option BETWEEN 1 AND 4),
+  marks           NUMERIC(6,2) NOT NULL DEFAULT 1.0,
+  image_url       TEXT,
+  status          SMALLINT NOT NULL DEFAULT 1,
+  created_by      UUID,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.paper_questions (
+  id            SERIAL PRIMARY KEY,
+  paper_id      INT NOT NULL,
+  question_id   INT NOT NULL REFERENCES public.question_bank(id) ON DELETE CASCADE,
+  order_index   INT NOT NULL DEFAULT 0,
+  UNIQUE (paper_id, question_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.exam_questions (
+  id              SERIAL PRIMARY KEY,
+  category_id     INT,
+  question_text   TEXT NOT NULL,
+  option_a        TEXT,
+  option_b        TEXT,
+  option_c        TEXT,
+  option_d        TEXT,
+  correct_option  SMALLINT,
+  marks           INT DEFAULT 1,
+  status          SMALLINT DEFAULT 1,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Enable RLS and setup policies for question tables
+ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.paper_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_questions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "question_bank_select" ON public.question_bank;
+DROP POLICY IF EXISTS "question_bank_admin_all" ON public.question_bank;
+DROP POLICY IF EXISTS "question_bank_insert" ON public.question_bank;
+DROP POLICY IF EXISTS "question_bank_update" ON public.question_bank;
+DROP POLICY IF EXISTS "question_bank_delete" ON public.question_bank;
+DROP POLICY IF EXISTS "question_bank_all" ON public.question_bank;
+
+CREATE POLICY "question_bank_select" ON public.question_bank FOR SELECT USING (true);
+CREATE POLICY "question_bank_insert" ON public.question_bank FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "question_bank_update" ON public.question_bank FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "question_bank_delete" ON public.question_bank FOR DELETE USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "paper_questions_select" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_admin_all" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_student_read" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_insert" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_update" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_delete" ON public.paper_questions;
+DROP POLICY IF EXISTS "paper_questions_all" ON public.paper_questions;
+
+CREATE POLICY "paper_questions_select" ON public.paper_questions FOR SELECT USING (true);
+CREATE POLICY "paper_questions_insert" ON public.paper_questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "paper_questions_update" ON public.paper_questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "paper_questions_delete" ON public.paper_questions FOR DELETE USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "exam_questions_all" ON public.exam_questions;
+DROP POLICY IF EXISTS "exam_questions_select" ON public.exam_questions;
+DROP POLICY IF EXISTS "exam_questions_all_admin" ON public.exam_questions;
+
+CREATE POLICY "exam_questions_all" ON public.exam_questions FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Fix RLS Policies for papers (if papers table exists)
 DO $$ 
 BEGIN 
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'papers') THEN
@@ -62,63 +139,6 @@ BEGIN
     CREATE POLICY "papers_update" ON public.papers FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
     CREATE POLICY "papers_delete" ON public.papers FOR DELETE USING (auth.role() = 'authenticated');
     GRANT ALL ON public.papers TO authenticated, service_role;
-  END IF;
-END $$;
-
--- 4. Fix RLS Policies for question_bank & paper_questions
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'question_bank') THEN
-    ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "question_bank_select" ON public.question_bank;
-    DROP POLICY IF EXISTS "question_bank_admin_all" ON public.question_bank;
-    DROP POLICY IF EXISTS "question_bank_insert" ON public.question_bank;
-    DROP POLICY IF EXISTS "question_bank_update" ON public.question_bank;
-    DROP POLICY IF EXISTS "question_bank_delete" ON public.question_bank;
-
-    CREATE POLICY "question_bank_select" ON public.question_bank FOR SELECT USING (true);
-    CREATE POLICY "question_bank_insert" ON public.question_bank FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "question_bank_update" ON public.question_bank FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "question_bank_delete" ON public.question_bank FOR DELETE USING (auth.role() = 'authenticated');
-    GRANT ALL ON public.question_bank TO authenticated, service_role;
-  END IF;
-END $$;
-
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'paper_questions') THEN
-    ALTER TABLE public.paper_questions ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "paper_questions_select" ON public.paper_questions;
-    DROP POLICY IF EXISTS "paper_questions_admin_all" ON public.paper_questions;
-    DROP POLICY IF EXISTS "paper_questions_student_read" ON public.paper_questions;
-    DROP POLICY IF EXISTS "paper_questions_insert" ON public.paper_questions;
-    DROP POLICY IF EXISTS "paper_questions_update" ON public.paper_questions;
-    DROP POLICY IF EXISTS "paper_questions_delete" ON public.paper_questions;
-
-    CREATE POLICY "paper_questions_select" ON public.paper_questions FOR SELECT USING (true);
-    CREATE POLICY "paper_questions_insert" ON public.paper_questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "paper_questions_update" ON public.paper_questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "paper_questions_delete" ON public.paper_questions FOR DELETE USING (auth.role() = 'authenticated');
-    GRANT ALL ON public.paper_questions TO authenticated, service_role;
-  END IF;
-END $$;
-
--- 5. Fix RLS Policies for questions (legacy table if exists)
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'questions') THEN
-    ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "questions_select" ON public.questions;
-    DROP POLICY IF EXISTS "questions_all_admin" ON public.questions;
-    DROP POLICY IF EXISTS "questions_insert" ON public.questions;
-    DROP POLICY IF EXISTS "questions_update" ON public.questions;
-    DROP POLICY IF EXISTS "questions_delete" ON public.questions;
-
-    CREATE POLICY "questions_select" ON public.questions FOR SELECT USING (true);
-    CREATE POLICY "questions_insert" ON public.questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "questions_update" ON public.questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-    CREATE POLICY "questions_delete" ON public.questions FOR DELETE USING (auth.role() = 'authenticated');
-    GRANT ALL ON public.questions TO authenticated, service_role;
   END IF;
 END $$;
 
@@ -198,6 +218,9 @@ GRANT EXECUTE ON FUNCTION public.generate_payslip(INT, INT, INT) TO authenticate
 
 -- 8. Grant full table and sequence permissions
 GRANT ALL ON public.paper_sets TO authenticated, service_role;
+GRANT ALL ON public.question_bank TO authenticated, service_role;
+GRANT ALL ON public.paper_questions TO authenticated, service_role;
+GRANT ALL ON public.exam_questions TO authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
 
 -- 9. Refresh PostgREST schema cache
