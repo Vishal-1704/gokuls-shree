@@ -1,27 +1,128 @@
 -- ============================================================================
--- Migration: Fix App Errors (Paper Sets Schema, Exam Results & Payslip FK)
+-- Migration 019: Fix App Errors (Paper Sets, Question Bank & RLS, Exam Results, Payslips)
 -- ============================================================================
 
 BEGIN;
 
 -- 1. Ensure paper_sets has all required columns used by Flutter & admin portals
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS assessment_type TEXT DEFAULT 'exam';
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS total_marks INT DEFAULT 100;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS pass_marks INT DEFAULT 33;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS duration_minutes INT DEFAULT 60;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'published';
-ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES public.branches(id);
-ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS course_id INT REFERENCES public.courses(id);
+ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS branch_id INT;
+ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS course_id INT;
+ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS subject_id INT;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 ALTER TABLE public.paper_sets ADD COLUMN IF NOT EXISTS created_by UUID;
 
--- Backfill title from existing name where missing
+-- Backfill title & name where missing
 UPDATE public.paper_sets 
-SET title = COALESCE(name, 'Paper Set #' || id::text) 
-WHERE title IS NULL;
+SET title = COALESCE(title, name, 'Paper Set #' || id::text),
+    name = COALESCE(name, title, 'Paper Set #' || id::text);
 
--- 2. Ensure exam_results has all required columns for Results Entry & Marksheets
+-- 2. Fix RLS Policies for paper_sets (Resolves 42501 Forbidden on INSERT/UPDATE/DELETE)
+ALTER TABLE public.paper_sets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "paper_sets_select" ON public.paper_sets;
+DROP POLICY IF EXISTS "paper_sets_all_admin" ON public.paper_sets;
+DROP POLICY IF EXISTS "paper_sets_insert" ON public.paper_sets;
+DROP POLICY IF EXISTS "paper_sets_update" ON public.paper_sets;
+DROP POLICY IF EXISTS "paper_sets_delete" ON public.paper_sets;
+
+CREATE POLICY "paper_sets_select" ON public.paper_sets
+  FOR SELECT USING (true);
+
+CREATE POLICY "paper_sets_insert" ON public.paper_sets
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "paper_sets_update" ON public.paper_sets
+  FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "paper_sets_delete" ON public.paper_sets
+  FOR DELETE USING (auth.role() = 'authenticated');
+
+-- 3. Fix RLS Policies for papers (if papers table exists)
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'papers') THEN
+    ALTER TABLE public.papers ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "papers_select" ON public.papers;
+    DROP POLICY IF EXISTS "papers_super_admin_all" ON public.papers;
+    DROP POLICY IF EXISTS "papers_admin_all" ON public.papers;
+    DROP POLICY IF EXISTS "papers_insert" ON public.papers;
+    DROP POLICY IF EXISTS "papers_update" ON public.papers;
+    DROP POLICY IF EXISTS "papers_delete" ON public.papers;
+
+    CREATE POLICY "papers_select" ON public.papers FOR SELECT USING (true);
+    CREATE POLICY "papers_insert" ON public.papers FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "papers_update" ON public.papers FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "papers_delete" ON public.papers FOR DELETE USING (auth.role() = 'authenticated');
+    GRANT ALL ON public.papers TO authenticated, service_role;
+  END IF;
+END $$;
+
+-- 4. Fix RLS Policies for question_bank & paper_questions
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'question_bank') THEN
+    ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "question_bank_select" ON public.question_bank;
+    DROP POLICY IF EXISTS "question_bank_admin_all" ON public.question_bank;
+    DROP POLICY IF EXISTS "question_bank_insert" ON public.question_bank;
+    DROP POLICY IF EXISTS "question_bank_update" ON public.question_bank;
+    DROP POLICY IF EXISTS "question_bank_delete" ON public.question_bank;
+
+    CREATE POLICY "question_bank_select" ON public.question_bank FOR SELECT USING (true);
+    CREATE POLICY "question_bank_insert" ON public.question_bank FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "question_bank_update" ON public.question_bank FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "question_bank_delete" ON public.question_bank FOR DELETE USING (auth.role() = 'authenticated');
+    GRANT ALL ON public.question_bank TO authenticated, service_role;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'paper_questions') THEN
+    ALTER TABLE public.paper_questions ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "paper_questions_select" ON public.paper_questions;
+    DROP POLICY IF EXISTS "paper_questions_admin_all" ON public.paper_questions;
+    DROP POLICY IF EXISTS "paper_questions_student_read" ON public.paper_questions;
+    DROP POLICY IF EXISTS "paper_questions_insert" ON public.paper_questions;
+    DROP POLICY IF EXISTS "paper_questions_update" ON public.paper_questions;
+    DROP POLICY IF EXISTS "paper_questions_delete" ON public.paper_questions;
+
+    CREATE POLICY "paper_questions_select" ON public.paper_questions FOR SELECT USING (true);
+    CREATE POLICY "paper_questions_insert" ON public.paper_questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "paper_questions_update" ON public.paper_questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "paper_questions_delete" ON public.paper_questions FOR DELETE USING (auth.role() = 'authenticated');
+    GRANT ALL ON public.paper_questions TO authenticated, service_role;
+  END IF;
+END $$;
+
+-- 5. Fix RLS Policies for questions (legacy table if exists)
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'questions') THEN
+    ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "questions_select" ON public.questions;
+    DROP POLICY IF EXISTS "questions_all_admin" ON public.questions;
+    DROP POLICY IF EXISTS "questions_insert" ON public.questions;
+    DROP POLICY IF EXISTS "questions_update" ON public.questions;
+    DROP POLICY IF EXISTS "questions_delete" ON public.questions;
+
+    CREATE POLICY "questions_select" ON public.questions FOR SELECT USING (true);
+    CREATE POLICY "questions_insert" ON public.questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "questions_update" ON public.questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+    CREATE POLICY "questions_delete" ON public.questions FOR DELETE USING (auth.role() = 'authenticated');
+    GRANT ALL ON public.questions TO authenticated, service_role;
+  END IF;
+END $$;
+
+-- 6. Ensure exam_results has all required columns for Results Entry & Marksheets
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS subject_name TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS exam_name TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS marks_obtained NUMERIC(8,2);
@@ -30,7 +131,7 @@ ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS grade TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS calculated_at TIMESTAMPTZ DEFAULT NOW();
 
--- 3. Fix generate_payslip RPC to correctly resolve profiles.id from auth.uid()
+-- 7. Fix generate_payslip RPC to correctly resolve profiles.id from auth.uid()
 CREATE OR REPLACE FUNCTION public.generate_payslip(
   p_employee_id INT,
   p_month INT,
@@ -62,7 +163,7 @@ BEGIN
 
   -- generated_by references public.profiles(id).
   -- auth.uid() matches profiles.auth_uid, so resolve the corresponding profiles.id.
-  SELECT id INTO v_profile_id FROM public.profiles WHERE auth_uid = auth.uid() LIMIT 1;
+  SELECT id INTO v_profile_id FROM public.profiles WHERE (auth_uid = auth.uid() OR id = auth.uid()) LIMIT 1;
   IF v_profile_id IS NULL THEN
     v_profile_id := current_profile_id();
   END IF;
@@ -95,8 +196,11 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.generate_payslip(INT, INT, INT) TO authenticated;
 
--- Refresh PostgREST schema cache
+-- 8. Grant full table and sequence permissions
+GRANT ALL ON public.paper_sets TO authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+
+-- 9. Refresh PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;
-
