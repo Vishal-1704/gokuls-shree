@@ -104,9 +104,13 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   dropdownColor: AppColors.inkNavy700,
+                  iconEnabledColor: AppColors.goldCta,
                   style: const TextStyle(color: AppColors.textPrimary),
                   items: ['General', 'Holiday', 'Exam', 'Urgent']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .map((e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(e, style: const TextStyle(color: AppColors.textPrimary)),
+                          ))
                       .toList(),
                   onChanged: (v) => setState(() => _selectedCategory = v!),
                   decoration: _inputDecoration('Category', Icons.category),

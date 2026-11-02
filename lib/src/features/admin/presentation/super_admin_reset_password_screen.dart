@@ -224,10 +224,20 @@ class _SuperAdminResetPasswordScreenState
                           isExpanded: true,
                           value: _selectedProfile,
                           dropdownColor: AppColors.inkNavy800,
+                          iconEnabledColor: AppColors.goldCta,
+                          style: const TextStyle(color: AppColors.textPrimary),
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           hint: const Text('-- Select a user --',
                               style: TextStyle(color: AppColors.textMuted)),
-                          items: _profiles.map((p) {
+                          items: _profiles.isEmpty
+                              ? [
+                                  const DropdownMenuItem<Map<String, dynamic>>(
+                                    value: null,
+                                    enabled: false,
+                                    child: Text('No users found', style: TextStyle(color: AppColors.textMuted)),
+                                  ),
+                                ]
+                              : _profiles.map((p) {
                             final role = p['role'] as String? ?? 'unknown';
                             final name = p['full_name'] ?? 'Unknown';
                             final active = (p['status'] ?? 0) == 1;
@@ -256,7 +266,7 @@ class _SuperAdminResetPasswordScreenState
                               ),
                             );
                           }).toList(),
-                          onChanged: (val) => setState(() => _selectedProfile = val),
+                          onChanged: _profiles.isEmpty ? null : (val) => setState(() => _selectedProfile = val),
                         ),
                       ),
                     ),

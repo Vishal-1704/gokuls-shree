@@ -381,12 +381,19 @@ class WebDropdown<T> extends StatelessWidget {
           value: index < 0 ? 0 : index,
           isExpanded: true,
           isDense: true,
-          icon: const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.textMuted),
-          style: AppTypography.bodyMd,
+          icon: const Icon(Icons.expand_more_rounded, size: 18, color: AppColors.goldCta),
+          style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary),
           dropdownColor: AppColors.surfaceCard,
           items: [
             for (var i = 0; i < entries.length; i++)
-              DropdownMenuItem<int>(value: i, child: Text(entries[i].value, overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem<int>(
+                value: i,
+                child: Text(
+                  entries[i].value,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+              ),
           ],
           onChanged: (i) {
             if (i != null) onChanged(entries[i].key);

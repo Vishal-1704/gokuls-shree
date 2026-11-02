@@ -509,12 +509,21 @@ class _AdminCourseFormScreenState extends ConsumerState<AdminCourseFormScreen> {
                         : _categoryOptions.first,
                     isExpanded: true,
                     dropdownColor: Colors.white,
+                    iconEnabledColor: const Color(0xFF0F172A),
+                    style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                     decoration: _inputDecoration(
                       label: 'Program Category',
                       icon: Icons.category_rounded,
                     ),
                     items: _categoryOptions.map((cat) {
-                      return DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis));
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Text(
+                          cat,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFF0F172A)),
+                        ),
+                      );
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) _categoryController.text = val;

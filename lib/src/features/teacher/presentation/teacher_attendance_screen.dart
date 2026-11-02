@@ -432,6 +432,8 @@ class _TeacherAttendanceScreenState
                   value: _selectedCourseId,
                   isExpanded: true,
                   dropdownColor: AppColors.inkNavy800,
+                  iconEnabledColor: AppColors.goldCta,
+                  style: const TextStyle(color: AppColors.textPrimary),
                   hint: const Text('Select Course', style: TextStyle(color: AppColors.textMuted)),
                   items: _courseOptions
                       .map(
@@ -613,6 +615,8 @@ class _TeacherAttendanceScreenState
               value: _selectedCourseId,
               isExpanded: true,
               dropdownColor: AppColors.inkNavy800,
+              iconEnabledColor: AppColors.goldCta,
+              style: const TextStyle(color: AppColors.textPrimary),
               hint: const Text('Select Course', style: TextStyle(color: AppColors.textMuted)),
               items: _courseOptions
                   .map(

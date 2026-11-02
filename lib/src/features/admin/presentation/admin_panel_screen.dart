@@ -1312,9 +1312,13 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                 // Status Dropdown
                 DropdownButtonFormField<String>(
                   value: status,
+                  dropdownColor: Colors.white,
+                  iconEnabledColor: const Color(0xFF0F172A),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                   decoration: const InputDecoration(
                     labelText: 'Status',
-                    prefixIcon: Icon(Icons.flag_outlined),
+                    labelStyle: TextStyle(color: Color(0xFF64748B)),
+                    prefixIcon: Icon(Icons.flag_outlined, color: Color(0xFF64748B)),
                     filled: true,
                     fillColor: Color(0xFFF5F5F7),
                     border: OutlineInputBorder(
@@ -1326,7 +1330,10 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
                       .map(
                         (e) => DropdownMenuItem(
                           value: e,
-                          child: Text(e.toUpperCase()),
+                          child: Text(
+                            e.toUpperCase(),
+                            style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+                          ),
                         ),
                       )
                       .toList(),

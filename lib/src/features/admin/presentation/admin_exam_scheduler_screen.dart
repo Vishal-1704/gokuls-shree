@@ -176,7 +176,9 @@ class _AdminExamSchedulerScreenState
         return InputDecorator(
           decoration: InputDecoration(
             labelText: label,
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
             helperText: 'Tap to search and select',
+            helperStyle: const TextStyle(color: AppColors.textMuted),
             errorText: state.errorText,
           ),
           child: InkWell(
@@ -198,12 +200,12 @@ class _AdminExamSchedulerScreenState
                                 _selectedAssignmentValue!)
                           : 'Select $label',
                       style: TextStyle(
-                        color: hasValue ? null : Colors.grey.shade500,
+                        color: hasValue ? AppColors.textPrimary : AppColors.textMuted,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down),
+                  const Icon(Icons.arrow_drop_down, color: AppColors.goldCta),
                 ],
               ),
             ),
@@ -507,22 +509,70 @@ class _AdminExamSchedulerScreenState
             key: _formKey,
             child: Column(
               children: [
-                DropdownButtonFormField<String>(
-                  value: _selectedPaperSetId,
-                  decoration: const InputDecoration(labelText: 'Paper Set'),
-                  isExpanded: true,
-                  items: paperSets
-                      .map(
-                        (p) => DropdownMenuItem<String>(
-                          value: p['id'].toString(),
+                if (paperSets.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
+                        const SizedBox(width: 10),
+                        const Expanded(
                           child: Text(
-                            (p['title'] ?? 'Paper Set').toString(),
-                            overflow: TextOverflow.ellipsis,
+                            'No paper sets found. Please create an exam paper first.',
+                            style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedPaperSetId = v),
+                        TextButton(
+                          onPressed: () => context.push('/super-admin/papers'),
+                          child: const Text('Create Paper', style: TextStyle(color: AppColors.goldCta, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                DropdownButtonFormField<String>(
+                  value: (paperSets.any((p) => p['id'].toString() == _selectedPaperSetId))
+                      ? _selectedPaperSetId
+                      : null,
+                  dropdownColor: AppColors.inkNavy800,
+                  iconEnabledColor: AppColors.goldCta,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: const InputDecoration(
+                    labelText: 'Paper Set',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    hintText: 'Select a paper set',
+                    hintStyle: TextStyle(color: AppColors.textMuted),
+                  ),
+                  isExpanded: true,
+                  items: paperSets.isEmpty
+                      ? [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            enabled: false,
+                            child: Text(
+                              'No paper sets available — create one first',
+                              style: TextStyle(color: AppColors.textMuted),
+                            ),
+                          )
+                        ]
+                      : paperSets
+                          .map(
+                            (p) => DropdownMenuItem<String>(
+                              value: p['id'].toString(),
+                              child: Text(
+                                (p['title'] ?? 'Paper Set').toString(),
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textPrimary),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: paperSets.isEmpty ? null : (v) => setState(() => _selectedPaperSetId = v),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -579,17 +629,30 @@ class _AdminExamSchedulerScreenState
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _assignmentType,
+                  dropdownColor: AppColors.inkNavy800,
+                  iconEnabledColor: AppColors.goldCta,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: const InputDecoration(
                     labelText: 'Assignment Type',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
                   ),
                   items: const [
                     DropdownMenuItem(
                       value: 'student',
-                      child: Text('Per Student'),
+                      child: Text('Per Student', style: TextStyle(color: AppColors.textPrimary)),
                     ),
-                    DropdownMenuItem(value: 'course', child: Text('By Course')),
-                    DropdownMenuItem(value: 'batch', child: Text('By Batch')),
-                    DropdownMenuItem(value: 'branch', child: Text('By Branch')),
+                    DropdownMenuItem(
+                      value: 'course',
+                      child: Text('By Course', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'batch',
+                      child: Text('By Batch', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'branch',
+                      child: Text('By Branch', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
                   ],
                   onChanged: (v) {
                     setState(() {

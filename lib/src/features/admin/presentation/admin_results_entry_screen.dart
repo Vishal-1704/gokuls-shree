@@ -137,22 +137,23 @@ class _AdminResultsEntryScreenState
                   DropdownButtonFormField<int?>(
                     value: _selectedBranchId,
                     isExpanded: true,
-                    dropdownColor: Colors.white,
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    dropdownColor: AppColors.inkNavy800,
+                    iconEnabledColor: AppColors.goldCta,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'Filter by Branch',
                       labelStyle: TextStyle(color: AppColors.textMuted),
                       prefixIcon: Icon(Icons.account_balance_outlined, color: AppColors.textMuted),
                     ),
                     items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('All Branches', style: TextStyle(color: Colors.black87))),
+                      const DropdownMenuItem<int?>(value: null, child: Text('All Branches', style: TextStyle(color: AppColors.textPrimary))),
                       for (final b in branches)
                         DropdownMenuItem<int?>(
                           value: b['id'] as int?,
                           child: Text(
                             (b['name'] ?? 'Branch ${b['id']}').toString(),
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.black87),
+                            style: const TextStyle(color: AppColors.textPrimary),
                           ),
                         ),
                     ],
@@ -169,34 +170,51 @@ class _AdminResultsEntryScreenState
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
-                    value: _selectedStudentId,
+                    value: filteredStudents.any((s) => s['id'].toString() == _selectedStudentId)
+                        ? _selectedStudentId
+                        : null,
                     isExpanded: true,
-                    dropdownColor: Colors.white,
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    dropdownColor: AppColors.inkNavy800,
+                    iconEnabledColor: AppColors.goldCta,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                     decoration: const InputDecoration(
                       labelText: 'Select Student',
                       labelStyle: TextStyle(color: AppColors.textMuted),
                       prefixIcon: Icon(Icons.person_search_outlined, color: AppColors.textMuted),
+                      hintText: 'Select a student',
+                      hintStyle: TextStyle(color: AppColors.textMuted),
                     ),
-                    items: filteredStudents
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s['id'].toString(),
-                            child: Text(
-                              '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.black87),
+                    items: filteredStudents.isEmpty
+                        ? [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              enabled: false,
+                              child: Text(
+                                'No students found for this branch',
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedStudentId = value),
+                          ]
+                        : filteredStudents
+                            .map(
+                              (s) => DropdownMenuItem<String>(
+                                value: s['id'].toString(),
+                                child: Text(
+                                  '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: AppColors.textPrimary),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: filteredStudents.isEmpty
+                        ? null
+                        : (value) => setState(() => _selectedStudentId = value),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _examController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Exam Name',
                       labelStyle: TextStyle(color: AppColors.textMuted),
@@ -209,7 +227,7 @@ class _AdminResultsEntryScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _subjectController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Subject Name',
                       labelStyle: TextStyle(color: AppColors.textMuted),
@@ -225,7 +243,7 @@ class _AdminResultsEntryScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _obtainedController,
-                          style: const TextStyle(color: Colors.black87),
+                          style: const TextStyle(color: AppColors.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'Obtained Marks',
                             labelStyle: TextStyle(color: AppColors.textMuted),
@@ -233,8 +251,9 @@ class _AdminResultsEntryScreenState
                           ),
                           keyboardType: TextInputType.number,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Required';
+                            }
                             final n = double.tryParse(v.trim());
                             if (n == null) return 'Invalid number';
                             return null;
@@ -245,7 +264,7 @@ class _AdminResultsEntryScreenState
                       Expanded(
                         child: TextFormField(
                           controller: _totalController,
-                          style: const TextStyle(color: Colors.black87),
+                          style: const TextStyle(color: AppColors.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'Total Marks',
                             labelStyle: TextStyle(color: AppColors.textMuted),
@@ -253,8 +272,9 @@ class _AdminResultsEntryScreenState
                           ),
                           keyboardType: TextInputType.number,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Required';
+                            }
                             final n = double.tryParse(v.trim());
                             if (n == null || n <= 0) return 'Must be > 0';
                             return null;
@@ -266,7 +286,7 @@ class _AdminResultsEntryScreenState
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _gradeController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Grade (Optional)',
                       labelStyle: TextStyle(color: AppColors.textMuted),
@@ -277,7 +297,7 @@ class _AdminResultsEntryScreenState
                   TextFormField(
                     controller: _notesController,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Notes (Optional)',
                       labelStyle: TextStyle(color: AppColors.textMuted),

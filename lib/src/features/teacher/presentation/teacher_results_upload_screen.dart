@@ -120,10 +120,14 @@ class _TeacherResultsUploadScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _selectedStudentId,
+                    value: students.any((s) => s['id'].toString() == _selectedStudentId)
+                        ? _selectedStudentId
+                        : null,
                     dropdownColor: AppColors.inkNavy800,
+                    iconEnabledColor: AppColors.goldCta,
                     style: const TextStyle(color: AppColors.textPrimary),
                     isExpanded: true,
+                    hint: const Text('Select a student', style: TextStyle(color: AppColors.textMuted)),
                     decoration: const InputDecoration(
                       labelText: 'Select Student',
                       labelStyle: TextStyle(color: AppColors.textSecondary),
@@ -131,20 +135,29 @@ class _TeacherResultsUploadScreenState
                       enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.divider)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.goldCta)),
                     ),
-                    items: students
-                        .map(
-                          (s) => DropdownMenuItem<String>(
-                            value: s['id'].toString(),
-                            child: Text(
-                              '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: AppColors.textPrimary),
+                    items: students.isEmpty
+                        ? [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              enabled: false,
+                              child: Text('No students found', style: TextStyle(color: AppColors.textMuted)),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedStudentId = value),
+                          ]
+                        : students
+                            .map(
+                              (s) => DropdownMenuItem<String>(
+                                value: s['id'].toString(),
+                                child: Text(
+                                  '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: AppColors.textPrimary),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: students.isEmpty
+                        ? null
+                        : (value) => setState(() => _selectedStudentId = value),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(

@@ -206,16 +206,17 @@ class _AdminMarksheetGeneratorScreenState
                         isExpanded: true,
                         value: _branchId,
                         dropdownColor: AppColors.inkNavy800,
+                        iconEnabledColor: AppColors.goldCta,
                         style: const TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Branch',
                           labelStyle: TextStyle(color: AppColors.textMuted),
                         ),
                         items: [
-                          const DropdownMenuItem<int>(value: null, child: Text('All Branches')),
+                          const DropdownMenuItem<int>(value: null, child: Text('All Branches', style: TextStyle(color: AppColors.textPrimary))),
                           ...branches.map((b) => DropdownMenuItem<int>(
                               value: b['id'], 
-                              child: Text(b['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
+                              child: Text(b['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary)),
                           ))
                         ],
                         onChanged: (v) => setState(() { _branchId = v; _studentId = null; }),
@@ -227,16 +228,17 @@ class _AdminMarksheetGeneratorScreenState
                         isExpanded: true,
                         value: _courseId,
                         dropdownColor: AppColors.inkNavy800,
+                        iconEnabledColor: AppColors.goldCta,
                         style: const TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Course',
                           labelStyle: TextStyle(color: AppColors.textMuted),
                         ),
                         items: [
-                          const DropdownMenuItem<int>(value: null, child: Text('All Courses')),
+                          const DropdownMenuItem<int>(value: null, child: Text('All Courses', style: TextStyle(color: AppColors.textPrimary))),
                           ...courses.map((c) => DropdownMenuItem<int>(
                               value: c['id'], 
-                              child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
+                              child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary)),
                           ))
                         ],
                         onChanged: (v) => setState(() { _courseId = v; _studentId = null; }),
@@ -248,16 +250,17 @@ class _AdminMarksheetGeneratorScreenState
                         isExpanded: true,
                         value: _year,
                         dropdownColor: AppColors.inkNavy800,
+                        iconEnabledColor: AppColors.goldCta,
                         style: const TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Year',
                           labelStyle: TextStyle(color: AppColors.textMuted),
                         ),
                         items: [
-                          const DropdownMenuItem<String>(value: null, child: Text('All Years')),
+                          const DropdownMenuItem<String>(value: null, child: Text('All Years', style: TextStyle(color: AppColors.textPrimary))),
                           ...years.map((y) => DropdownMenuItem<String>(
                               value: y, 
-                              child: Text(y),
+                              child: Text(y, style: const TextStyle(color: AppColors.textPrimary)),
                           ))
                         ],
                         onChanged: (v) => setState(() { _year = v; _studentId = null; }),
@@ -268,8 +271,11 @@ class _AdminMarksheetGeneratorScreenState
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  value: _studentId,
+                  value: filteredStudents.any((s) => s['id'].toString() == _studentId)
+                      ? _studentId
+                      : null,
                   dropdownColor: AppColors.inkNavy800,
+                  iconEnabledColor: AppColors.goldCta,
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Select Student',
@@ -280,17 +286,32 @@ class _AdminMarksheetGeneratorScreenState
                     'Select a student',
                     style: TextStyle(color: AppColors.textMuted),
                   ),
-                  items: filteredStudents
-                      .map(
-                        (s) => DropdownMenuItem<String>(
-                          value: s['id'].toString(),
-                          child: Text(
-                            '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
+                  items: filteredStudents.isEmpty
+                      ? [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            enabled: false,
+                            child: Text(
+                              'No students match current filter',
+                              style: TextStyle(color: AppColors.textMuted),
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _studentId = v),
+                        ]
+                      : filteredStudents
+                          .map(
+                            (s) => DropdownMenuItem<String>(
+                              value: s['id'].toString(),
+                              child: Text(
+                                '${s['name'] ?? 'Unknown'} (${s['reg_no'] ?? 'N/A'})',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textPrimary),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: filteredStudents.isEmpty
+                      ? null
+                      : (v) => setState(() => _studentId = v),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (_studentId != null && selectedStudent.isNotEmpty)

@@ -292,16 +292,37 @@ class _CreatePaperDialogState extends ConsumerState<_CreatePaperDialog> {
                 const SizedBox(height: 14),
                 DropdownButtonFormField<int>(
                   isExpanded: true,
-                  value: _courseId,
+                  value: courses.any((c) => c['id'] == _courseId) ? _courseId : null,
                   dropdownColor: AppColors.surfaceCard,
-                  style: AppTypography.bodyMd,
+                  iconEnabledColor: AppColors.goldCta,
+                  style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary),
                   decoration: _dec('Course *'),
-                  items: [for (final c in courses) DropdownMenuItem(value: c['id'] as int, child: Text(str(c['name']), overflow: TextOverflow.ellipsis))],
-                  onChanged: (v) => setState(() {
-                    _courseId = v;
-                    _subjectId = null;
-                    _subjectsFuture = v == null ? null : ref.read(examRepositoryProvider).getSubjectsForCourse(v);
-                  }),
+                  items: courses.isEmpty
+                      ? [
+                          const DropdownMenuItem<int>(
+                            value: null,
+                            enabled: false,
+                            child: Text('No courses found', style: TextStyle(color: AppColors.textMuted)),
+                          ),
+                        ]
+                      : [
+                          for (final c in courses)
+                            DropdownMenuItem(
+                              value: c['id'] as int,
+                              child: Text(
+                                str(c['name']),
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textPrimary),
+                              ),
+                            ),
+                        ],
+                  onChanged: courses.isEmpty
+                      ? null
+                      : (v) => setState(() {
+                            _courseId = v;
+                            _subjectId = null;
+                            _subjectsFuture = v == null ? null : ref.read(examRepositoryProvider).getSubjectsForCourse(v);
+                          }),
                   validator: (v) => v == null ? 'Select a course' : null,
                 ),
                 const SizedBox(height: 14),
@@ -312,11 +333,22 @@ class _CreatePaperDialogState extends ConsumerState<_CreatePaperDialog> {
                     final disabled = _courseId == null;
                     return DropdownButtonFormField<int>(
                       isExpanded: true,
-                      value: _subjectId,
+                      value: subjects.any((s) => s['id'] == _subjectId) ? _subjectId : null,
                       dropdownColor: AppColors.surfaceCard,
-                      style: AppTypography.bodyMd,
+                      iconEnabledColor: AppColors.goldCta,
+                      style: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary),
                       decoration: _dec(disabled ? 'Subject (pick a course first)' : 'Subject (optional)'),
-                      items: [for (final s in subjects) DropdownMenuItem(value: s['id'] as int, child: Text(str(s['name']), overflow: TextOverflow.ellipsis))],
+                      items: [
+                        for (final s in subjects)
+                          DropdownMenuItem(
+                            value: s['id'] as int,
+                            child: Text(
+                              str(s['name']),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: AppColors.textPrimary),
+                            ),
+                          ),
+                      ],
                       onChanged: disabled ? null : (v) => setState(() => _subjectId = v),
                     );
                   },

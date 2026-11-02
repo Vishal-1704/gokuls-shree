@@ -133,22 +133,32 @@ class _AdminProposeSalaryScreenState extends ConsumerState<AdminProposeSalaryScr
                   const Text('Employee', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _selectedEmployeeId,
+                    value: _staff.any((s) => s['id'] == _selectedEmployeeId) ? _selectedEmployeeId : null,
                     isExpanded: true,
                     dropdownColor: AppColors.inkNavy800,
+                    iconEnabledColor: AppColors.goldCta,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: _decoration(''),
-                    items: _staff
-                        .map((s) => DropdownMenuItem(
-                              value: s['id'] as int,
-                              child: Text(
-                                s['name']?.toString() ?? 'Unnamed',
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: AppColors.textPrimary),
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() {
+                    hint: const Text('Select an employee', style: TextStyle(color: AppColors.textMuted)),
+                    items: _staff.isEmpty
+                        ? [
+                            const DropdownMenuItem<int>(
+                              value: null,
+                              enabled: false,
+                              child: Text('No employees found', style: TextStyle(color: AppColors.textMuted)),
+                            ),
+                          ]
+                        : _staff
+                            .map((s) => DropdownMenuItem(
+                                  value: s['id'] as int,
+                                  child: Text(
+                                    s['name']?.toString() ?? 'Unnamed',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: AppColors.textPrimary),
+                                  ),
+                                ))
+                            .toList(),
+                    onChanged: _staff.isEmpty ? null : (v) => setState(() {
                       _selectedEmployeeId = v;
                       _prefillFromSelected();
                     }),
@@ -190,6 +200,7 @@ class _AdminProposeSalaryScreenState extends ConsumerState<AdminProposeSalaryScr
                           value: _effectiveMonth,
                           isExpanded: true,
                           dropdownColor: AppColors.inkNavy800,
+                          iconEnabledColor: AppColors.goldCta,
                           style: const TextStyle(color: AppColors.textPrimary),
                           decoration: _decoration('Effective Month'),
                           items: List.generate(
@@ -205,6 +216,7 @@ class _AdminProposeSalaryScreenState extends ConsumerState<AdminProposeSalaryScr
                           value: _effectiveYear,
                           isExpanded: true,
                           dropdownColor: AppColors.inkNavy800,
+                          iconEnabledColor: AppColors.goldCta,
                           style: const TextStyle(color: AppColors.textPrimary),
                           decoration: _decoration('Year'),
                           items: List.generate(

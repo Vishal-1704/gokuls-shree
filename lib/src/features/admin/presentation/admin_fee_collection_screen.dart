@@ -319,18 +319,29 @@ class _AdminFeeCollectionScreenState
                 DropdownButtonFormField<int?>(
                   value: _selectedBranchId,
                   isExpanded: true,
+                  dropdownColor: Colors.white,
+                  iconEnabledColor: const Color(0xFF0284C7),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Branch',
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
                     prefixIcon: const Icon(Icons.account_balance_outlined, color: Color(0xFF64748B), size: 20),
                     filled: true,
                     fillColor: const Color(0xFFF1F5F9),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('All Branches')),
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Branches', style: TextStyle(color: Color(0xFF0F172A)))),
                     for (final b in branches)
-                      DropdownMenuItem<int?>(value: b['id'] as int?, child: Text((b['name'] ?? 'Branch ${b['id']}').toString(), overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem<int?>(
+                        value: b['id'] as int?,
+                        child: Text(
+                          (b['name'] ?? 'Branch ${b['id']}').toString(),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFF0F172A)),
+                        ),
+                      ),
                   ],
                   onChanged: (v) => setState(() => _selectedBranchId = v),
                 ),
@@ -886,6 +897,9 @@ class _AdminFeeCollectionScreenState
                   // Payment Mode Dropdown
                   DropdownButtonFormField<String>(
                     initialValue: _paymentMode,
+                    dropdownColor: Colors.white,
+                    iconEnabledColor: const Color(0xFF0284C7),
+                    style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Payment Mode',
                       labelStyle: const TextStyle(color: Color(0xFF64748B)),

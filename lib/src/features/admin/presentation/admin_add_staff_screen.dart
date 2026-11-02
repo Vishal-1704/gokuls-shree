@@ -240,6 +240,7 @@ final hrDetails = {
               DropdownButtonFormField<String>(
                 value: _selectedRole,
                 dropdownColor: AppColors.inkNavy800,
+                iconEnabledColor: AppColors.goldCta,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Role',
@@ -294,15 +295,25 @@ final hrDetails = {
                         return DropdownButtonFormField<int>(
                           value: ids.contains(_selectedDepartmentId) ? _selectedDepartmentId : null,
                           dropdownColor: AppColors.inkNavy800,
+                          iconEnabledColor: AppColors.goldCta,
                           style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
                           decoration: _payrollInputDecoration('Department'),
-                          items: active
-                              .map((d) => DropdownMenuItem(
-                                    value: d['id'] as int,
-                                    child: Text(d['name'] ?? '', style: const TextStyle(color: AppColors.textPrimary)),
-                                  ))
-                              .toList(),
-                          onChanged: (v) => setState(() => _selectedDepartmentId = v),
+                          hint: const Text('Select Department', style: TextStyle(color: AppColors.textMuted)),
+                          items: active.isEmpty
+                              ? [
+                                  const DropdownMenuItem<int>(
+                                    value: null,
+                                    enabled: false,
+                                    child: Text('No active departments', style: TextStyle(color: AppColors.textMuted)),
+                                  ),
+                                ]
+                              : active
+                                  .map((d) => DropdownMenuItem(
+                                        value: d['id'] as int,
+                                        child: Text(d['name'] ?? '', style: const TextStyle(color: AppColors.textPrimary)),
+                                      ))
+                                  .toList(),
+                          onChanged: active.isEmpty ? null : (v) => setState(() => _selectedDepartmentId = v),
                         );
                       },
                       loading: () => const SizedBox(

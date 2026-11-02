@@ -516,12 +516,15 @@ class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBotto
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 isExpanded: true,
-                value: _selectedCourseId,
+                value: courses.any((c) => c['id'] == _selectedCourseId) ? _selectedCourseId : null,
                 dropdownColor: AppColors.inkNavy800,
+                iconEnabledColor: AppColors.goldCta,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Course',
                   labelStyle: const TextStyle(color: AppColors.textMuted),
+                  hintText: 'Select a course',
+                  hintStyle: const TextStyle(color: AppColors.textMuted),
                   filled: true,
                   fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
@@ -533,11 +536,19 @@ class _CreatePaperSetBottomSheetState extends ConsumerState<_CreatePaperSetBotto
                     borderSide: const BorderSide(color: AppColors.divider),
                   ),
                 ),
-                items: courses.map((c) => DropdownMenuItem<int>(
-                  value: c['id'], 
-                  child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis),
-                )).toList(),
-                onChanged: (v) => setState(() => _selectedCourseId = v),
+                items: courses.isEmpty
+                    ? [
+                        const DropdownMenuItem<int>(
+                          value: null,
+                          enabled: false,
+                          child: Text('No courses found', style: TextStyle(color: AppColors.textMuted)),
+                        ),
+                      ]
+                    : courses.map((c) => DropdownMenuItem<int>(
+                        value: c['id'], 
+                        child: Text(c['name'] ?? 'Unknown', overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary)),
+                      )).toList(),
+                onChanged: courses.isEmpty ? null : (v) => setState(() => _selectedCourseId = v),
                 validator: (v) => v == null ? 'Please select a course' : null,
               ),
               const SizedBox(height: 16),
