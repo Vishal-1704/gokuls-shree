@@ -136,7 +136,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (!mounted) return;
       _cancelLatencyTimer();
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      final raw = e.toString().replaceFirst(RegExp(r'^(Exception|Error):\s*'), '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(raw),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
@@ -182,7 +190,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _isVerifyingLegacy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      final raw = e.toString().replaceFirst(RegExp(r'^(Exception|Error):\s*'), '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(raw),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 

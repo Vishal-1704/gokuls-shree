@@ -192,11 +192,11 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   }
 
 
-  Future<PhoneLookupResult> checkPhoneNumber(String phone) async {
+  Future<PhoneLookupResult> checkPhoneNumber(String phone, {int retryCount = 1}) async {
     try {
       final response = await _client
           .rpc('lookup_user_by_phone', params: {'p_phone': phone.trim()})
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       return PhoneLookupResult(
         isDuplicate: response['isDuplicate'] ?? false,
         isFound: response['isFound'] ?? false,
@@ -205,10 +205,23 @@ class SupabaseAuthNotifier extends ChangeNotifier {
         role: response['role'],
       );
     } on TimeoutException {
+      if (retryCount > 0) {
+        debugPrint('Phone lookup timed out. Retrying...');
+        await Future.delayed(const Duration(milliseconds: 600));
+        return checkPhoneNumber(phone, retryCount: retryCount - 1);
+      }
       debugPrint('Error: checkPhoneNumber timed out');
-      throw Exception('Network timeout. Please check your internet connection.');
+      throw Exception('Server took too long to respond. Please check your internet connection and try again.');
     } catch (e) {
+      if (retryCount > 0 && e.toString().contains('Failed to fetch')) {
+        debugPrint('Browser fetch error on web. Retrying...');
+        await Future.delayed(const Duration(milliseconds: 600));
+        return checkPhoneNumber(phone, retryCount: retryCount - 1);
+      }
       debugPrint('Error looking up phone number: $e');
+      if (e is PostgrestException) {
+        throw Exception(e.message);
+      }
       throw Exception('Failed to look up phone number. Please try again.');
     }
   }
@@ -221,6 +234,7 @@ class SupabaseAuthNotifier extends ChangeNotifier {
   Future<LegacyVerifyResult> verifyLegacyPassword({
     required String phone,
     required String legacyPassword,
+    int retryCount = 1,
   }) async {
     try {
       final response = await _client
@@ -228,16 +242,28 @@ class SupabaseAuthNotifier extends ChangeNotifier {
             'p_phone': phone.trim(),
             'p_legacy_password': legacyPassword,
           })
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       return LegacyVerifyResult(
         verified: response['verified'] == true,
         name: response['name'] as String?,
         email: response['email'] as String?,
       );
     } on TimeoutException {
-      throw Exception('Network timeout. Please check your internet connection.');
+      if (retryCount > 0) {
+        debugPrint('verifyLegacyPassword timed out. Retrying...');
+        await Future.delayed(const Duration(milliseconds: 600));
+        return verifyLegacyPassword(
+          phone: phone,
+          legacyPassword: legacyPassword,
+          retryCount: retryCount - 1,
+        );
+      }
+      throw Exception('Network timeout. Please check your internet connection and try again.');
     } catch (e) {
       debugPrint('Error verifying legacy password: $e');
+      if (e is PostgrestException) {
+        throw Exception(e.message);
+      }
       throw Exception('Could not verify your old password. Please try again.');
     }
   }
