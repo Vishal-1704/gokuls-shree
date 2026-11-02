@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 019: Fix App Errors (Paper Sets, Question Bank & RLS, Exam Results, Payslips)
+-- Migration 019: Fix App Errors (Paper Sets, Question Bank & RLS, Storage, Payslips)
 -- ============================================================================
 
 BEGIN;
@@ -223,7 +223,51 @@ GRANT ALL ON public.paper_questions TO authenticated, service_role;
 GRANT ALL ON public.exam_questions TO authenticated, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
 
--- 9. Refresh PostgREST schema cache
+-- 9. Create Storage Buckets (question-images, avatars) & Policies
+INSERT INTO storage.buckets (id, name, public)
+VALUES 
+  ('question-images', 'question-images', true),
+  ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated users to upload question images" ON storage.objects;
+CREATE POLICY "Allow authenticated users to upload question images"
+ON storage.objects FOR INSERT TO authenticated, anon
+WITH CHECK (bucket_id = 'question-images');
+
+DROP POLICY IF EXISTS "Allow authenticated users to update question images" ON storage.objects;
+CREATE POLICY "Allow authenticated users to update question images"
+ON storage.objects FOR UPDATE TO authenticated, anon
+USING (bucket_id = 'question-images');
+
+DROP POLICY IF EXISTS "Allow authenticated users to delete question images" ON storage.objects;
+CREATE POLICY "Allow authenticated users to delete question images"
+ON storage.objects FOR DELETE TO authenticated, anon
+USING (bucket_id = 'question-images');
+
+DROP POLICY IF EXISTS "Allow public to view question images" ON storage.objects;
+CREATE POLICY "Allow public to view question images"
+ON storage.objects FOR SELECT TO public, anon, authenticated
+USING (bucket_id = 'question-images');
+
+DROP POLICY IF EXISTS "Allow authenticated to upload avatars" ON storage.objects;
+CREATE POLICY "Allow authenticated to upload avatars"
+ON storage.objects FOR INSERT TO authenticated, anon
+WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Allow authenticated to update avatars" ON storage.objects;
+CREATE POLICY "Allow authenticated to update avatars"
+ON storage.objects FOR UPDATE TO authenticated, anon
+USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Allow public to view avatars" ON storage.objects;
+CREATE POLICY "Allow public to view avatars"
+ON storage.objects FOR SELECT TO public, anon, authenticated
+USING (bucket_id = 'avatars');
+
+-- 10. Refresh PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;
