@@ -4,6 +4,9 @@ import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/marksheet_viewer_screen.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/certificate_viewer_screen.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/experience_certificate_viewer_screen.dart';
 import '../web_providers.dart';
 import '../widgets/web_ui.dart';
 
@@ -26,6 +29,7 @@ class _Queue {
     this.branchIdOf,
     this.reject,
     this.rejectWarning,
+    this.onPreview,
   });
 
   final String label;
@@ -41,6 +45,7 @@ class _Queue {
   final String approveLabel;
   final Future<void> Function(_Row)? reject;
   final String Function(_Row)? rejectWarning;
+  final void Function(BuildContext, _Row)? onPreview;
   /// Re-fetches this queue (and anything derived from it) after an action.
   final void Function() refresh;
 }
@@ -155,6 +160,10 @@ class _WebApprovalsPageState extends ConsumerState<WebApprovalsPage> {
         ],
         searchText: (r) => '${studentName(r)} ${studentReg(r)} ${_m(r['courses'])?['name']}',
         branchIdOf: studentBranch,
+        onPreview: (ctx, r) => Navigator.push(
+          ctx,
+          MaterialPageRoute(builder: (_) => MarksheetViewerScreen(marksheet: r)),
+        ),
         approve: (r) => repo.approveDocument(type: 'marksheet', id: r['id'] as int),
         approveLabel: 'Approve',
       ),
@@ -185,6 +194,10 @@ class _WebApprovalsPageState extends ConsumerState<WebApprovalsPage> {
         ],
         searchText: (r) => '${studentName(r)} ${studentReg(r)} ${_m(r['courses'])?['name']}',
         branchIdOf: studentBranch,
+        onPreview: (ctx, r) => Navigator.push(
+          ctx,
+          MaterialPageRoute(builder: (_) => CertificateViewerScreen(certificate: r)),
+        ),
         approve: (r) => repo.approveDocument(type: 'certificate', id: r['id'] as int),
         approveLabel: 'Approve',
       ),
@@ -217,6 +230,10 @@ class _WebApprovalsPageState extends ConsumerState<WebApprovalsPage> {
           ]),
         ],
         searchText: (r) => '${empName(r)} ${_m(r['employees'])?['designation']}',
+        onPreview: (ctx, r) => Navigator.push(
+          ctx,
+          MaterialPageRoute(builder: (_) => ExperienceCertificateViewerScreen(certificate: r)),
+        ),
         approve: (r) => repo.approveExperienceCert(r['id'] as int),
         approveLabel: 'Approve & issue',
       ),
@@ -432,6 +449,18 @@ class _WebApprovalsPageState extends ConsumerState<WebApprovalsPage> {
                           ],
                         ),
                         actions: [
+                          if (q.onPreview != null)
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.goldCta,
+                                side: const BorderSide(color: AppColors.goldCta, width: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () => q.onPreview!(context, open),
+                              icon: const Icon(Icons.visibility_outlined, size: 16),
+                              label: const Text('Preview Document', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
                           if (q.reject != null)
                             OutlinedButton(
                               style: webSecondaryButton(AppColors.danger),

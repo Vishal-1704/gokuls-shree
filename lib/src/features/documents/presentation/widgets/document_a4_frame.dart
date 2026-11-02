@@ -40,6 +40,7 @@ class DocumentA4Frame extends StatefulWidget {
     required this.verifyId,
     required this.isSigned,
     required this.pdfFilenamePrefix,
+    this.signatoryTitle = 'Authorised Signatory',
   });
 
   final String appBarTitle;
@@ -49,6 +50,7 @@ class DocumentA4Frame extends StatefulWidget {
   final String verifyId;
   final bool isSigned;
   final String pdfFilenamePrefix;
+  final String signatoryTitle;
 
   @override
   State<DocumentA4Frame> createState() => _DocumentA4FrameState();
@@ -171,9 +173,13 @@ class _DocumentA4FrameState extends State<DocumentA4Frame> {
     return Column(
       children: [
         Image.asset(
-          'assets/images/logo.png',
+          'assets/images/school_logo.png',
           height: 68,
-          errorBuilder: (_, __, ___) => const SizedBox(height: 68),
+          errorBuilder: (_, __, ___) => Image.asset(
+            'assets/images/logo.png',
+            height: 68,
+            errorBuilder: (_, __, ___) => const SizedBox(height: 68),
+          ),
         ),
         const SizedBox(height: 8),
         const SizedBox(
@@ -181,7 +187,7 @@ class _DocumentA4FrameState extends State<DocumentA4Frame> {
           child: Text(
             'GOKULSHREE SCHOOL OF MANAGEMENT AND TECHNOLOGY PRIVATE LIMITED',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 21,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.6,
               height: 1.25,
@@ -189,6 +195,17 @@ class _DocumentA4FrameState extends State<DocumentA4Frame> {
             ),
             textAlign: TextAlign.center,
           ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Registered Under Companies Act 2013 | CIN: U85499UP2024PTC196434 | ISO 9001:2015 & MSME Certified',
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            color: DocumentColors.mutedText,
+          ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
         Text(
@@ -248,10 +265,10 @@ class _DocumentA4FrameState extends State<DocumentA4Frame> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('Digitally signed by', style: TextStyle(fontSize: 13, color: DocumentColors.mutedText)),
-                Text('Controller of Examninations', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DocumentColors.navy)),
-                Text('GSMT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DocumentColors.navy)),
+              children: [
+                const Text('Digitally signed by', style: TextStyle(fontSize: 13, color: DocumentColors.mutedText)),
+                Text(widget.signatoryTitle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DocumentColors.navy)),
+                const Text('GSMT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DocumentColors.navy)),
               ],
             ),
             Positioned(

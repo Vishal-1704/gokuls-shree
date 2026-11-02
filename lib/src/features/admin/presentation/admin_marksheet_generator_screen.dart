@@ -8,6 +8,7 @@ import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_results_entry_screen.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/marksheet_viewer_screen.dart';
 
 class AdminMarksheetGeneratorScreen extends ConsumerStatefulWidget {
   const AdminMarksheetGeneratorScreen({super.key});
@@ -83,7 +84,7 @@ class _AdminMarksheetGeneratorScreenState
     List<Map<String, dynamic>> rows,
   ) async {
     setState(() => _isPreparing = true);
-    await Future.delayed(const Duration(milliseconds: 700));
+    await Future.delayed(const Duration(milliseconds: 300));
 
     final obtained = rows.fold<double>(
       0,
@@ -94,32 +95,48 @@ class _AdminMarksheetGeneratorScreenState
       (sum, r) => sum + ((r['total_marks'] as num?)?.toDouble() ?? 0),
     );
     final percent = total <= 0 ? 0 : (obtained / total) * 100;
+    final grade = percent >= 75
+        ? 'A+'
+        : percent >= 60
+            ? 'A'
+            : percent >= 50
+                ? 'B'
+                : percent >= 40
+                    ? 'C'
+                    : 'F';
+    final result = percent >= 40 ? 'PASS' : 'FAIL';
+
+    final marksheetData = <String, dynamic>{
+      'id': 'PREVIEW',
+      'result': result,
+      'obtained_marks': obtained,
+      'total_marks': total,
+      'percentage': percent.toStringAsFixed(2),
+      'grade': grade,
+      'issue_date': DateTime.now().toIso8601String(),
+      'created_at': DateTime.now().toIso8601String(),
+      'students': student,
+      'courses': student['courses'] ??
+          {'name': 'Academic Course', 'duration': '1 Year'},
+      'branches': student['branches'],
+      'subjects': rows
+          .map((r) => {
+                'name': r['subject_name'] ?? 'Subject',
+                'max_marks': (r['total_marks'] as num?)?.toInt() ?? 100,
+                'marks_obtained': (r['marks_obtained'] as num?)?.toInt() ?? 0,
+                'grade': r['grade'] ?? 'B',
+              })
+          .toList(),
+      'signature_hash': 'PREVIEW_SIGNATURE',
+    };
 
     if (!mounted) return;
     setState(() => _isPreparing = false);
 
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surfaceCard,
-        title: Text(
-          'Marksheet Data Ready',
-          style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
-        ),
-        content: Text(
-          'Student: ${student['name'] ?? 'Unknown'}\n'
-          'Reg No: ${student['reg_no'] ?? '-'}\n'
-          'Subjects: ${rows.length}\n'
-          'Total: ${obtained.toStringAsFixed(0)} / ${total.toStringAsFixed(0)}\n'
-          'Percentage: ${percent.toStringAsFixed(2)}%',
-          style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MarksheetViewerScreen(marksheet: marksheetData),
       ),
     );
   }
@@ -486,6 +503,14 @@ class _AdminMarksheetGeneratorScreenState
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.goldCta,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
                                 onPressed: _isPreparing
                                     ? null
                                     : () => _prepareMarksheet(
@@ -498,13 +523,18 @@ class _AdminMarksheetGeneratorScreenState
                                         height: 18,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: Colors.white,
                                         ),
                                       )
-                                    : const Icon(Icons.auto_awesome_outlined),
+                                    : const Icon(Icons.visibility_outlined, size: 20),
                                 label: Text(
                                   _isPreparing
-                                      ? 'Preparing...'
-                                      : 'Prepare Marksheet Summary',
+                                      ? 'Preparing Marksheet...'
+                                      : 'Preview Official Marksheet',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ),
                             ),

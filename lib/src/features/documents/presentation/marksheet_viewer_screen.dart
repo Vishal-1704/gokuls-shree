@@ -1,4 +1,5 @@
 
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -114,8 +115,17 @@ final marksheet = widget.marksheet;
 final student = marksheet['students'] as Map<String, dynamic>? ?? {};
 final course = marksheet['courses'] as Map<String, dynamic>? ?? {};
 
-final marksData = marksheet['marks'] as Map<String, dynamic>? ?? {};
-final List<dynamic> subjects = marksData['subjects'] ?? [];
+Map<String, dynamic> marksData = {};
+if (marksheet['marks'] is Map) {
+  marksData = Map<String, dynamic>.from(marksheet['marks'] as Map);
+} else if (marksheet['marks'] is String) {
+  try {
+    marksData = jsonDecode(marksheet['marks'] as String);
+  } catch (_) {}
+}
+final List<dynamic> subjects = marksData['subjects'] as List<dynamic>? ??
+    (marksheet['subjects'] as List<dynamic>?) ??
+    [];
 
 final obtainedMarks = marksheet['obtained_marks'] ?? 0;
 final totalMarks = marksheet['total_marks'] ?? 100;
@@ -222,28 +232,21 @@ Widget _buildHeader() {
 return Column(
 children: [
 Image.asset(
+'assets/images/school_logo.png',
+height: 68,
+errorBuilder: (_, __, ___) => Image.asset(
 'assets/images/logo.png',
 height: 68,
 errorBuilder: (_, __, ___) => const SizedBox(height: 68),
 ),
+),
 const SizedBox(height: 8),
-// Full legal name from the school's registration records (legacy
-// dump), not the shortened app-config name — this is the printed
-// academic record, not an in-app UI label. Wrapped in a full-width
-// SizedBox so it reliably wraps onto a second line within the
-// page's real width — the parent Column here defaults to
-// crossAxisAlignment.center, which doesn't itself guarantee the
-// Text gets a bounded width to wrap against. overflow:visible is
-// NOT the right tool for this — it only stops clipping/ellipsis
-// once text already doesn't fit; it doesn't move text to a new
-// line, so unbounded text still overflows past the page edge
-// instead of wrapping.
 SizedBox(
 width: double.infinity,
 child: Text(
 'GOKULSHREE SCHOOL OF MANAGEMENT AND TECHNOLOGY PRIVATE LIMITED',
 style: const TextStyle(
-fontSize: 22,
+fontSize: 21,
 fontWeight: FontWeight.w900,
 letterSpacing: 0.6,
 height: 1.25,
@@ -251,6 +254,17 @@ color: _MarksheetColors.navy,
 ),
 textAlign: TextAlign.center,
 ),
+),
+const SizedBox(height: 4),
+const Text(
+'Registered Under Companies Act 2013 | CIN: U85499UP2024PTC196434 | ISO 9001:2015 & MSME Certified',
+style: TextStyle(
+fontSize: 9.5,
+fontWeight: FontWeight.w600,
+letterSpacing: 0.5,
+color: _MarksheetColors.mutedText,
+),
+textAlign: TextAlign.center,
 ),
 const SizedBox(height: 8),
 const Text(
@@ -272,7 +286,13 @@ Widget _buildStudentInfo(
 Map<String, dynamic> student,
 Map<String, dynamic> course,
 ) {
-return Column(
+final avatarUrl = student['avatar_url']?.toString();
+
+return Row(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+Expanded(
+child: Column(
 children: [
 _buildInfoRow(
 'Student Name',
@@ -292,6 +312,40 @@ _buildInfoRow(
 student['reg_no']?.toString() ?? 'N/A',
 ),
 _buildInfoRow('Academic Session', _academicSession(student, course)),
+],
+),
+),
+const SizedBox(width: 16),
+Container(
+width: 90,
+height: 110,
+decoration: BoxDecoration(
+color: Colors.white,
+border: Border.all(color: _MarksheetColors.border, width: 1.5),
+borderRadius: BorderRadius.circular(4),
+boxShadow: [
+BoxShadow(
+color: Colors.black.withValues(alpha: 0.05),
+blurRadius: 4,
+offset: const Offset(0, 2),
+),
+],
+),
+child: (avatarUrl != null && avatarUrl.isNotEmpty)
+    ? ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.person, size: 48, color: _MarksheetColors.mutedText),
+          ),
+        ),
+      )
+    : const Center(
+        child: Icon(Icons.person, size: 48, color: _MarksheetColors.mutedText),
+      ),
+),
 ],
 );
 }

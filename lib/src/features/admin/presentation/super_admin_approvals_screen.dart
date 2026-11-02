@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/marksheet_viewer_screen.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/certificate_viewer_screen.dart';
+import 'package:gokul_shree_app/src/features/documents/presentation/experience_certificate_viewer_screen.dart';
 
 /// Super Admin Approvals Screen
 /// Three tabs: Pending Student Registrations, Pending Marksheets, Pending Certificates.
@@ -132,6 +135,31 @@ class _SuperAdminApprovalsScreenState
       }
     } catch (e) {
       if (mounted) _showError('Rejection failed: $e');
+    }
+  }
+
+  void _openPreview(String type, Map<String, dynamic> doc) {
+    if (type == 'marksheet') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MarksheetViewerScreen(marksheet: doc),
+        ),
+      );
+    } else if (type == 'certificate') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CertificateViewerScreen(certificate: doc),
+        ),
+      );
+    } else if (type == 'experience_certificate') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ExperienceCertificateViewerScreen(certificate: doc),
+        ),
+      );
     }
   }
 
@@ -302,6 +330,23 @@ class _SuperAdminApprovalsScreenState
                         _buildDetailItem(
                           'Generated At',
                           item['created_at'] ?? 'N/A',
+                        ),
+                      ],
+                      if (type == 'marksheet' || type == 'certificate' || type == 'experience_certificate') ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.goldCta,
+                              side: const BorderSide(color: AppColors.goldCta, width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.visibility_rounded, size: 18),
+                            label: const Text('Preview Official Document', style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () => _openPreview(type, item),
+                          ),
                         ),
                       ],
                     ],
@@ -559,7 +604,13 @@ class _SuperAdminApprovalsScreenState
             badgeColor: Colors.orange,
             onApprove: () => _approveExperienceCert(id),
             approveBtnLabel: 'Approve & Issue',
-            onViewDetails: () {},
+            onPreview: () => _openPreview('experience_certificate', cert),
+            onViewDetails: () => _showDetailsModal(
+              type: 'experience_certificate',
+              item: cert,
+              onApprove: () => _approveExperienceCert(id),
+              onReject: null,
+            ),
           );
         },
       ),
@@ -647,6 +698,7 @@ class _SuperAdminApprovalsScreenState
             badgeColor: Colors.orange,
             onApprove: () => _approveDocument(type, id),
             approveBtnLabel: 'Approve',
+            onPreview: () => _openPreview(type, item),
             onViewDetails: () => _showDetailsModal(
               type: type,
               item: item,
@@ -712,6 +764,7 @@ class _ApprovalCard extends StatefulWidget {
     required this.approveBtnLabel,
     required this.onViewDetails,
     this.onReject,
+    this.onPreview,
   });
 
   final String avatarLabel, title, subtitle, badge, approveBtnLabel;
@@ -720,6 +773,7 @@ class _ApprovalCard extends StatefulWidget {
   final VoidCallback onApprove;
   final VoidCallback onViewDetails;
   final VoidCallback? onReject;
+  final VoidCallback? onPreview;
 
   @override
   State<_ApprovalCard> createState() => _ApprovalCardState();
@@ -810,13 +864,26 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                   icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
                   color: AppColors.inkNavy700,
                   onSelected: (val) {
-                    if (val == 'details') {
+                    if (val == 'preview' && widget.onPreview != null) {
+                      widget.onPreview!();
+                    } else if (val == 'details') {
                       widget.onViewDetails();
                     } else if (val == 'reject' && widget.onReject != null) {
                       _handle(widget.onReject!);
                     }
                   },
                   itemBuilder: (context) => [
+                    if (widget.onPreview != null)
+                      const PopupMenuItem(
+                        value: 'preview',
+                        child: Row(
+                          children: [
+                            Icon(Icons.visibility_outlined, size: 16, color: AppColors.goldCta),
+                            SizedBox(width: 8),
+                            Text('Preview Document', style: TextStyle(color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
                     const PopupMenuItem(
                       value: 'details',
                       child: Text('View Details', style: TextStyle(color: AppColors.textPrimary)),
@@ -853,21 +920,48 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                 ),
               )
             else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              Row(
+                children: [
+                  if (widget.onPreview != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.goldCta,
+                          side: const BorderSide(color: AppColors.goldCta, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: widget.onPreview,
+                        icon: const Icon(Icons.visibility_outlined, size: 18),
+                        label: const Text(
+                          'Preview',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: AppColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => _handle(widget.onApprove),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: Text(
+                        widget.approveBtnLabel,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                  onPressed: () => _handle(widget.onApprove),
-                  icon: const Icon(Icons.check, size: 18),
-                  label: Text(widget.approveBtnLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                ],
               ),
           ],
         ),
