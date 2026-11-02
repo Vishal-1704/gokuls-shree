@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 019: Fix App Errors (Paper Sets, Schedules, Question Bank, Results)
+-- Migration 019: Fix App Errors (Paper Sets, Schedules, Question Bank, Payslips)
 -- ============================================================================
 
 BEGIN;
@@ -341,7 +341,62 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.generate_payslip(INT, INT, INT) TO authenticated, anon;
 
--- 8. Grant full table and sequence permissions
+-- 8. Fix/Allow Super Admin & Branch Admin to edit previous/existing payslips
+CREATE OR REPLACE FUNCTION public.update_payslip(
+  p_payslip_id      INT,
+  p_basic_salary    NUMERIC(10,2),
+  p_hra             NUMERIC(10,2) DEFAULT 0,
+  p_da              NUMERIC(10,2) DEFAULT 0,
+  p_other_allowance NUMERIC(10,2) DEFAULT 0,
+  p_month           INT DEFAULT NULL,
+  p_year            INT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_gross      NUMERIC(10,2);
+  v_payslip    RECORD;
+BEGIN
+  SELECT * INTO v_payslip FROM public.payslips WHERE id = p_payslip_id;
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'reason', 'payslip_not_found');
+  END IF;
+
+  v_gross := COALESCE(p_basic_salary, v_payslip.basic_salary) 
+           + COALESCE(p_hra, v_payslip.hra, 0)
+           + COALESCE(p_da, v_payslip.da, 0) 
+           + COALESCE(p_other_allowance, v_payslip.other_allowance, 0);
+
+  UPDATE public.payslips
+  SET basic_salary = COALESCE(p_basic_salary, basic_salary),
+      hra = COALESCE(p_hra, hra, 0),
+      da = COALESCE(p_da, da, 0),
+      other_allowance = COALESCE(p_other_allowance, other_allowance, 0),
+      gross_pay = v_gross,
+      net_pay = v_gross,
+      month = COALESCE(p_month, month),
+      year = COALESCE(p_year, year),
+      generated_at = NOW()
+  WHERE id = p_payslip_id;
+
+  -- Re-compute signature hash with the updated values
+  UPDATE public.payslips
+  SET signature_hash = encode(hmac(public._payslip_signing_payload(p_payslip_id), public._doc_signing_secret(), 'sha256'), 'hex')
+  WHERE id = p_payslip_id;
+
+  RETURN json_build_object('success', true, 'payslip_id', p_payslip_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_payslip(INT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, INT, INT) TO authenticated, anon;
+
+ALTER TABLE public.payslips ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "payslips_all" ON public.payslips;
+CREATE POLICY "payslips_all" ON public.payslips FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+
+-- 9. Grant full table and sequence permissions
 GRANT ALL ON public.paper_sets TO authenticated, anon, service_role;
 GRANT ALL ON public.question_bank TO authenticated, anon, service_role;
 GRANT ALL ON public.paper_questions TO authenticated, anon, service_role;
@@ -351,9 +406,10 @@ GRANT ALL ON public.schedule_roster TO authenticated, anon, service_role;
 GRANT ALL ON public.attempts TO authenticated, anon, service_role;
 GRANT ALL ON public.attempt_answers TO authenticated, anon, service_role;
 GRANT ALL ON public.exam_results TO authenticated, anon, service_role;
+GRANT ALL ON public.payslips TO authenticated, anon, service_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon, service_role;
 
--- 9. Refresh PostgREST schema cache
+-- 10. Refresh PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

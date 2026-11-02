@@ -284,6 +284,75 @@ class SupabaseService {
     return Map<String, dynamic>.from(response as Map);
   }
 
+  Future<List<Map<String, dynamic>>> getAllPayslips({
+    int? branchId,
+    int? employeeId,
+    int? month,
+    int? year,
+  }) async {
+    var query = _client
+        .from('payslips')
+        .select('*, employees(id, name, designation, department, branch_id, branches(id, name, code))');
+
+    if (branchId != null) query = query.eq('branch_id', branchId);
+    if (employeeId != null) query = query.eq('employee_id', employeeId);
+    if (month != null) query = query.eq('month', month);
+    if (year != null) query = query.eq('year', year);
+
+    final response = await query
+        .order('year', ascending: false)
+        .order('month', ascending: false)
+        .order('id', ascending: false);
+    return List<Map<String, dynamic>>.from(response as List);
+  }
+
+  Future<Map<String, dynamic>> updatePayslip({
+    required int payslipId,
+    required double basicSalary,
+    double hra = 0.0,
+    double da = 0.0,
+    double otherAllowance = 0.0,
+    int? month,
+    int? year,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'update_payslip',
+        params: {
+          'p_payslip_id': payslipId,
+          'p_basic_salary': basicSalary,
+          'p_hra': hra,
+          'p_da': da,
+          'p_other_allowance': otherAllowance,
+          'p_month': month,
+          'p_year': year,
+        },
+      );
+      if (res != null && res is Map) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+
+    // Fallback direct table update
+    final gross = basicSalary + hra + da + otherAllowance;
+    final payload = <String, dynamic>{
+      'basic_salary': basicSalary,
+      'hra': hra,
+      'da': da,
+      'other_allowance': otherAllowance,
+      'gross_pay': gross,
+      'net_pay': gross,
+      if (month != null) 'month': month,
+      if (year != null) 'year': year,
+    };
+    await _client.from('payslips').update(payload).eq('id', payslipId);
+    return {'success': true, 'payslip_id': payslipId};
+  }
+
+  Future<void> deletePayslip(int payslipId) async {
+    await _client.from('payslips').delete().eq('id', payslipId);
+  }
+
   Future<Map<String, dynamic>> endAttendanceSession(String sessionId) async {
     final response = await _client.rpc(
       'end_attendance_session',

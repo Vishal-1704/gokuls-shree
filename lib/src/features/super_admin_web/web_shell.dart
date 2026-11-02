@@ -195,7 +195,21 @@ class _NavTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         hoverColor: AppColors.inkNavy700,
-        onTap: () => context.go(item.path),
+        onTap: () {
+          try {
+            final rootNav = Navigator.of(context, rootNavigator: true);
+            while (rootNav.canPop()) {
+              rootNav.pop();
+            }
+          } catch (_) {}
+          try {
+            final nav = Navigator.of(context, rootNavigator: false);
+            while (nav.canPop()) {
+              nav.pop();
+            }
+          } catch (_) {}
+          context.go(item.path);
+        },
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 12, vertical: 9),
           child: Row(

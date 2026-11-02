@@ -44,7 +44,6 @@ class SuperAdminWebRoutes {
     '/super-admin/branch-registration',
     '/admin/branch-registration',
     '/super-admin/propose-salary',
-    '/super-admin/payslip-generator',
     '/super-admin/study-material',
     '/admin/study-material',
     '/super-admin/results-entry',
