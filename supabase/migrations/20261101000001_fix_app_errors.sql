@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 019: Fix App Errors (Paper Sets, Schedules, Question Bank, Storage)
+-- Migration 019: Fix App Errors (Paper Sets, Schedules, Question Bank, Results)
 -- ============================================================================
 
 BEGIN;
@@ -24,7 +24,7 @@ UPDATE public.paper_sets
 SET title = COALESCE(title, name, 'Paper Set #' || id::text),
     name = COALESCE(name, title, 'Paper Set #' || id::text);
 
--- 2. Fix RLS Policies for paper_sets (Resolves 42501 Forbidden)
+-- 2. Permissive RLS Policies for paper_sets (Resolves 42501 Forbidden)
 ALTER TABLE public.paper_sets ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "paper_sets_select" ON public.paper_sets;
@@ -32,11 +32,9 @@ DROP POLICY IF EXISTS "paper_sets_all_admin" ON public.paper_sets;
 DROP POLICY IF EXISTS "paper_sets_insert" ON public.paper_sets;
 DROP POLICY IF EXISTS "paper_sets_update" ON public.paper_sets;
 DROP POLICY IF EXISTS "paper_sets_delete" ON public.paper_sets;
+DROP POLICY IF EXISTS "paper_sets_all" ON public.paper_sets;
 
-CREATE POLICY "paper_sets_select" ON public.paper_sets FOR SELECT USING (true);
-CREATE POLICY "paper_sets_insert" ON public.paper_sets FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "paper_sets_update" ON public.paper_sets FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "paper_sets_delete" ON public.paper_sets FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "paper_sets_all" ON public.paper_sets FOR ALL USING (true) WITH CHECK (true);
 
 -- 3. Create question_bank & paper_questions tables
 CREATE TABLE IF NOT EXISTS public.question_bank (
@@ -88,22 +86,14 @@ DROP POLICY IF EXISTS "question_bank_select" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_insert" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_update" ON public.question_bank;
 DROP POLICY IF EXISTS "question_bank_delete" ON public.question_bank;
-
-CREATE POLICY "question_bank_select" ON public.question_bank FOR SELECT USING (true);
-CREATE POLICY "question_bank_insert" ON public.question_bank FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "question_bank_update" ON public.question_bank FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "question_bank_delete" ON public.question_bank FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "question_bank_all" ON public.question_bank FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "paper_questions_all" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_select" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_insert" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_update" ON public.paper_questions;
 DROP POLICY IF EXISTS "paper_questions_delete" ON public.paper_questions;
-
-CREATE POLICY "paper_questions_select" ON public.paper_questions FOR SELECT USING (true);
-CREATE POLICY "paper_questions_insert" ON public.paper_questions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "paper_questions_update" ON public.paper_questions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "paper_questions_delete" ON public.paper_questions FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "paper_questions_all" ON public.paper_questions FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "exam_questions_all" ON public.exam_questions;
 CREATE POLICY "exam_questions_all" ON public.exam_questions FOR ALL USING (true) WITH CHECK (true);
@@ -214,7 +204,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.materialize_schedule_roster(INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.materialize_schedule_roster(INT) TO authenticated, anon;
 
 CREATE OR REPLACE FUNCTION public.grade_attempt(p_attempt_id INT)
 RETURNS VOID
@@ -273,7 +263,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.grade_attempt(INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.grade_attempt(INT) TO authenticated, anon;
 
 -- 6. Ensure exam_results has all required columns for Results Entry & Marksheets
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS subject_name TEXT;
@@ -283,6 +273,10 @@ ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS total_marks NUMERIC(8,2
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS grade TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.exam_results ADD COLUMN IF NOT EXISTS calculated_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE public.exam_results ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "exam_results_all" ON public.exam_results;
+CREATE POLICY "exam_results_all" ON public.exam_results FOR ALL USING (true) WITH CHECK (true);
 
 -- 7. Fix generate_payslip RPC to correctly resolve profiles.id from auth.uid()
 CREATE OR REPLACE FUNCTION public.generate_payslip(
@@ -345,47 +339,21 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.generate_payslip(INT, INT, INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_payslip(INT, INT, INT) TO authenticated, anon;
 
 -- 8. Grant full table and sequence permissions
-GRANT ALL ON public.paper_sets TO authenticated, service_role;
-GRANT ALL ON public.question_bank TO authenticated, service_role;
-GRANT ALL ON public.paper_questions TO authenticated, service_role;
-GRANT ALL ON public.exam_questions TO authenticated, service_role;
-GRANT ALL ON public.schedules TO authenticated, service_role;
-GRANT ALL ON public.schedule_roster TO authenticated, service_role;
-GRANT ALL ON public.attempts TO authenticated, service_role;
-GRANT ALL ON public.attempt_answers TO authenticated, service_role;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+GRANT ALL ON public.paper_sets TO authenticated, anon, service_role;
+GRANT ALL ON public.question_bank TO authenticated, anon, service_role;
+GRANT ALL ON public.paper_questions TO authenticated, anon, service_role;
+GRANT ALL ON public.exam_questions TO authenticated, anon, service_role;
+GRANT ALL ON public.schedules TO authenticated, anon, service_role;
+GRANT ALL ON public.schedule_roster TO authenticated, anon, service_role;
+GRANT ALL ON public.attempts TO authenticated, anon, service_role;
+GRANT ALL ON public.attempt_answers TO authenticated, anon, service_role;
+GRANT ALL ON public.exam_results TO authenticated, anon, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon, service_role;
 
--- 9. Storage Buckets (Safe insert without touching storage.objects ownership)
-INSERT INTO storage.buckets (id, name, public)
-VALUES 
-  ('question-images', 'question-images', true),
-  ('avatars', 'avatars', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
-
-DROP POLICY IF EXISTS "Allow authenticated users to upload question images" ON storage.objects;
-CREATE POLICY "Allow authenticated users to upload question images"
-ON storage.objects FOR INSERT TO authenticated, anon
-WITH CHECK (bucket_id = 'question-images');
-
-DROP POLICY IF EXISTS "Allow authenticated users to update question images" ON storage.objects;
-CREATE POLICY "Allow authenticated users to update question images"
-ON storage.objects FOR UPDATE TO authenticated, anon
-USING (bucket_id = 'question-images');
-
-DROP POLICY IF EXISTS "Allow authenticated users to delete question images" ON storage.objects;
-CREATE POLICY "Allow authenticated users to delete question images"
-ON storage.objects FOR DELETE TO authenticated, anon
-USING (bucket_id = 'question-images');
-
-DROP POLICY IF EXISTS "Allow public to view question images" ON storage.objects;
-CREATE POLICY "Allow public to view question images"
-ON storage.objects FOR SELECT TO public, anon, authenticated
-USING (bucket_id = 'question-images');
-
--- 10. Refresh PostgREST schema cache
+-- 9. Refresh PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

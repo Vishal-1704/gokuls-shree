@@ -69,10 +69,77 @@ class SuperAdminReportsScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               _buildComparisonTable(branchesAsync, studentsAsync, duesAsync, revenueAsync),
               const SizedBox(height: 20),
-              _sectionHeader('Academic & Examination', 'Marksheets, results entry, and exam records'),
+              _sectionHeader('Term Exams & Marksheets', 'Offline subject marks entry and official report cards'),
               const SizedBox(height: 10),
-              _buildQuickLinks(context),
-              const SizedBox(height: 16),
+              _buildLinksList(context, [
+                (
+                  'Results Entry',
+                  'Record subject marks, practicals, and evaluation notes',
+                  Icons.edit_document,
+                  const Color(0xFF7C3AED),
+                  const Color(0xFFEDE9FE),
+                  '/super-admin/results-entry',
+                ),
+                (
+                  'Marksheet Generator',
+                  'Generate and export printable official student marksheets',
+                  Icons.description_rounded,
+                  const Color(0xFF0284C7),
+                  const Color(0xFFE0F2FE),
+                  '/admin/marksheet-generator',
+                ),
+              ]),
+              const SizedBox(height: 20),
+              _sectionHeader('Online CBT & Exam Engine', 'Automated online MCQ papers, scheduling, and live rosters'),
+              const SizedBox(height: 10),
+              _buildLinksList(context, [
+                (
+                  'Exam Paper Manager',
+                  'Create question paper sets and author MCQ question banks',
+                  Icons.quiz_rounded,
+                  const Color(0xFF4F46E5),
+                  const Color(0xFFEEF2FF),
+                  '/super-admin/paper-manager',
+                ),
+                (
+                  'Exam & Test Scheduler',
+                  'Schedule test windows and assign papers to students or batches',
+                  Icons.event_note_rounded,
+                  const Color(0xFFD97706),
+                  const Color(0xFFFEF3C7),
+                  '/super-admin/exam-scheduler',
+                ),
+                (
+                  'Schedule Results & Rosters',
+                  'Inspect rosters, track student attempts, and review auto-calculated scores',
+                  Icons.fact_check_rounded,
+                  const Color(0xFF059669),
+                  const Color(0xFFD1FAE5),
+                  '/super-admin/schedule-results',
+                ),
+              ]),
+              const SizedBox(height: 20),
+              _sectionHeader('Fee & Financial Management', 'Student billing, pending collections, and dues tracking'),
+              const SizedBox(height: 10),
+              _buildLinksList(context, [
+                (
+                  'Fee Dues Report',
+                  'Outstanding student balances across all branches',
+                  Icons.request_quote_rounded,
+                  const Color(0xFFE11D48),
+                  const Color(0xFFFFE4E6),
+                  '/admin/dues-report',
+                ),
+                (
+                  'Collect Student Fee',
+                  'Collect payments, issue receipts, and log fee records',
+                  Icons.payments_rounded,
+                  const Color(0xFF0891B2),
+                  const Color(0xFFCFFAFE),
+                  '/admin/fee-collection',
+                ),
+              ]),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -173,10 +240,15 @@ class SuperAdminReportsScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            rows[i]['branch_name'].toString(),
-                            style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13.5),
+                          Expanded(
+                            child: Text(
+                              rows[i]['branch_name'].toString(),
+                              style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             '₹${(rows[i]['total_revenue'] as num).toStringAsFixed(0)}',
                             style: const TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.w700, fontSize: 13.5),
@@ -281,62 +353,14 @@ class SuperAdminReportsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickLinks(BuildContext context) {
-    final links = [
-      (
-        'Marksheet Generator',
-        'Generate and export official student marksheets',
-        Icons.description_rounded,
-        const Color(0xFF0284C7),
-        const Color(0xFFE0F2FE),
-        '/admin/marksheet-generator',
-      ),
-      (
-        'Results Entry',
-        'Record subject marks and evaluation notes',
-        Icons.edit_document,
-        const Color(0xFF7C3AED),
-        const Color(0xFFEDE9FE),
-        '/super-admin/results-entry',
-      ),
-      (
-        'Schedule Results & Rosters',
-        'Inspect rosters for online exams & publish scores',
-        Icons.fact_check_rounded,
-        const Color(0xFF059669),
-        const Color(0xFFD1FAE5),
-        '/super-admin/schedule-results',
-      ),
-      (
-        'Exam & Test Scheduler',
-        'Schedule upcoming tests or semester exams',
-        Icons.event_note_rounded,
-        const Color(0xFFD97706),
-        const Color(0xFFFEF3C7),
-        '/super-admin/exam-scheduler',
-      ),
-      (
-        'Fee Dues Report',
-        'Outstanding student balances across all branches',
-        Icons.request_quote_rounded,
-        const Color(0xFFE11D48),
-        const Color(0xFFFFE4E6),
-        '/admin/dues-report',
-      ),
-      (
-        'Collect Student Fee',
-        'Collect fees and record payments',
-        Icons.payments_rounded,
-        const Color(0xFF0891B2),
-        const Color(0xFFCFFAFE),
-        '/admin/fee-collection',
-      ),
-    ];
-
+  Widget _buildLinksList(
+    BuildContext context,
+    List<(String, String, IconData, Color, Color, String)> links,
+  ) {
     return _cardContainer(
       Column(
         children: [
-          for (int i = 0; i < links.length; i++)
+          for (int i = 0; i < links.length; i++) ...[
             InkWell(
               onTap: () => context.push(links[i].$6),
               borderRadius: BorderRadius.vertical(
@@ -374,6 +398,9 @@ class SuperAdminReportsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (i != links.length - 1)
+              const Divider(height: 1, indent: 64, endIndent: 14, color: Color(0xFFF1F5F9)),
+          ],
         ],
       ),
     );

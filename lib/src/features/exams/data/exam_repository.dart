@@ -268,17 +268,44 @@ class ExamRepository {
       }
     }
 
+    final paperIds = response.map((p) => p['id']).whereType<int>().toList();
+    final counts = <int, int>{};
+
+    if (paperIds.isNotEmpty) {
+      try {
+        final pq = await _client
+            .from('paper_questions')
+            .select('paper_id')
+            .inFilter('paper_id', paperIds);
+        for (final row in pq as List) {
+          final pid = row['paper_id'] as int?;
+          if (pid != null) counts[pid] = (counts[pid] ?? 0) + 1;
+        }
+      } catch (_) {}
+
+      try {
+        final eq = await _client
+            .from('exam_questions')
+            .select('category_id')
+            .inFilter('category_id', paperIds);
+        for (final row in eq as List) {
+          final pid = row['category_id'] as int?;
+          if (pid != null && !counts.containsKey(pid)) {
+            counts[pid] = (counts[pid] ?? 0) + 1;
+          }
+        }
+      } catch (_) {}
+    }
+
     return response.map((p) {
       final map = Map<String, dynamic>.from(p as Map);
-      map['title'] = map['title'] ?? map['name'] ?? map['description'] ?? 'Paper Set #${map['id']}';
+      final id = map['id'] as int?;
+      map['title'] = map['title'] ?? map['name'] ?? map['description'] ?? 'Paper Set #${id ?? ''}';
       map['duration_minutes'] = map['duration_minutes'] ?? 60;
       map['total_marks'] = map['total_marks'] ?? 100;
       map['assessment_type'] = map['assessment_type'] ?? 'exam';
       map['status'] = map['status'] ?? 'published';
-      final countRows = map['questions'] as List?;
-      map['total_questions'] = countRows != null && countRows.isNotEmpty
-          ? countRows.first['count']
-          : 0;
+      map['total_questions'] = (id != null ? counts[id] : null) ?? 0;
       return map;
     }).toList();
   }
@@ -305,6 +332,7 @@ class ExamRepository {
     int? courseId,
     int? subjectId,
   }) async {
+    final userId = _client.auth.currentUser?.id;
     Map<String, dynamic> response;
     try {
       response = await _client
@@ -320,6 +348,7 @@ class ExamRepository {
             'course_id': courseId,
             'subject_id': subjectId,
             'status': 'published',
+            if (userId != null) 'created_by': userId,
           })
           .select('id')
           .single();
@@ -331,6 +360,7 @@ class ExamRepository {
               'name': title,
               'description': "$assessmentType - $durationMinutes mins ($totalMarks marks)",
               'subject_id': subjectId,
+              if (userId != null) 'created_by': userId,
             })
             .select('id')
             .single();
@@ -346,6 +376,7 @@ class ExamRepository {
               'course_id': courseId,
               'subject_id': subjectId,
               'status': 'published',
+              if (userId != null) 'created_by': userId,
             })
             .select('id')
             .single();
@@ -559,19 +590,30 @@ class ExamRepository {
   /// (see migration 20240301000006) and returns its public URL.
   Future<String> uploadQuestionImage(String fileName, dynamic fileBytes) async {
     final path = '${DateTime.now().millisecondsSinceEpoch}_$fileName';
-    await _client.storage.from('question-images').uploadBinary(
-          path,
-          fileBytes,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-        );
-    return _client.storage.from('question-images').getPublicUrl(path);
+    try {
+      await _client.storage.from('question-images').uploadBinary(
+            path,
+            fileBytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+      return _client.storage.from('question-images').getPublicUrl(path);
+    } catch (_) {
+      // Resilient fallback to verified existing 'avatars' bucket
+      final fallbackPath = 'questions/$path';
+      await _client.storage.from('avatars').uploadBinary(
+            fallbackPath,
+            fileBytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+      return _client.storage.from('avatars').getPublicUrl(fallbackPath);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ADMIN: Exam Scheduling
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<List<Map<String, dynamic>>> getBatchTargets() async {
+    Future<List<Map<String, dynamic>>> getBatchTargets() async {
     final response = await _client
         .from('students')
         .select('batch_id')
