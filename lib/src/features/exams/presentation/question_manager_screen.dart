@@ -371,7 +371,7 @@ class _QuestionFormSheetState extends State<_QuestionFormSheet> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     setState(() {
