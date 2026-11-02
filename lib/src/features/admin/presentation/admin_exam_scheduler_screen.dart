@@ -487,6 +487,11 @@ class _AdminExamSchedulerScreenState
         title: Text(titleText),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: () => ref.invalidate(adminPaperSetsProvider),
+          ),
+          IconButton(
             icon: const Icon(Icons.fact_check_outlined),
             tooltip: 'View Results',
             onPressed: () => context.push(
@@ -682,7 +687,22 @@ class _AdminExamSchedulerScreenState
             ),
           ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Loading paper sets...', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(adminPaperSetsProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
         error: (e, _) => Center(child: Text('Failed to load paper sets: $e')),
       ),
     );

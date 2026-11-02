@@ -253,16 +253,16 @@ class ExamRepository {
     try {
       response = await _client
           .from('paper_sets')
-          .select(
-            'id, name, description, created_at, subject_id, questions(count)',
-          )
-          .order('created_at', ascending: false);
+          .select()
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 10));
     } catch (_) {
       try {
         response = await _client
-            .from('paper_sets')
+            .from('papers')
             .select()
-            .order('created_at', ascending: false);
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 10));
       } catch (_) {
         return [];
       }
@@ -310,17 +310,9 @@ class ExamRepository {
       response = await _client
           .from('paper_sets')
           .insert({
-            'name': title,
-            'description': '\$assessmentType - \$durationMinutes mins (\$totalMarks marks)',
-            'subject_id': subjectId,
-          })
-          .select('id')
-          .single();
-    } catch (_) {
-      response = await _client
-          .from('paper_sets')
-          .insert({
             'title': title,
+            'name': title,
+            'description': "$assessmentType - $durationMinutes mins ($totalMarks marks)",
             'assessment_type': assessmentType,
             'duration_minutes': durationMinutes,
             'total_marks': totalMarks,
@@ -328,10 +320,36 @@ class ExamRepository {
             'course_id': courseId,
             'subject_id': subjectId,
             'status': 'published',
-            'created_by': _client.auth.currentUser?.id,
           })
           .select('id')
           .single();
+    } catch (_) {
+      try {
+        response = await _client
+            .from('paper_sets')
+            .insert({
+              'name': title,
+              'description': "$assessmentType - $durationMinutes mins ($totalMarks marks)",
+              'subject_id': subjectId,
+            })
+            .select('id')
+            .single();
+      } catch (_) {
+        response = await _client
+            .from('paper_sets')
+            .insert({
+              'title': title,
+              'assessment_type': assessmentType,
+              'duration_minutes': durationMinutes,
+              'total_marks': totalMarks,
+              'branch_id': branchId,
+              'course_id': courseId,
+              'subject_id': subjectId,
+              'status': 'published',
+            })
+            .select('id')
+            .single();
+      }
     }
 
     return response['id'] as int;
