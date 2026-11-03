@@ -18,6 +18,9 @@ import 'web_shell.dart';
 /// Super-admin route tree used only on web. Every page renders inside the
 /// persistent console shell. The mobile super-admin shell is untouched.
 class SuperAdminWebRoutes {
+  static final GlobalKey<NavigatorState> shellNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'superAdminWebShellNav');
+
   static Page<void> _page(Widget child) => NoTransitionPage(child: child);
 
   /// Screens with their own desktop page below (skipped so their path isn't
@@ -55,6 +58,7 @@ class SuperAdminWebRoutes {
   };
 
   static RouteBase get shell => ShellRoute(
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => SuperAdminWebShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/super-admin', pageBuilder: (_, __) => _page(const WebDashboardPage())),

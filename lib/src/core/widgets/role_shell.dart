@@ -2,7 +2,6 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/navigation/back_handler.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -109,7 +108,7 @@ class _RoleShellState extends ConsumerState<RoleShell> {
                   selectedIconTheme: IconThemeData(color: _activeColor, opacity: 1),
                   unselectedLabelTextStyle: AppTypography.bodySm.copyWith(color: AppColors.textMuted),
                   selectedLabelTextStyle: AppTypography.labelMd.copyWith(color: _activeColor),
-                  indicatorColor: _activeColor.withOpacity(0.1),
+                  indicatorColor: _activeColor.withValues(alpha: 0.1),
                   destinations: widget.tabs.map((tab) {
                     return NavigationRailDestination(
                       icon: Icon(tab.icon),
@@ -123,6 +122,7 @@ class _RoleShellState extends ConsumerState<RoleShell> {
             ),
           );
         } else {
+          final isCompactTabs = widget.tabs.length > 4;
           return Scaffold(
             body: widget.shell,
             bottomNavigationBar: Container(
@@ -133,17 +133,27 @@ class _RoleShellState extends ConsumerState<RoleShell> {
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: GNav(
-                    gap: 6,
-                    iconSize: 22,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    duration: const Duration(milliseconds: 250),
-                    tabBackgroundColor: _activeColor,
-                    activeColor: AppColors.textPrimary,
-                    color: AppColors.textMuted,
-                    tabs: widget.tabs,
-                    selectedIndex: widget.shell.currentIndex,
-                    onTabChange: _go,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: MediaQuery.of(context).size.width - 20,
+                      ),
+                      child: GNav(
+                        gap: isCompactTabs ? 4 : 6,
+                        iconSize: isCompactTabs ? 20 : 22,
+                        padding: isCompactTabs
+                            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                            : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        duration: const Duration(milliseconds: 250),
+                        tabBackgroundColor: _activeColor,
+                        activeColor: AppColors.textPrimary,
+                        color: AppColors.textMuted,
+                        tabs: widget.tabs,
+                        selectedIndex: widget.shell.currentIndex,
+                        onTabChange: _go,
+                      ),
+                    ),
                   ),
                 ),
               ),

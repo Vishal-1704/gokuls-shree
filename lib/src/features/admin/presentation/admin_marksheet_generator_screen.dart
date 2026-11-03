@@ -5,8 +5,6 @@ import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_spacing.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:gokul_shree_app/src/features/admin/presentation/admin_results_entry_screen.dart';
 import 'package:gokul_shree_app/src/features/documents/presentation/marksheet_viewer_screen.dart';
 
@@ -25,59 +23,6 @@ class _AdminMarksheetGeneratorScreenState
   String? _year;
   String? _studentId;
   bool _isPreparing = false;
-
-  Future<void> _exportSummaryPdf(
-    Map<String, dynamic> student,
-    List<Map<String, dynamic>> rows,
-  ) async {
-    final obtained = rows.fold<double>(
-      0,
-      (sum, r) => sum + ((r['marks_obtained'] as num?)?.toDouble() ?? 0),
-    );
-    final total = rows.fold<double>(
-      0,
-      (sum, r) => sum + ((r['total_marks'] as num?)?.toDouble() ?? 0),
-    );
-    final percent = total <= 0 ? 0 : (obtained / total) * 100;
-
-    final pdf = pw.Document();
-    pdf.addPage(
-      pw.MultiPage(
-        build: (context) => [
-          pw.Text(
-            'Marksheet Summary',
-            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text('Student: ${student['name'] ?? 'Unknown'}'),
-          pw.Text('Reg No: ${student['reg_no'] ?? '-'}'),
-          pw.Text(
-            'Total: ${obtained.toStringAsFixed(0)} / ${total.toStringAsFixed(0)} (${percent.toStringAsFixed(2)}%)',
-          ),
-          pw.SizedBox(height: 12),
-          pw.Table.fromTextArray(
-            headers: const ['Subject', 'Obtained', 'Total', 'Grade'],
-            data: rows
-                .map(
-                  (row) => [
-                    row['subject_name']?.toString() ?? '-',
-                    (row['marks_obtained'] as num?)?.toStringAsFixed(0) ?? '0',
-                    (row['total_marks'] as num?)?.toStringAsFixed(0) ?? '0',
-                    row['grade']?.toString() ?? '-',
-                  ],
-                )
-                .toList(),
-          ),
-        ],
-      ),
-    );
-
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename:
-          'marksheet_summary_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
-  }
 
   Future<void> _prepareMarksheet(
     Map<String, dynamic> student,
@@ -107,10 +52,10 @@ class _AdminMarksheetGeneratorScreenState
     final result = percent >= 40 ? 'PASS' : 'FAIL';
 
     final marksheetData = <String, dynamic>{
-      'id': 'PREVIEW',
+      'id': student['reg_no'] ?? 'PREVIEW',
       'result': result,
-      'obtained_marks': obtained,
-      'total_marks': total,
+      'obtained_marks': obtained.toInt(),
+      'total_marks': total.toInt(),
       'percentage': percent.toStringAsFixed(2),
       'grade': grade,
       'issue_date': DateTime.now().toIso8601String(),
@@ -122,12 +67,14 @@ class _AdminMarksheetGeneratorScreenState
       'subjects': rows
           .map((r) => {
                 'name': r['subject_name'] ?? 'Subject',
+                'max': (r['total_marks'] as num?)?.toInt() ?? 100,
+                'theory': (r['marks_obtained'] as num?)?.toInt() ?? 0,
                 'max_marks': (r['total_marks'] as num?)?.toInt() ?? 100,
                 'marks_obtained': (r['marks_obtained'] as num?)?.toInt() ?? 0,
                 'grade': r['grade'] ?? 'B',
               })
           .toList(),
-      'signature_hash': 'PREVIEW_SIGNATURE',
+      'signature_hash': 'OFFICIAL_DIGITAL_SIGNATURE',
     };
 
     if (!mounted) return;
@@ -506,10 +453,11 @@ class _AdminMarksheetGeneratorScreenState
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.goldCta,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
+                                  elevation: 2,
                                 ),
                                 onPressed: _isPreparing
                                     ? null
@@ -519,35 +467,23 @@ class _AdminMarksheetGeneratorScreenState
                                       ),
                                 icon: _isPreparing
                                     ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
+                                        width: 20,
+                                        height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Icon(Icons.visibility_outlined, size: 20),
+                                    : const Icon(Icons.workspace_premium_rounded, size: 22),
                                 label: Text(
                                   _isPreparing
                                       ? 'Preparing Marksheet...'
-                                      : 'Preview Official Marksheet',
+                                      : 'Preview & Export Official Marksheet',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                   ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () => _exportSummaryPdf(
-                                  selectedStudent.first,
-                                  rows,
-                                ),
-                                icon: const Icon(Icons.picture_as_pdf_outlined),
-                                label: const Text('Export PDF'),
                               ),
                             ),
                           ],

@@ -18,12 +18,9 @@ _MarksheetColors._();
 
 // Institutional palette: deep navy + restrained gold + neutral slate.
 static const navy = Color(0xFF12324A);
-static const navyDark = Color(0xFF0B2233);
-static const blueAccent = Color(0xFF1E5578);
 static const gold = Color(0xFFC8A951);
 static const goldSoft = Color(0xFFF7F1DF);
 static const pageBackground = Color(0xFFF3F5F7);
-static const surface = Color(0xFFFAFBFC);
 static const text = Color(0xFF1F2937);
 static const mutedText = Color(0xFF64748B);
 static const border = Color(0xFFD6DEE6);
@@ -471,9 +468,9 @@ _buildTableCell(''),
 )
 else
 ...subjects.map((sub) {
-final name = sub['name']?.toString() ?? 'Course Module';
-final max = sub['max']?.toString() ?? '100';
-final obtained = sub['theory']?.toString() ?? '0';
+final name = sub['name']?.toString() ?? sub['subject_name']?.toString() ?? 'Course Module';
+final max = sub['max']?.toString() ?? sub['max_marks']?.toString() ?? sub['total_marks']?.toString() ?? '100';
+final obtained = sub['theory']?.toString() ?? sub['marks_obtained']?.toString() ?? sub['obtained']?.toString() ?? '0';
 return TableRow(
 children: [
 _buildTableCell(name),

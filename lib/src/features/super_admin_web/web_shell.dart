@@ -7,6 +7,7 @@ import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'web_providers.dart';
+import 'web_routes.dart';
 import 'widgets/web_ui.dart';
 
 class WebNavItem {
@@ -61,11 +62,31 @@ const webNavSections = <WebNavSection>[
 
 /// Desktop frame for every super-admin page on web: persistent grouped
 /// sidebar + top bar. Pages render in [child]; the sidebar never disappears.
-class SuperAdminWebShell extends StatelessWidget {
+class SuperAdminWebShell extends StatefulWidget {
   const SuperAdminWebShell({super.key, required this.location, required this.child});
 
   final String location;
   final Widget child;
+
+  @override
+  State<SuperAdminWebShell> createState() => _SuperAdminWebShellState();
+}
+
+class _SuperAdminWebShellState extends State<SuperAdminWebShell> {
+  @override
+  void didUpdateWidget(covariant SuperAdminWebShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.location != widget.location) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          final shellNav = SuperAdminWebRoutes.shellNavigatorKey.currentState;
+          while (shellNav != null && shellNav.canPop()) {
+            shellNav.pop();
+          }
+        } catch (_) {}
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +94,7 @@ class SuperAdminWebShell extends StatelessWidget {
     (WebNavSection, WebNavItem)? current;
     for (final s in webNavSections) {
       for (final i in s.items) {
-        if (i.path == location) current = (s, i);
+        if (i.path == widget.location) current = (s, i);
       }
     }
 
@@ -82,13 +103,13 @@ class SuperAdminWebShell extends StatelessWidget {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Sidebar(location: location, compact: compact),
+          _Sidebar(location: widget.location, compact: compact),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _TopBar(section: current?.$1.title, page: current?.$2.label ?? ''),
-                Expanded(child: child),
+                Expanded(child: widget.child),
               ],
             ),
           ),
@@ -197,15 +218,15 @@ class _NavTile extends StatelessWidget {
         hoverColor: AppColors.inkNavy700,
         onTap: () {
           try {
-            final rootNav = Navigator.of(context, rootNavigator: true);
-            while (rootNav.canPop()) {
-              rootNav.pop();
+            final shellNav = SuperAdminWebRoutes.shellNavigatorKey.currentState;
+            while (shellNav != null && shellNav.canPop()) {
+              shellNav.pop();
             }
           } catch (_) {}
           try {
-            final nav = Navigator.of(context, rootNavigator: false);
-            while (nav.canPop()) {
-              nav.pop();
+            final rootNav = Navigator.of(context, rootNavigator: true);
+            while (rootNav.canPop()) {
+              rootNav.pop();
             }
           } catch (_) {}
           context.go(item.path);
