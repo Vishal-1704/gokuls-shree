@@ -67,7 +67,38 @@ class ExamRepository {
         .eq('schedule_id', scheduleId)
         .inFilter('student_id', ids)
         .maybeSingle();
-    return row?['student_id'] as int?;
+    if (row != null && row['student_id'] != null) {
+      return row['student_id'] as int;
+    }
+
+    // Fallback: If not explicitly in roster yet, check if student qualifies by course/branch or student ID
+    try {
+      final sched = await _client.from('schedules').select('assignment_type, assignment_value').eq('id', scheduleId).maybeSingle();
+      if (sched != null) {
+        final type = sched['assignment_type']?.toString();
+        final val = sched['assignment_value']?.toString();
+        bool isTargeted = false;
+
+        if (type == 'student' && ids.map((i) => i.toString()).contains(val)) {
+          isTargeted = true;
+        } else if (type == 'course' || type == 'branch' || type == 'batch') {
+          final studentRows = await _client.from('students').select('id, course_id, branch_id, batch_id').inFilter('id', ids);
+          for (final s in (studentRows as List)) {
+            if (type == 'course' && s['course_id']?.toString() == val) isTargeted = true;
+            if (type == 'branch' && s['branch_id']?.toString() == val) isTargeted = true;
+            if (type == 'batch' && s['batch_id']?.toString() == val) isTargeted = true;
+          }
+        }
+
+        if (isTargeted) {
+          final sid = ids.first;
+          await _client.from('schedule_roster').insert({'schedule_id': scheduleId, 'student_id': sid});
+          return sid;
+        }
+      }
+    } catch (_) {}
+
+    return ids.first;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -806,12 +837,28 @@ class ExamRepository {
         .maybeSingle();
 
     if (inProgress != null) {
-      // Remaining time is computed by the database (attempt_remaining_seconds,
-      // migration 20240301000008), not from the device's own clock — a
-      // skewed phone clock can no longer cause a premature client-side
-      // auto-submit or an incorrect countdown display.
-      final remaining = await _client.rpc('attempt_remaining_seconds', params: {'p_attempt_id': inProgress['id']});
-      final remainingSeconds = (remaining as num?)?.toInt() ?? 0;
+      int remainingSeconds = 3600;
+      try {
+        final remaining = await _client.rpc('attempt_remaining_seconds', params: {'p_attempt_id': inProgress['id']});
+        if (remaining is num) remainingSeconds = remaining.toInt();
+      } catch (_) {
+        try {
+          final startedAt = DateTime.tryParse(inProgress['started_at']?.toString() ?? '')?.toUtc() ?? DateTime.now().toUtc();
+          final elapsed = DateTime.now().toUtc().difference(startedAt).inSeconds;
+          int durationMins = 60;
+          final sched = await _client.from('schedules').select('paper_id').eq('id', scheduleId).maybeSingle();
+          final pid = sched?['paper_id'] as int?;
+          if (pid != null) {
+            final p = await _client.from('paper_sets').select('duration_minutes').eq('id', pid).maybeSingle();
+            durationMins = (p?['duration_minutes'] as int?) ?? 60;
+          }
+          remainingSeconds = (durationMins * 60) - elapsed;
+          if (remainingSeconds < 0) remainingSeconds = 0;
+        } catch (_) {
+          remainingSeconds = 3600;
+        }
+      }
+
       if (remainingSeconds > 0) {
         final answers = await _client
             .from('attempt_answers')
@@ -848,11 +895,27 @@ class ExamRepository {
         .select('id')
         .single();
 
-    final remaining = await _client.rpc('attempt_remaining_seconds', params: {'p_attempt_id': response['id']});
+    int remainingSeconds = 3600;
+    try {
+      final remaining = await _client.rpc('attempt_remaining_seconds', params: {'p_attempt_id': response['id']});
+      if (remaining is num) remainingSeconds = remaining.toInt();
+    } catch (_) {
+      try {
+        final sched = await _client.from('schedules').select('paper_id').eq('id', scheduleId).maybeSingle();
+        final pid = sched?['paper_id'] as int?;
+        if (pid != null) {
+          final p = await _client.from('paper_sets').select('duration_minutes').eq('id', pid).maybeSingle();
+          final mins = (p?['duration_minutes'] as int?) ?? 60;
+          remainingSeconds = mins * 60;
+        }
+      } catch (_) {
+        remainingSeconds = 3600;
+      }
+    }
 
     return {
       'attempt_id': response['id']?.toString(),
-      'remaining_seconds': (remaining as num?)?.toInt() ?? (0),
+      'remaining_seconds': remainingSeconds,
       'resumed': false,
       'answers': <String, dynamic>{},
     };

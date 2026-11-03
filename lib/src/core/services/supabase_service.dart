@@ -581,13 +581,14 @@ class SupabaseService {
     final studentIds = await _currentStudentIds();
     if (studentIds.isEmpty) return [];
 
+    final list = <Map<String, dynamic>>[];
     try {
       final response = await _client
           .from('exam_results')
           .select()
           .inFilter('student_id', studentIds)
           .order('calculated_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      list.addAll(List<Map<String, dynamic>>.from(response));
     } catch (_) {
       try {
         final response = await _client
@@ -595,11 +596,36 @@ class SupabaseService {
             .select()
             .inFilter('student_id', studentIds)
             .order('attempted_at', ascending: false);
-        return List<Map<String, dynamic>>.from(response);
-      } catch (_) {
-        return [];
-      }
+        list.addAll(List<Map<String, dynamic>>.from(response));
+      } catch (_) {}
     }
+
+    // Also include submitted attempts from online tests/exams
+    try {
+      final attempts = await _client
+          .from('attempts')
+          .select('id, score, total_marks, result, submitted_at, schedules(title)')
+          .inFilter('student_id', studentIds)
+          .eq('status', 'submitted')
+          .order('submitted_at', ascending: false);
+
+      for (final a in (attempts as List)) {
+        final s = a['schedules'] as Map<String, dynamic>?;
+        final title = s?['title'] ?? 'Online Test';
+        final alreadyPresent = list.any((r) => (r['exam_name'] ?? r['subject_name']) == title);
+        if (!alreadyPresent) {
+          list.add({
+            'exam_name': title,
+            'marks_obtained': a['score'] ?? 0,
+            'total_marks': a['total_marks'] ?? 100,
+            'grade': a['result'] == 'pass' ? 'PASS' : 'FAIL',
+            'calculated_at': a['submitted_at'],
+          });
+        }
+      }
+    } catch (_) {}
+
+    return list;
   }
 
   /// Get active paper sets for dashboard exam schedule fallback.
