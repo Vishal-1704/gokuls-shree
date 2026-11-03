@@ -23,11 +23,11 @@ class Exam {
 
   factory Exam.fromJson(Map<String, dynamic> json) {
     return Exam(
-      id: json['id'],
-      title: json['title'],
-      durationMinutes: json['duration_minutes'],
-      totalMarks: int.tryParse(json['total_marks'].toString()) ?? 0,
-      questionsCount: json['questions_count'],
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Exam',
+      durationMinutes: int.tryParse(json['duration_minutes']?.toString() ?? '') ?? 60,
+      totalMarks: int.tryParse(json['total_marks']?.toString() ?? '') ?? 0,
+      questionsCount: int.tryParse(json['questions_count']?.toString() ?? '') ?? 0,
       scheduleId: json['schedule_id']?.toString(),
       maxAttempts: int.tryParse((json['max_attempts'] ?? 1).toString()) ?? 1,
       shuffleOptions: json['shuffle_options'] == true,

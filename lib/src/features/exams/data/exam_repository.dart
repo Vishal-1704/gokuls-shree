@@ -112,10 +112,10 @@ class ExamRepository {
     if (studentIds.isEmpty) return [];
 
     try {
-      // 1. Fetch schedules the student is rostered for
+      // 1. Fetch schedules the student is rostered for, including assignment info
       final rosterRows = await _client
           .from('schedule_roster')
-          .select('schedules(id, paper_id, title, start_at, end_at, status, max_attempts)')
+          .select('schedules(id, paper_id, title, start_at, end_at, status, max_attempts, assignment_type, assignment_value)')
           .inFilter('student_id', studentIds);
 
       final scheduleList = <Map<String, dynamic>>[];
@@ -133,20 +133,39 @@ class ExamRepository {
 
       if (scheduleList.isEmpty) return [];
 
-      // 2. Fetch paper_sets details if any
+      // 2. Fetch student's own enrolled course IDs as reliable fallback
+      final studentCourseIds = <int>{};
+      try {
+        final studentRows = await _client
+            .from('students')
+            .select('course_id')
+            .inFilter('id', studentIds);
+        for (final st in (studentRows as List)) {
+          final cid = st['course_id'];
+          if (cid is int) {
+            studentCourseIds.add(cid);
+          } else if (cid != null) {
+            final parsed = int.tryParse(cid.toString());
+            if (parsed != null) studentCourseIds.add(parsed);
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fetch paper_sets details without embedding courses(name)
+      // (avoiding PostgREST relationship errors since paper_sets has no FK to courses)
       final paperMap = <int, Map<String, dynamic>>{};
       if (paperIds.isNotEmpty) {
         try {
           final paperRows = await _client
               .from('paper_sets')
-              .select('id, title, name, assessment_type, total_marks, duration_minutes, course_id, courses(name, short_name)')
+              .select('id, title, name, assessment_type, total_marks, duration_minutes, course_id')
               .inFilter('id', paperIds.toList());
           for (final p in (paperRows as List)) {
             paperMap[p['id'] as int] = Map<String, dynamic>.from(p as Map);
           }
         } catch (_) {}
 
-        // 3. Count questions per paper
+        // Count questions per paper
         try {
           final pqRows = await _client
               .from('paper_questions')
@@ -165,7 +184,50 @@ class ExamRepository {
         } catch (_) {}
       }
 
-      // 4. Merge paper sets and normalize assessment_type onto root schedule
+      // 4. Collect all distinct course IDs and batch fetch their names
+      final allCourseIds = <int>{...studentCourseIds};
+      for (final p in paperMap.values) {
+        final cid = p['course_id'];
+        if (cid is int) {
+          allCourseIds.add(cid);
+        } else if (cid != null) {
+          final parsed = int.tryParse(cid.toString());
+          if (parsed != null) allCourseIds.add(parsed);
+        }
+      }
+      for (final s in scheduleList) {
+        if (s['assignment_type']?.toString().toLowerCase() == 'course') {
+          final parsed = int.tryParse(s['assignment_value']?.toString() ?? '');
+          if (parsed != null) allCourseIds.add(parsed);
+        }
+      }
+
+      final courseMap = <int, String>{};
+      if (allCourseIds.isNotEmpty) {
+        try {
+          final courseRows = await _client
+              .from('courses')
+              .select('id, name, short_name')
+              .inFilter('id', allCourseIds.toList());
+          for (final c in (courseRows as List)) {
+            final cid = c['id'] as int;
+            final cname = (c['name'] ?? c['short_name'] ?? '').toString().trim();
+            if (cname.isNotEmpty) {
+              courseMap[cid] = cname;
+            }
+          }
+        } catch (_) {}
+      }
+
+      String? defaultCourseName;
+      for (final cid in studentCourseIds) {
+        if (courseMap.containsKey(cid)) {
+          defaultCourseName = courseMap[cid];
+          break;
+        }
+      }
+
+      // 5. Merge paper sets, attach normalized course name & assessment_type
       for (final s in scheduleList) {
         final pid = s['paper_id'] as int?;
         final paper = paperMap[pid] ?? {
@@ -176,6 +238,24 @@ class ExamRepository {
           'duration_minutes': 60,
           'questions_count': 0,
         };
+
+        String? resolvedCourseName;
+        final paperCourseId = paper['course_id'] is int
+            ? paper['course_id'] as int
+            : int.tryParse(paper['course_id']?.toString() ?? '');
+        if (paperCourseId != null && courseMap.containsKey(paperCourseId)) {
+          resolvedCourseName = courseMap[paperCourseId];
+        } else if (s['assignment_type']?.toString().toLowerCase() == 'course') {
+          final schedCourseId = int.tryParse(s['assignment_value']?.toString() ?? '');
+          if (schedCourseId != null && courseMap.containsKey(schedCourseId)) {
+            resolvedCourseName = courseMap[schedCourseId];
+          }
+        }
+        resolvedCourseName ??= defaultCourseName ?? 'General';
+
+        paper['course_name'] = resolvedCourseName;
+        paper['courses'] = {'name': resolvedCourseName, 'short_name': resolvedCourseName};
+        s['course_name'] = resolvedCourseName;
         s['paper_sets'] = paper;
         s['assessment_type'] = paper['assessment_type'] ?? 'exam';
       }

@@ -8,7 +8,16 @@ class ExamsRoutes {
   static List<GoRoute> get routes => [
     GoRoute(
       path: '/exam-instruction/:id',
-      builder: (context, state) => ExamInstructionsScreen(exam: state.extra as Exam),
+      builder: (context, state) => ExamInstructionsScreen(
+        exam: (state.extra as Exam?) ??
+            Exam(
+              id: state.pathParameters['id'] ?? '',
+              title: 'Exam Instructions',
+              durationMinutes: 60,
+              totalMarks: 100,
+              questionsCount: 0,
+            ),
+      ),
     ),
     GoRoute(
       path: '/exam-start/:id',

@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
 import 'package:gokul_shree_app/src/features/exams/domain/exam_model.dart';
-import 'package:gokul_shree_app/src/features/exams/presentation/exam_instructions_screen.dart';
 import 'package:intl/intl.dart';
 
 class StudentTestListGrid extends ConsumerWidget {
   final String assessmentType;
-  
+
   const StudentTestListGrid({super.key, required this.assessmentType});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // We filter exams vs tests client-side for simplicity, or backend can handle it
     final upcomingExamsAsync = ref.watch(upcomingExamsProvider);
-    
+
     return upcomingExamsAsync.when(
       data: (allExams) {
         final filteredExams = allExams.where((e) {
@@ -25,104 +24,264 @@ class StudentTestListGrid extends ConsumerWidget {
 
         if (filteredExams.isEmpty) {
           return Center(
-            child: Text(
-              'No upcoming ${assessmentType}s scheduled',
-              style: const TextStyle(color: AppColors.textSecondary),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.inkNavy800,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.divider.withOpacity(0.15)),
+                    ),
+                    child: const Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.goldCta),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Upcoming ${assessmentType.toUpperCase()}s',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You are all caught up! No ${assessmentType.toLowerCase()}s are scheduled for you at this time.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                color: Colors.white,
-              ),
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(const Color(0xFF006B3F)),
-                dataRowMinHeight: 60,
-                dataRowMaxHeight: 80,
-                columns: const [
-                  DataColumn(label: Text('Test Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Course', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Test Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                ],
-                rows: filteredExams.map((exam) {
-                  final paperSet = (exam['paper_sets'] as Map<String, dynamic>?) ?? {};
-                  final testName = paperSet['title'] ?? paperSet['name'] ?? exam['title'] ?? 'Unknown Test';
-                  final numQs = paperSet['questions_count'] ?? 0;
-                  final duration = paperSet['duration_minutes'] ?? 60;
-                  final startDate = exam['start_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['start_at'])) : 'N/A';
-                  final endDate = exam['end_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['end_at'])) : 'N/A';
+        return RefreshIndicator(
+          color: AppColors.goldCta,
+          backgroundColor: AppColors.inkNavy800,
+          onRefresh: () => ref.refresh(upcomingExamsProvider.future),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredExams.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              final exam = filteredExams[index];
+              final paperSet = (exam['paper_sets'] as Map<String, dynamic>?) ?? {};
+              final testName = paperSet['title'] ?? paperSet['name'] ?? exam['title'] ?? 'Unknown Assessment';
+              final numQs = paperSet['questions_count'] ?? 0;
+              final duration = paperSet['duration_minutes'] ?? 60;
+              final totalMarks = paperSet['total_marks'] ?? 100;
+              final startDate = exam['start_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['start_at'])) : 'N/A';
+              final endDate = exam['end_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['end_at'])) : 'N/A';
 
-                  final startUtc = DateTime.tryParse(exam['start_at']?.toString() ?? '')?.toUtc();
-                  final endUtc = DateTime.tryParse(exam['end_at']?.toString() ?? '')?.toUtc();
-                  final nowUtc = DateTime.now().toUtc();
-                  final isStarted = startUtc == null || nowUtc.isAfter(startUtc);
-                  final isClosed = exam['status'] == 'closed' || (endUtc != null && nowUtc.isAfter(endUtc));
-                  final statusText = isClosed ? 'Closed' : (isStarted ? 'Start Test >' : 'Upcoming');
-                  final statusColor = isClosed ? Colors.grey : (isStarted ? const Color(0xFF8CC63F) : AppColors.goldCta);
+              final startUtc = DateTime.tryParse(exam['start_at']?.toString() ?? '')?.toUtc();
+              final endUtc = DateTime.tryParse(exam['end_at']?.toString() ?? '')?.toUtc();
+              final nowUtc = DateTime.now().toUtc();
+              final isStarted = startUtc == null || nowUtc.isAfter(startUtc);
+              final isClosed = exam['status'] == 'closed' || (endUtc != null && nowUtc.isAfter(endUtc));
 
-                  final courseName = (paperSet['courses'] as Map<String, dynamic>?)?['name'] ??
-                                     (paperSet['courses'] as Map<String, dynamic>?)?['short_name'] ??
-                                     'N/A';
+              String statusText;
+              if (isClosed) {
+                statusText = 'Exam Window Closed';
+              } else if (!isStarted) {
+                statusText = 'Starts $startDate';
+              } else {
+                statusText = 'Start Test';
+              }
 
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              final courseName = (paperSet['course_name'] ??
+                                  exam['course_name'] ??
+                                  (paperSet['courses'] as Map<String, dynamic>?)?['name'] ??
+                                  (paperSet['courses'] as Map<String, dynamic>?)?['short_name'] ??
+                                  'General Course').toString();
+
+              final canStart = isStarted && !isClosed;
+
+              return Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.inkNavy800,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: canStart ? const Color(0xFF006B3F).withOpacity(0.5) : AppColors.divider.withOpacity(0.12),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: Icon + Title + Course Chip
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: canStart
+                                ? const Color(0xFF006B3F).withOpacity(0.2)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.assignment_outlined,
+                            color: canStart ? const Color(0xFF8CC63F) : AppColors.textSecondary,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                testName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.goldCta.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppColors.goldCta.withOpacity(0.35), width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.school_outlined, size: 12, color: AppColors.goldCta),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        courseName,
+                                        style: const TextStyle(
+                                          color: AppColors.goldCta,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(height: 1, color: AppColors.divider),
+                    const SizedBox(height: 12),
+
+                    // Details Badges (Wrap auto-adapts to phone/tablet widths cleanly)
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        _DetailBadge(icon: Icons.quiz_outlined, label: '$numQs Questions'),
+                        _DetailBadge(icon: Icons.timer_outlined, label: '$duration Min'),
+                        _DetailBadge(icon: Icons.star_outline, label: '$totalMarks Marks'),
+                        _DetailBadge(icon: Icons.calendar_today_outlined, label: '$startDate to $endDate'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Start Action Button (Adapts full width of card)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: canStart
+                            ? () {
+                                final examObj = Exam.fromJson({
+                                  'id': (paperSet['id'] ?? exam['paper_id'] ?? 1).toString(),
+                                  'schedule_id': (exam['id'] ?? 1).toString(),
+                                  'title': testName,
+                                  'duration_minutes': duration,
+                                  'total_marks': totalMarks,
+                                  'questions_count': numQs,
+                                });
+                                context.push('/exam-instruction/${examObj.id}', extra: examObj);
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: canStart ? const Color(0xFF006B3F) : Colors.grey.shade800,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                          disabledForegroundColor: Colors.white38,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: canStart ? 2 : 0,
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(testName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                            Text('No.of Qns. : $numQs', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            Text('Duration : $duration Min', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            Text('Date : $startDate To $endDate', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            if (canStart) ...[
+                              const Icon(Icons.play_arrow_rounded, size: 20, color: Colors.white),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: canStart ? Colors.white : Colors.white38,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      DataCell(
-                        Text(courseName, style: const TextStyle(color: Colors.black87, fontSize: 13)),
-                      ),
-                      DataCell(
-                        ElevatedButton(
-                          onPressed: (isStarted && !isClosed) ? () {
-                            final examObj = Exam.fromJson({
-                              'id': (paperSet['id'] ?? exam['paper_id'] ?? 1).toString(),
-                              'schedule_id': (exam['id'] ?? 1).toString(),
-                              'title': testName,
-                              'duration_minutes': duration,
-                              'total_marks': paperSet['total_marks'] ?? 100,
-                              'questions_count': numQs,
-                            });
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ExamInstructionsScreen(exam: examObj),
-                              ),
-                            );
-                          } : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: statusColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                          child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
       error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.textSecondary))),
+    );
+  }
+}
+
+class _DetailBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _DetailBadge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
