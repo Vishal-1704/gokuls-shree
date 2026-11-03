@@ -219,7 +219,17 @@ bool _isAllowedRouteForRole(UserSession session, String path) {
   switch (session.role) {
     case UserRole.student:
       if (path.startsWith('/student')) return true;
-      final allowed = {'/fee-status', '/results', '/attendance', '/id-card', '/courses'};
+      if (path.startsWith('/exam-')) return true;
+      if (path.startsWith('/verify')) return true;
+      final allowed = {
+        '/fee-status',
+        '/results',
+        '/attendance',
+        '/id-card',
+        '/courses',
+        '/calendar',
+        '/notices',
+      };
       return allowed.contains(path);
 
     case UserRole.teacher:

@@ -9,13 +9,13 @@ import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 import 'package:gokul_shree_app/src/core/services/supabase_service.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
 import 'package:gokul_shree_app/src/features/student/data/student_repository.dart';
-import 'package:gokul_shree_app/src/features/teacher/presentation/widgets/teacher_employment_details.dart';
+
 import 'package:gokul_shree_app/src/features/teacher/presentation/employee_salary_screen.dart';
 import 'package:gokul_shree_app/src/features/teacher/data/attendance_repository.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
 
-import 'package:url_launcher/url_launcher.dart';
+
 import 'package:qr_flutter/qr_flutter.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
@@ -586,7 +586,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   /// profile view. All fields come from the real students row (via
   /// student_repository.dart's mapper), no invented data.
   Widget _buildStudentInfoTable(Map<String, dynamic> student) {
-    final feeSummary = student['fee_summary'] as Map<String, dynamic>?;
+
 
     return Column(
       children: [
@@ -644,24 +644,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ],
           ),
         ),
-        if (feeSummary != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.inkNavy800,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider.withOpacity(0.3)),
-            ),
-            child: Text(
-              'Course Fee: ₹${feeSummary['course_fee'] ?? 0}   Paid: ₹${feeSummary['paid_total'] ?? 0}   Due: ₹${feeSummary['due_amount'] ?? 0}',
-              style: AppTypography.bodySm.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }

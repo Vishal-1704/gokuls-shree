@@ -13,6 +13,7 @@ class StudentFeeStatusScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feeAsync = ref.watch(studentFeeStatusProvider);
+    final profileAsync = ref.watch(studentProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
@@ -31,9 +32,10 @@ class StudentFeeStatusScreen extends ConsumerWidget {
       ),
       body: feeAsync.when(
         data: (fees) {
-          if (fees.isEmpty) {
-            return _buildEmptyState();
-          }
+          final profile = profileAsync.asData?.value;
+          final courseName = (profile?['class_section'] ?? 'Enrolled Course').toString();
+          final regNo = (profile?['reg_no'] ?? 'N/A').toString();
+          final feeSummary = profile?['fee_summary'] as Map<String, dynamic>?;
 
           // Calculate summary
           final totalPaid = fees
@@ -42,18 +44,45 @@ class StudentFeeStatusScreen extends ConsumerWidget {
           final totalPending = fees
               .where((f) => f['status'] != 'paid')
               .fold<num>(0, (sum, item) => sum + (item['amount'] as num));
+          final totalCourseFee = (feeSummary?['course_fee'] as num?) ?? (totalPaid + totalPending);
+
+          if (fees.isEmpty && totalCourseFee == 0 && profile == null) {
+            return _buildEmptyState();
+          }
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.screenPadding),
             children: [
-              _buildSummaryCard(totalPaid, totalPending),
+              _buildSummaryCard(
+                totalPaid: totalPaid,
+                totalPending: totalPending,
+                courseName: courseName,
+                totalCourseFee: totalCourseFee,
+                regNo: regNo,
+              ),
               const SizedBox(height: AppSpacing.xl),
               Text(
                 'Installments',
                 style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.md),
-              ...fees.map((fee) => _buildFeeCard(fee)),
+              if (fees.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.inkNavy800,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No installments recorded yet.',
+                      style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                ...fees.map((fee) => _buildFeeCard(fee)),
             ],
           );
         },
@@ -97,7 +126,14 @@ class StudentFeeStatusScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCard(num totalPaid, num totalPending) {
+  Widget _buildSummaryCard({
+    required num totalPaid,
+    required num totalPending,
+    required String courseName,
+    required num totalCourseFee,
+    required String regNo,
+  }) {
+    final isFullyPaid = totalCourseFee > 0 && totalPending <= 0;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -105,43 +141,122 @@ class StudentFeeStatusScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(color: AppColors.divider, width: 0.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total Paid',
-                  style: AppTypography.labelSm.copyWith(color: AppColors.textMuted),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.goldCta.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '₹$totalPaid',
-                  style: AppTypography.headingMd.copyWith(color: AppColors.success),
+                child: const Icon(
+                  Icons.school_rounded,
+                  color: AppColors.goldCta,
+                  size: 20,
                 ),
-              ],
-            ),
-          ),
-          Container(width: 1, height: 40, color: AppColors.divider),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dues / Pending',
-                  style: AppTypography.labelSm.copyWith(color: AppColors.textMuted),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      courseName,
+                      style: AppTypography.headingSm.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Reg. No: $regNo',
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '₹$totalPending',
-                  style: AppTypography.headingMd.copyWith(
-                    color: totalPending > 0 ? AppColors.warning : AppColors.success,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isFullyPaid ? AppColors.success : AppColors.warning).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isFullyPaid ? 'PAID IN FULL' : 'PENDING DUES',
+                  style: AppTypography.labelSm.copyWith(
+                    color: isFullyPaid ? AppColors.success : AppColors.warning,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: AppColors.divider, height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Course Fee',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹$totalCourseFee',
+                      style: AppTypography.headingSm.copyWith(color: AppColors.goldCta),
+                    ),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 36, color: AppColors.divider),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paid Total',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹$totalPaid',
+                      style: AppTypography.headingSm.copyWith(color: AppColors.success),
+                    ),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 36, color: AppColors.divider),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Due / Pending',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹$totalPending',
+                      style: AppTypography.headingSm.copyWith(
+                        color: totalPending > 0 ? AppColors.warning : AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

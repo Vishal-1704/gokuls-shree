@@ -22,6 +22,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
     final resultsAsync = ref.watch(examResultsProvider);
     final marksheetsAsync = ref.watch(studentMarksheetsProvider);
     final certificatesAsync = ref.watch(studentCertificatesProvider);
+    final profileAsync = ref.watch(studentProfileProvider);
 
     int countByType(AsyncValue<List<Map<String, dynamic>>> async, String type) {
       return async.maybeWhen(
@@ -67,6 +68,32 @@ class StudentAcademicsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            profileAsync.maybeWhen(
+              data: (profile) {
+                final courseName = (profile['class_section'] ?? 'Enrolled Course').toString();
+                final program = profile['program']?.toString();
+                final regNo = (profile['reg_no'] ?? 'N/A').toString();
+                final enrollments = (profile['enrollments'] as List?) ?? [];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _EnrolledCourseCard(
+                      courseName: courseName,
+                      program: program,
+                      regNo: regNo,
+                      enrollmentsCount: enrollments.length,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Academic Activities',
+                      style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
+            ),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -307,6 +334,178 @@ class _StudyMaterialEmptyState extends StatelessWidget {
             'Course materials will appear here\nonce uploaded by your teachers.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EnrolledCourseCard extends StatelessWidget {
+  const _EnrolledCourseCard({
+    required this.courseName,
+    this.program,
+    required this.regNo,
+    required this.enrollmentsCount,
+  });
+
+  final String courseName;
+  final String? program;
+  final String regNo;
+  final int enrollmentsCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.inkNavy800,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.goldCta.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.goldCta.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  color: AppColors.goldCta,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'MY COURSE',
+                          style: AppTypography.labelSm.copyWith(
+                            color: AppColors.goldCta,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        if (enrollmentsCount > 1) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryViolet.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$enrollmentsCount Courses',
+                              style: const TextStyle(
+                                color: AppColors.primaryViolet,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      courseName,
+                      style: AppTypography.headingSm.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Enrolled',
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (program != null && program != 'N/A' && program!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.inkNavy900.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Category: $program',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.divider10),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Reg. No: $regNo',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                'Academics Active',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ],
       ),
