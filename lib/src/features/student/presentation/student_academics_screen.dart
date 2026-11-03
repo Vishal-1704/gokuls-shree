@@ -25,7 +25,10 @@ class StudentAcademicsScreen extends ConsumerWidget {
 
     int countByType(AsyncValue<List<Map<String, dynamic>>> async, String type) {
       return async.maybeWhen(
-        data: (rows) => rows.where((e) => (e['assessment_type'] ?? 'exam') == type).length,
+        data: (rows) => rows.where((e) {
+          final t = e['assessment_type'] ?? (e['paper_sets'] as Map?)?['assessment_type'] ?? 'exam';
+          return t.toString().toLowerCase() == type.toLowerCase();
+        }).length,
         orElse: () => 0,
       );
     }

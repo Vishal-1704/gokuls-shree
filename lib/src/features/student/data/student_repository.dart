@@ -196,39 +196,16 @@ class StudentRepository {
       final studentRows = List<Map<String, dynamic>>.from(students);
       if (studentRows.isEmpty) return [];
 
-      final studentIds = studentRows.map((s) => s['id']).toSet();
-      final courseIds = studentRows.map((s) => s['course_id']).whereType<Object>().toSet();
-      final batchIds = studentRows.map((s) => s['batch_id']).whereType<Object>().toSet();
-      final branchIds = studentRows.map((s) => s['branch_id']).whereType<Object>().toSet();
+      final studentIds = studentRows.map((s) => s['id'] as int).toList();
+      final rosterRows = await supabase
+          .from('schedule_roster')
+          .select('schedules(id, title, start_at, end_at, status)')
+          .inFilter('student_id', studentIds);
 
-      final filters = <String>[
-        for (final sid in studentIds)
-          'and(assignment_type.eq.student,student_id.eq.$sid)',
-      ];
-      for (final courseId in courseIds) {
-        filters.add(
-          'and(assignment_type.eq.course,course_id.eq.$courseId)',
-        );
-      }
-      for (final batchId in batchIds) {
-        filters.add(
-          'and(assignment_type.eq.batch,batch_id.eq.$batchId)',
-        );
-      }
-      for (final branchId in branchIds) {
-        filters.add(
-          'and(assignment_type.eq.branch,branch_id.eq.$branchId)',
-        );
-      }
-
-      final response = await supabase
-          .from('v_student_visible_exams')
-          .select()
-          .or(filters.join(','))
-          .order('start_at', ascending: true)
-          .limit(limit);
-
-      return (response as List).map((p) {
+      final items = <Map<String, dynamic>>[];
+      for (final r in (rosterRows as List)) {
+        final p = r['schedules'] as Map<String, dynamic>?;
+        if (p == null) continue;
         final dateRaw = p['start_at'];
         final now = DateTime.now().toUtc();
         final startAt = dateRaw != null
@@ -240,12 +217,13 @@ class StudentRepository {
           status = 'Upcoming';
         }
 
-        return {
+        items.add({
           'name': (p['title'] ?? 'Exam').toString(),
           'date': _formatDate(dateRaw?.toString()),
           'status': status,
-        };
-      }).toList();
+        });
+      }
+      return items.take(limit).toList();
     } catch (_) {
       return [];
     }

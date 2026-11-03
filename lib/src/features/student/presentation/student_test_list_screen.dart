@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
-import 'package:gokul_shree_app/src/core/theme/app_typography.dart';
 import 'package:gokul_shree_app/src/features/exams/data/exam_repository.dart';
 import 'package:gokul_shree_app/src/features/exams/domain/exam_model.dart';
 import 'package:gokul_shree_app/src/features/exams/presentation/exam_instructions_screen.dart';
@@ -20,8 +19,8 @@ class StudentTestListGrid extends ConsumerWidget {
     return upcomingExamsAsync.when(
       data: (allExams) {
         final filteredExams = allExams.where((e) {
-          final type = e['assessment_type'] ?? 'exam';
-          return type == assessmentType;
+          final type = e['assessment_type'] ?? (e['paper_sets'] as Map?)?['assessment_type'] ?? 'exam';
+          return type.toString().toLowerCase() == assessmentType.toLowerCase();
         }).toList();
 
         if (filteredExams.isEmpty) {
@@ -43,7 +42,7 @@ class StudentTestListGrid extends ConsumerWidget {
                 color: Colors.white,
               ),
               child: DataTable(
-                headingRowColor: MaterialStateProperty.all(const Color(0xFF006B3F)),
+                headingRowColor: WidgetStateProperty.all(const Color(0xFF006B3F)),
                 dataRowMinHeight: 60,
                 dataRowMaxHeight: 80,
                 columns: const [
@@ -52,15 +51,18 @@ class StudentTestListGrid extends ConsumerWidget {
                   DataColumn(label: Text('Test Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                 ],
                 rows: filteredExams.map((exam) {
-                  final paperSet = exam['paper_sets'] ?? {};
-                  final testName = paperSet['title'] ?? exam['title'] ?? 'Unknown Test';
+                  final paperSet = (exam['paper_sets'] as Map<String, dynamic>?) ?? {};
+                  final testName = paperSet['title'] ?? paperSet['name'] ?? exam['title'] ?? 'Unknown Test';
                   final numQs = paperSet['questions_count'] ?? 0;
-                  final duration = paperSet['duration_minutes'] ?? 0;
+                  final duration = paperSet['duration_minutes'] ?? 60;
                   final startDate = exam['start_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['start_at'])) : 'N/A';
                   final endDate = exam['end_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(exam['end_at'])) : 'N/A';
 
-                  final isStarted = DateTime.now().isAfter(DateTime.parse(exam['start_at'] ?? DateTime.now().toString()));
-                  final isClosed = exam['status'] == 'closed' || (exam['end_at'] != null && DateTime.now().isAfter(DateTime.parse(exam['end_at'])));
+                  final startUtc = DateTime.tryParse(exam['start_at']?.toString() ?? '')?.toUtc();
+                  final endUtc = DateTime.tryParse(exam['end_at']?.toString() ?? '')?.toUtc();
+                  final nowUtc = DateTime.now().toUtc();
+                  final isStarted = startUtc == null || nowUtc.isAfter(startUtc);
+                  final isClosed = exam['status'] == 'closed' || (endUtc != null && nowUtc.isAfter(endUtc));
                   final statusText = isClosed ? 'Closed' : (isStarted ? 'Start Test >' : 'Upcoming');
                   final statusColor = isClosed ? Colors.grey : (isStarted ? const Color(0xFF8CC63F) : AppColors.goldCta);
 
@@ -89,7 +91,7 @@ class StudentTestListGrid extends ConsumerWidget {
                         ElevatedButton(
                           onPressed: (isStarted && !isClosed) ? () {
                             final examObj = Exam.fromJson({
-                              'id': (paperSet['id'] ?? 1).toString(),
+                              'id': (paperSet['id'] ?? exam['paper_id'] ?? 1).toString(),
                               'schedule_id': (exam['id'] ?? 1).toString(),
                               'title': testName,
                               'duration_minutes': duration,

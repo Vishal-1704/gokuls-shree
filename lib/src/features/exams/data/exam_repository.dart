@@ -81,33 +81,78 @@ class ExamRepository {
     if (studentIds.isEmpty) return [];
 
     try {
-      final response = await _client
+      // 1. Fetch schedules the student is rostered for
+      final rosterRows = await _client
           .from('schedule_roster')
-          .select(
-            'schedules(id, title, start_at, end_at, status, max_attempts, '
-            'paper_sets(id, title, assessment_type, total_marks, duration_minutes, '
-            'course_id, courses(name, short_name), paper_questions(count)))',
-          )
+          .select('schedules(id, paper_id, title, start_at, end_at, status, max_attempts)')
           .inFilter('student_id', studentIds);
 
-      final rows = (response as List)
-          .map((r) => r['schedules'] as Map<String, dynamic>?)
-          .whereType<Map<String, dynamic>>()
-          .map((s) {
-            final paper = s['paper_sets'] as Map<String, dynamic>?;
-            if (paper != null) {
-              final countRows = paper['paper_questions'] as List?;
-              paper['questions_count'] = countRows != null && countRows.isNotEmpty
-                  ? countRows.first['count']
-                  : 0;
+      final scheduleList = <Map<String, dynamic>>[];
+      final paperIds = <int>{};
+
+      for (final r in (rosterRows as List)) {
+        final sched = r['schedules'] as Map<String, dynamic>?;
+        if (sched != null) {
+          final copy = Map<String, dynamic>.from(sched);
+          scheduleList.add(copy);
+          final pId = copy['paper_id'];
+          if (pId is int) paperIds.add(pId);
+        }
+      }
+
+      if (scheduleList.isEmpty) return [];
+
+      // 2. Fetch paper_sets details if any
+      final paperMap = <int, Map<String, dynamic>>{};
+      if (paperIds.isNotEmpty) {
+        try {
+          final paperRows = await _client
+              .from('paper_sets')
+              .select('id, title, name, assessment_type, total_marks, duration_minutes, course_id, courses(name, short_name)')
+              .inFilter('id', paperIds.toList());
+          for (final p in (paperRows as List)) {
+            paperMap[p['id'] as int] = Map<String, dynamic>.from(p as Map);
+          }
+        } catch (_) {}
+
+        // 3. Count questions per paper
+        try {
+          final pqRows = await _client
+              .from('paper_questions')
+              .select('paper_id, question_id')
+              .inFilter('paper_id', paperIds.toList());
+          final countMap = <int, int>{};
+          for (final pq in (pqRows as List)) {
+            final pid = pq['paper_id'] as int?;
+            if (pid != null) {
+              countMap[pid] = (countMap[pid] ?? 0) + 1;
             }
-            return s;
-          })
-          .toList();
-      rows.sort(
+          }
+          for (final entry in paperMap.entries) {
+            entry.value['questions_count'] = countMap[entry.key] ?? 0;
+          }
+        } catch (_) {}
+      }
+
+      // 4. Merge paper sets and normalize assessment_type onto root schedule
+      for (final s in scheduleList) {
+        final pid = s['paper_id'] as int?;
+        final paper = paperMap[pid] ?? {
+          'id': pid,
+          'title': s['title'],
+          'assessment_type': 'exam',
+          'total_marks': 100,
+          'duration_minutes': 60,
+          'questions_count': 0,
+        };
+        s['paper_sets'] = paper;
+        s['assessment_type'] = paper['assessment_type'] ?? 'exam';
+      }
+
+      scheduleList.sort(
         (a, b) => (a['start_at'] ?? '').toString().compareTo((b['start_at'] ?? '').toString()),
       );
-      return rows;
+      return scheduleList;
     } catch (_) {
       return [];
     }
@@ -218,10 +263,22 @@ class ExamRepository {
     final orderedIds = (links as List).map((r) => r['question_id'] as int).toList();
     if (orderedIds.isEmpty) return [];
 
-    final rows = await _client
-        .from('question_bank_public')
-        .select('id, question_text, option_a, option_b, option_c, option_d, image_url')
-        .inFilter('id', orderedIds);
+    dynamic rows;
+    try {
+      rows = await _client
+          .from('question_bank')
+          .select('id, question_text, option_a, option_b, option_c, option_d, image_url')
+          .inFilter('id', orderedIds);
+    } catch (_) {
+      try {
+        rows = await _client
+            .from('question_bank_public')
+            .select('id, question_text, option_a, option_b, option_c, option_d, image_url')
+            .inFilter('id', orderedIds);
+      } catch (_) {
+        return [];
+      }
+    }
 
     final byId = {for (final r in (rows as List)) r['id'] as int: r as Map<String, dynamic>};
 
@@ -842,11 +899,42 @@ class ExamRepository {
     try {
       final response = await _client
           .from('attempts')
-          .select('id, score, total_marks, result, submitted_at, schedules(title, paper_sets(title))')
+          .select('id, score, total_marks, result, submitted_at, schedule_id, schedules(id, title, paper_id)')
           .inFilter('student_id', studentIds)
           .eq('status', 'submitted')
           .order('submitted_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final list = List<Map<String, dynamic>>.from(response);
+
+      // Collect paperIds from schedules if available
+      final paperIds = <int>{};
+      for (final a in list) {
+        final s = a['schedules'] as Map<String, dynamic>?;
+        final pid = s?['paper_id'];
+        if (pid is int) paperIds.add(pid);
+      }
+
+      final paperMap = <int, Map<String, dynamic>>{};
+      if (paperIds.isNotEmpty) {
+        try {
+          final paperRows = await _client
+              .from('paper_sets')
+              .select('id, title, assessment_type, total_marks')
+              .inFilter('id', paperIds.toList());
+          for (final p in (paperRows as List)) {
+            paperMap[p['id'] as int] = Map<String, dynamic>.from(p as Map);
+          }
+        } catch (_) {}
+      }
+
+      for (final a in list) {
+        final s = a['schedules'] as Map<String, dynamic>?;
+        if (s != null) {
+          final pid = s['paper_id'] as int?;
+          s['paper_sets'] = paperMap[pid] ?? {'title': s['title'] ?? 'Exam'};
+        }
+      }
+
+      return list;
     } catch (_) {
       return [];
     }
@@ -862,9 +950,33 @@ class ExamRepository {
     try {
       final response = await _client
           .from('schedules')
-          .select('id, title, start_at, end_at, status, paper_sets(title, assessment_type, total_marks)')
+          .select('id, paper_id, title, start_at, end_at, status')
           .order('start_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final scheduleList = List<Map<String, dynamic>>.from(response);
+      final paperIds = scheduleList.map((s) => s['paper_id']).whereType<int>().toSet().toList();
+
+      final paperMap = <int, Map<String, dynamic>>{};
+      if (paperIds.isNotEmpty) {
+        try {
+          final paperRows = await _client
+              .from('paper_sets')
+              .select('id, title, assessment_type, total_marks')
+              .inFilter('id', paperIds);
+          for (final p in (paperRows as List)) {
+            paperMap[p['id'] as int] = Map<String, dynamic>.from(p as Map);
+          }
+        } catch (_) {}
+      }
+
+      for (final s in scheduleList) {
+        final pid = s['paper_id'] as int?;
+        s['paper_sets'] = paperMap[pid] ?? {
+          'title': s['title'] ?? 'Exam',
+          'assessment_type': 'exam',
+          'total_marks': 100,
+        };
+      }
+      return scheduleList;
     } catch (_) {
       try {
         final fallback = await _client
@@ -951,13 +1063,24 @@ class ExamRepository {
   Future<int> publishScheduleResults(int scheduleId, {bool markAbsentees = false}) async {
     final schedule = await _client
         .from('schedules')
-        .select('title, paper_sets(title, total_marks)')
+        .select('title, paper_id')
         .eq('id', scheduleId)
         .single();
-    final paper = schedule['paper_sets'] as Map<String, dynamic>? ?? {};
     final examName = schedule['title'] as String? ?? 'Test';
-    final subjectName = paper['title'] as String? ?? 'Paper';
-    final totalMarks = (paper['total_marks'] as num?)?.toDouble() ?? 100;
+    final paperId = schedule['paper_id'] as int?;
+
+    Map<String, dynamic>? paper;
+    if (paperId != null) {
+      try {
+        paper = await _client
+            .from('paper_sets')
+            .select('title, total_marks')
+            .eq('id', paperId)
+            .maybeSingle();
+      } catch (_) {}
+    }
+    final subjectName = paper?['title'] as String? ?? examName;
+    final totalMarks = (paper?['total_marks'] as num?)?.toDouble() ?? 100;
 
     final roster = await getScheduleRoster(scheduleId);
     final rowsToPublish = <Map<String, dynamic>>[];
