@@ -1026,13 +1026,128 @@ class ExamRepository {
   Future<Map<String, dynamic>?> finishExam(String sessionId, {String? reason}) async {
     final attemptId = int.parse(sessionId);
 
-    await _client.rpc('grade_attempt', params: {'p_attempt_id': attemptId, 'p_reason': reason});
+    bool rpcSuccess = false;
+    try {
+      await _client.rpc('grade_attempt', params: {'p_attempt_id': attemptId, 'p_reason': reason});
+      rpcSuccess = true;
+    } catch (_) {
+      // RPC may fail if PostgreSQL function has outdated references (e.g. public.papers).
+      // Fallback directly to reliable client-side grading so the student never gets blocked.
+    }
+
+    if (!rpcSuccess) {
+      await _gradeAttemptClientSide(attemptId, reason: reason);
+    }
 
     return await _client
         .from('attempts')
         .select('score, total_marks, result')
         .eq('id', attemptId)
         .maybeSingle();
+  }
+
+  Future<void> _gradeAttemptClientSide(int attemptId, {String? reason}) async {
+    try {
+      // 1. Fetch attempt and schedule info
+      final attempt = await _client
+          .from('attempts')
+          .select('id, schedule_id, student_id')
+          .eq('id', attemptId)
+          .maybeSingle();
+      if (attempt == null) return;
+
+      final scheduleId = attempt['schedule_id'] as int?;
+      num marksCorrect = 1.0;
+      num marksWrong = 0.0;
+      num marksUnanswered = 0.0;
+      int? paperId;
+
+      if (scheduleId != null) {
+        final sched = await _client
+            .from('schedules')
+            .select('paper_id, marks_correct, marks_wrong, marks_unanswered')
+            .eq('id', scheduleId)
+            .maybeSingle();
+        if (sched != null) {
+          paperId = sched['paper_id'] as int?;
+          if (sched['marks_correct'] != null) marksCorrect = sched['marks_correct'] as num;
+          if (sched['marks_wrong'] != null) marksWrong = sched['marks_wrong'] as num;
+          if (sched['marks_unanswered'] != null) marksUnanswered = sched['marks_unanswered'] as num;
+        }
+      }
+
+      // 2. Fetch paper set total_marks and pass_marks
+      num totalMarks = 100;
+      num passMarks = 33;
+      if (paperId != null) {
+        final paper = await _client
+            .from('paper_sets')
+            .select('total_marks, pass_marks')
+            .eq('id', paperId)
+            .maybeSingle();
+        if (paper != null) {
+          totalMarks = (paper['total_marks'] as num?) ?? 100;
+          passMarks = (paper['pass_marks'] as num?) ?? 33;
+        }
+      }
+
+      // 3. Fetch student's answers
+      final answers = await _client
+          .from('attempt_answers')
+          .select('id, question_id, selected_option')
+          .eq('attempt_id', attemptId);
+      final answerList = List<Map<String, dynamic>>.from(answers as List);
+
+      // 4. Fetch question bank details for those questions
+      final qIds = answerList.map((a) => a['question_id']).whereType<int>().toList();
+      final qMap = <int, Map<String, dynamic>>{};
+      if (qIds.isNotEmpty) {
+        final questions = await _client
+            .from('question_bank')
+            .select('id, correct_option, marks')
+            .inFilter('id', qIds);
+        for (final q in (questions as List)) {
+          qMap[q['id'] as int] = Map<String, dynamic>.from(q as Map);
+        }
+      }
+
+      // 5. Score answers
+      num totalScore = 0.0;
+      for (final a in answerList) {
+        final qid = a['question_id'] as int?;
+        final selectedOpt = a['selected_option'] as int?;
+        final q = qid != null ? qMap[qid] : null;
+
+        if (q != null) {
+          final correctOpt = q['correct_option'] as int?;
+          final qMarks = (q['marks'] as num?) ?? 1.0;
+          final isCorrect = selectedOpt != null && selectedOpt == correctOpt;
+          final awarded = isCorrect
+              ? (qMarks * marksCorrect)
+              : (selectedOpt != null ? (qMarks * marksWrong) : (qMarks * marksUnanswered));
+
+          totalScore += awarded;
+
+          try {
+            await _client.from('attempt_answers').update({
+              'is_correct': isCorrect,
+              'marks_awarded': awarded,
+            }).eq('id', a['id']);
+          } catch (_) {}
+        }
+      }
+
+      final resultStr = totalScore >= passMarks ? 'pass' : 'fail';
+
+      // 6. Update the attempt to submitted with score
+      await _client.from('attempts').update({
+        'status': 'submitted',
+        'submitted_at': DateTime.now().toUtc().toIso8601String(),
+        'score': totalScore,
+        'total_marks': totalMarks,
+        'result': resultStr,
+      }).eq('id', attemptId);
+    } catch (_) {}
   }
 
   Future<List<Map<String, dynamic>>> getMyResults() async {
