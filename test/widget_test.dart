@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gokul_shree_app/src/app.dart';
-import 'package:gokul_shree_app/src/core/providers/session_provider.dart';
-import 'package:gokul_shree_app/src/core/models/user_session.dart';
 import 'package:gokul_shree_app/src/features/auth/data/auth_service.dart';
-
-class MockSessionNotifier extends SessionNotifier {
-  @override
-  UserSession? build() {
-    return null; // Guest user
-  }
-}
+import 'package:gokul_shree_app/src/features/auth/presentation/login_screen.dart';
 
 class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNotifier {
   @override
@@ -24,6 +15,9 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
   bool get isAdmin => false;
 
   @override
+  bool get hasPhoneNameConflict => false;
+
+  @override
   Future<void> signIn({required String email, required String password}) async {}
 
   @override
@@ -31,9 +25,6 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
 
   @override
   Future<void> verifyEmailOtp({required String email, required String token}) async {}
-
-  @override
-  Future<void> signInWithMobile({required String identifier, required String password}) async {}
 
   @override
   Future<void> adminLogin({required String loginId, required String password}) async {}
@@ -69,7 +60,7 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
   }) async {}
 
   @override
-  Future<PhoneLookupResult> checkPhoneNumber(String phone) async {
+  Future<PhoneLookupResult> checkPhoneNumber(String phone, {int retryCount = 1}) async {
     return PhoneLookupResult(
       isDuplicate: false,
       isFound: false,
@@ -78,28 +69,40 @@ class MockSupabaseAuthNotifier extends ChangeNotifier implements SupabaseAuthNot
   }
 
   @override
+  Future<LegacyVerifyResult> verifyLegacyPassword({
+    required String phone,
+    required String legacyPassword,
+    int retryCount = 1,
+  }) async {
+    return LegacyVerifyResult(verified: true);
+  }
+
+  @override
   Future<void> registerWithPhone({
     required String phone,
     required String email,
     required String password,
+    required String legacyPassword,
     required String name,
   }) async {}
 }
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame, overriding providers to mock authentication
+    final mockAuth = MockSupabaseAuthNotifier();
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionProvider.overrideWith(() => MockSessionNotifier()),
-          supabaseAuthNotifierProvider.overrideWith((ref) => MockSupabaseAuthNotifier()),
+          supabaseAuthNotifierProvider.overrideWith((ref) => mockAuth),
         ],
-        child: const MyApp(),
+        child: const MaterialApp(
+          home: LoginScreen(),
+        ),
       ),
     );
 
-    // Verify that the app builds without crashing.
-    expect(find.byType(MyApp), findsOneWidget);
+    // Verify Login Screen renders correctly
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 }

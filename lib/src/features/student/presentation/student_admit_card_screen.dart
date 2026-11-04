@@ -376,3 +376,4 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
     );
   }
 }
+

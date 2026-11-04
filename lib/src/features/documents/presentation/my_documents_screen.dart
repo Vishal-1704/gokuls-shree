@@ -221,7 +221,7 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
             color: Colors.teal,
           ),
         ),
-        title: const Text('Examination Admit Card', style: AppTypography.headingSm),
+        title: Text('Examination Admit Card', style: AppTypography.headingSm),
         subtitle: Text('Active Session 2025-2026', style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
         trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
         onTap: () {
