@@ -176,7 +176,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
 
   void _openTab(BuildContext context, int index) {
     const titles = ['Online Tests', 'Exams', 'Test & Exam History', 'Study Material', 'Documents'];
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => _AcademicsSectionScreen(title: titles[index], index: index),
       ),
@@ -456,7 +456,7 @@ class _EnrolledCourseCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      'Enrolled',
+                      'Active',
                       style: AppTypography.labelSm.copyWith(
                         color: AppColors.success,
                         fontWeight: FontWeight.bold,
@@ -506,19 +506,26 @@ class _EnrolledCourseCard extends StatelessWidget {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryViolet.withValues(alpha: 0.15),
+                  color: AppColors.info.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.primaryViolet.withValues(alpha: 0.3), width: 0.8),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3), width: 0.8),
                 ),
-                child: Text(
-                  'Enrolled',
-                  style: AppTypography.labelSm.copyWith(
-                    color: AppColors.primaryViolet,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.verified_rounded, size: 12, color: AppColors.info),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified Student',
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.info,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

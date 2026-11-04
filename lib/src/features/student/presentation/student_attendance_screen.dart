@@ -155,7 +155,7 @@ class StudentAttendanceScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.of(context).push(
+          Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(builder: (_) => const StudentCheckinScreen()),
           );
         },

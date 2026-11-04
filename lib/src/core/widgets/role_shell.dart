@@ -84,6 +84,41 @@ class _RoleShellState extends ConsumerState<RoleShell> {
     return false; // let system exit
   }
 
+  bool _isRootTab(BuildContext context) {
+    try {
+      final currentPath = GoRouterState.of(context).uri.path;
+      final clean = currentPath.length > 1 && currentPath.endsWith('/')
+          ? currentPath.substring(0, currentPath.length - 1)
+          : currentPath;
+      const rootTabs = {
+        // Student
+        '/student',
+        '/student/academics',
+        '/student/profile',
+        // Teacher
+        '/teacher',
+        '/teacher/attendance',
+        '/teacher/students',
+        '/teacher/profile',
+        // Branch Admin
+        '/branch-admin',
+        '/branch-admin/students',
+        '/branch-admin/reports',
+        '/branch-admin/profile',
+        // Super Admin
+        '/super-admin',
+        '/super-admin/approvals',
+        '/super-admin/branches',
+        '/super-admin/students',
+        '/super-admin/reports',
+        '/super-admin/profile',
+      };
+      return rootTabs.contains(clean);
+    } catch (_) {
+      return true;
+    }
+  }
+
   void _go(int index) {
     widget.shell.goBranch(index, initialLocation: index == widget.shell.currentIndex);
   }
@@ -123,41 +158,44 @@ class _RoleShellState extends ConsumerState<RoleShell> {
           );
         } else {
           final isCompactTabs = widget.tabs.length > 4;
+          final isRoot = _isRootTab(context);
           return Scaffold(
             body: widget.shell,
-            bottomNavigationBar: Container(
-              decoration: BoxDecoration(
-                color: _navBg,
-                border: const Border(top: BorderSide(color: AppColors.divider, width: 0.5)),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: MediaQuery.of(context).size.width - 20,
-                      ),
-                      child: GNav(
-                        gap: isCompactTabs ? 4 : 6,
-                        iconSize: isCompactTabs ? 20 : 22,
-                        padding: isCompactTabs
-                            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
-                            : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        duration: const Duration(milliseconds: 250),
-                        tabBackgroundColor: _activeColor,
-                        activeColor: AppColors.textPrimary,
-                        color: AppColors.textMuted,
-                        tabs: widget.tabs,
-                        selectedIndex: widget.shell.currentIndex,
-                        onTabChange: _go,
+            bottomNavigationBar: isRoot
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: _navBg,
+                      border: const Border(top: BorderSide(color: AppColors.divider, width: 0.5)),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: MediaQuery.of(context).size.width - 20,
+                            ),
+                            child: GNav(
+                              gap: isCompactTabs ? 4 : 6,
+                              iconSize: isCompactTabs ? 20 : 22,
+                              padding: isCompactTabs
+                                  ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              duration: const Duration(milliseconds: 250),
+                              tabBackgroundColor: _activeColor,
+                              activeColor: AppColors.textPrimary,
+                              color: AppColors.textMuted,
+                              tabs: widget.tabs,
+                              selectedIndex: widget.shell.currentIndex,
+                              onTabChange: _go,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
+                  )
+                : null,
           );
         }
       },
