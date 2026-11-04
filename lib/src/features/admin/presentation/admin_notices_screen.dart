@@ -106,7 +106,7 @@ class _AdminNoticesScreenState extends ConsumerState<AdminNoticesScreen> {
                   dropdownColor: AppColors.inkNavy700,
                   iconEnabledColor: AppColors.goldCta,
                   style: const TextStyle(color: AppColors.textPrimary),
-                  items: ['General', 'Holiday', 'Exam', 'Urgent']
+                  items: ['General', 'Holiday', 'Exam', 'Event', 'Urgent']
                       .map((e) => DropdownMenuItem(
                             value: e,
                             child: Text(e, style: const TextStyle(color: AppColors.textPrimary)),

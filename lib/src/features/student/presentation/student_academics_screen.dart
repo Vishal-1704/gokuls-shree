@@ -117,9 +117,9 @@ class StudentAcademicsScreen extends ConsumerWidget {
                   onTap: () => _openTab(context, 1),
                 ),
                 _HubCard(
-                  icon: Icons.bar_chart_rounded,
+                  icon: Icons.history_edu_rounded,
                   color: AppColors.success,
-                  title: 'Exam Report',
+                  title: 'Test & Exam History',
                   subtitle: bestResultLabel(resultsAsync),
                   onTap: () => _openTab(context, 2),
                 ),
@@ -175,7 +175,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
   }
 
   void _openTab(BuildContext context, int index) {
-    const titles = ['Online Tests', 'Exams', 'Exam Report', 'Study Material', 'Documents'];
+    const titles = ['Online Tests', 'Exams', 'Test & Exam History', 'Study Material', 'Documents'];
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _AcademicsSectionScreen(title: titles[index], index: index),
@@ -484,25 +484,41 @@ class _EnrolledCourseCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           const Divider(height: 1, color: AppColors.divider10),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Reg. No: $regNo',
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.badge_outlined, size: 14, color: AppColors.goldCta),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Reg. No: $regNo',
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                'Academics Active',
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryViolet.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.primaryViolet.withValues(alpha: 0.3), width: 0.8),
+                ),
+                child: Text(
+                  'Enrolled',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.primaryViolet,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],

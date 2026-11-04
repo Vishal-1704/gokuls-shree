@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vishal.gokulShree_school_of_management_and_technology_pvt_ltd",
+      "sha256_cert_fingerprints": [
+        "E2:97:0C:07:13:C0:35:03:2E:12:6D:FD:3C:78:37:0C:F1:A6:91:57:FF:63:EA:7B:52:CF:E0:BE:2A:06:93:7C"
+      ]
+    }
+  }
+]

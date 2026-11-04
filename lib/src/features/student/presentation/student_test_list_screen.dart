@@ -14,6 +14,8 @@ class StudentTestListGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final upcomingExamsAsync = ref.watch(upcomingExamsProvider);
+    final isExam = assessmentType.toLowerCase() == 'exam';
+    final labelPlural = isExam ? 'Exams' : 'Tests';
 
     return upcomingExamsAsync.when(
       data: (allExams) {
@@ -34,13 +36,13 @@ class StudentTestListGrid extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: AppColors.inkNavy800,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.divider.withOpacity(0.15)),
+                      border: Border.all(color: AppColors.divider.withValues(alpha: 0.15)),
                     ),
                     child: const Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.goldCta),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No Upcoming ${assessmentType.toUpperCase()}s',
+                    'No Upcoming $labelPlural',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 18,
@@ -49,7 +51,7 @@ class StudentTestListGrid extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You are all caught up! No ${assessmentType.toLowerCase()}s are scheduled for you at this time.',
+                    'You are all caught up! No ${labelPlural.toLowerCase()} are scheduled for you at this time.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   ),
@@ -64,13 +66,13 @@ class StudentTestListGrid extends ConsumerWidget {
           backgroundColor: AppColors.inkNavy800,
           onRefresh: () => ref.refresh(upcomingExamsProvider.future),
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             itemCount: filteredExams.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
               final exam = filteredExams[index];
               final paperSet = (exam['paper_sets'] as Map<String, dynamic>?) ?? {};
-              final testName = paperSet['title'] ?? paperSet['name'] ?? exam['title'] ?? 'Unknown Assessment';
+              final testName = paperSet['title'] ?? paperSet['name'] ?? exam['title'] ?? 'Assessment';
               final numQs = paperSet['questions_count'] ?? 0;
               final duration = paperSet['duration_minutes'] ?? 60;
               final totalMarks = paperSet['total_marks'] ?? 100;
@@ -85,11 +87,20 @@ class StudentTestListGrid extends ConsumerWidget {
 
               String statusText;
               if (isClosed) {
-                statusText = 'Exam Window Closed';
+                statusText = '$assessmentType Window Closed';
               } else if (!isStarted) {
                 statusText = 'Starts $startDate';
               } else {
-                statusText = 'Start Test';
+                statusText = isExam ? 'Start Exam' : 'Start Test';
+              }
+
+              final String dateLabel;
+              if (exam['end_at'] != null && endDate != 'N/A') {
+                dateLabel = '$startDate – $endDate';
+              } else if (exam['start_at'] != null && startDate != 'N/A') {
+                dateLabel = 'Valid from: $startDate';
+              } else {
+                dateLabel = 'Available Now';
               }
 
               final courseName = (paperSet['course_name'] ??
@@ -106,12 +117,12 @@ class StudentTestListGrid extends ConsumerWidget {
                   color: AppColors.inkNavy800,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: canStart ? const Color(0xFF006B3F).withOpacity(0.5) : AppColors.divider.withOpacity(0.12),
+                    color: canStart ? const Color(0xFF006B3F).withValues(alpha: 0.6) : AppColors.divider.withValues(alpha: 0.15),
                     width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -129,12 +140,12 @@ class StudentTestListGrid extends ConsumerWidget {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: canStart
-                                ? const Color(0xFF006B3F).withOpacity(0.2)
-                                : Colors.white.withOpacity(0.06),
+                                ? const Color(0xFF006B3F).withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
-                            Icons.assignment_outlined,
+                            isExam ? Icons.military_tech_outlined : Icons.assignment_outlined,
                             color: canStart ? const Color(0xFF8CC63F) : AppColors.textSecondary,
                             size: 24,
                           ),
@@ -156,9 +167,9 @@ class StudentTestListGrid extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: AppColors.goldCta.withOpacity(0.12),
+                                  color: AppColors.goldCta.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.goldCta.withOpacity(0.35), width: 0.8),
+                                  border: Border.all(color: AppColors.goldCta.withValues(alpha: 0.35), width: 0.8),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -189,15 +200,15 @@ class StudentTestListGrid extends ConsumerWidget {
                     const Divider(height: 1, color: AppColors.divider),
                     const SizedBox(height: 12),
 
-                    // Details Badges (Wrap auto-adapts to phone/tablet widths cleanly)
+                    // Details Badges (cleanly spaced and padded pills)
                     Wrap(
-                      spacing: 16,
+                      spacing: 8,
                       runSpacing: 8,
                       children: [
                         _DetailBadge(icon: Icons.quiz_outlined, label: '$numQs Questions'),
                         _DetailBadge(icon: Icons.timer_outlined, label: '$duration Min'),
                         _DetailBadge(icon: Icons.star_outline, label: '$totalMarks Marks'),
-                        _DetailBadge(icon: Icons.calendar_today_outlined, label: '$startDate to $endDate'),
+                        _DetailBadge(icon: Icons.calendar_today_outlined, label: dateLabel),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -223,7 +234,7 @@ class StudentTestListGrid extends ConsumerWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: canStart ? const Color(0xFF006B3F) : Colors.grey.shade800,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                          disabledBackgroundColor: Colors.white.withValues(alpha: 0.06),
                           disabledForegroundColor: Colors.white38,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           elevation: canStart ? 2 : 0,
@@ -268,20 +279,32 @@ class _DetailBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.textSecondary),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.goldCta),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

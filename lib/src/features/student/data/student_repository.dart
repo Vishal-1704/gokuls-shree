@@ -220,7 +220,11 @@ class StudentRepository {
         items.add({
           'name': (p['title'] ?? 'Exam').toString(),
           'date': _formatDate(dateRaw?.toString()),
+          'short_date': _shortDate(dateRaw?.toString()),
           'status': status,
+          'dateRaw': dateRaw,
+          'dateTime': startAt?.toLocal(),
+          'type': 'exam',
         });
       }
       return items.take(limit).toList();
@@ -292,46 +296,108 @@ class StudentRepository {
   }
 
   Future<List<Map<String, dynamic>>> getAcademicCalendarEvents({
-    int limit = 4,
+    int limit = 50,
   }) async {
     try {
-      final upcomingExams = await getUpcomingExams(limit: limit);
-      final notices = await _supabaseService.getNotices(limit: limit * 2);
-
       final items = <Map<String, dynamic>>[];
+      final now = DateTime.now();
+      final currentYear = now.year;
 
-      for (final exam in upcomingExams) {
+      // 1. Standard Indian Gazetted & National Holidays for the current year
+      final holidays = [
+        {'name': 'Republic Day', 'month': 1, 'day': 26, 'desc': 'National Holiday'},
+        {'name': 'Maha Shivratri', 'month': 2, 'day': 15, 'desc': 'Gazetted Holiday'},
+        {'name': 'Holi', 'month': 3, 'day': 4, 'desc': 'Festival of Colours'},
+        {'name': 'Eid-ul-Fitr', 'month': 3, 'day': 21, 'desc': 'Gazetted Holiday'},
+        {'name': 'Good Friday', 'month': 4, 'day': 3, 'desc': 'Gazetted Holiday'},
+        {'name': 'Dr. B.R. Ambedkar Jayanti', 'month': 4, 'day': 14, 'desc': 'National Observance'},
+        {'name': 'Mahavir Jayanti', 'month': 4, 'day': 20, 'desc': 'Gazetted Holiday'},
+        {'name': 'Buddha Purnima', 'month': 5, 'day': 1, 'desc': 'Gazetted Holiday'},
+        {'name': 'Eid-ul-Adha (Bakrid)', 'month': 5, 'day': 28, 'desc': 'Gazetted Holiday'},
+        {'name': 'Muharram', 'month': 6, 'day': 26, 'desc': 'Gazetted Holiday'},
+        {'name': 'Independence Day', 'month': 8, 'day': 15, 'desc': 'National Holiday'},
+        {'name': 'Janmashtami', 'month': 9, 'day': 4, 'desc': 'Gazetted Holiday'},
+        {'name': 'Milad-un-Nabi', 'month': 9, 'day': 16, 'desc': 'Gazetted Holiday'},
+        {'name': 'Mahatma Gandhi Jayanti', 'month': 10, 'day': 2, 'desc': 'National Holiday'},
+        {'name': 'Dussehra (Vijayadashami)', 'month': 10, 'day': 20, 'desc': 'Gazetted Holiday'},
+        {'name': 'Diwali (Deepavali)', 'month': 11, 'day': 8, 'desc': 'Festival of Lights'},
+        {'name': 'Govardhan Puja', 'month': 11, 'day': 9, 'desc': 'Public Holiday'},
+        {'name': 'Guru Nanak Jayanti', 'month': 11, 'day': 24, 'desc': 'Gazetted Holiday'},
+        {'name': 'Christmas Day', 'month': 12, 'day': 25, 'desc': 'National Holiday'},
+      ];
+
+      for (final h in holidays) {
+        final hDate = DateTime(currentYear, h['month'] as int, h['day'] as int);
         items.add({
-          'text': exam['name']?.toString() ?? 'Upcoming Exam',
-          'date': exam['date']?.toString() ?? 'TBA',
-          'type': 'exam',
+          'text': h['name'],
+          'date': _formatDate(hDate.toIso8601String()),
+          'short_date': _shortDate(hDate.toIso8601String()),
+          'type': 'holiday',
+          'description': h['desc'],
+          'dateTime': hDate,
         });
       }
 
-      for (final n in notices) {
-        final title = (n['title'] ?? 'Notice').toString();
-        final ts = (n['published_at'] ?? n['created_at'])?.toString();
-        final type = (n['type'] ?? n['category'] ?? '')
-            .toString()
-            .toLowerCase();
-
-        if (_looksLikeCalendarEvent(title, type)) {
+      // 2. Scheduled Upcoming Exams & Tests
+      try {
+        final upcomingExams = await getUpcomingExams(limit: 20);
+        for (final exam in upcomingExams) {
+          final rawDt = exam['dateTime'] ?? DateTime.tryParse(exam['dateRaw']?.toString() ?? '');
           items.add({
-            'text': title,
-            'date': _shortDate(ts),
-            'type': type.isEmpty ? 'notice' : type,
+            'text': exam['name']?.toString() ?? 'Assessment',
+            'date': exam['date']?.toString() ?? 'TBA',
+            'short_date': exam['short_date'] ?? exam['date']?.toString() ?? 'TBA',
+            'type': (exam['type'] ?? 'exam').toString().toLowerCase(),
+            'description': exam['status'] ?? 'Scheduled Assessment',
+            'dateTime': rawDt,
           });
         }
-      }
+      } catch (_) {}
 
+      // 3. Admin Notices / Events
+      try {
+        final notices = await _supabaseService.getNotices(limit: 30);
+        for (final n in notices) {
+          final title = (n['title'] ?? 'Notice').toString();
+          final ts = (n['published_at'] ?? n['created_at'])?.toString();
+          final category = (n['category'] ?? n['type'] ?? '').toString().toLowerCase();
+
+          if (_looksLikeCalendarEvent(title, category)) {
+            final nDate = DateTime.tryParse(ts ?? '');
+            final eventType = category.contains('holiday')
+                ? 'holiday'
+                : (category.contains('exam') ? 'exam' : 'event');
+            items.add({
+              'text': title,
+              'date': _formatDate(ts),
+              'short_date': _shortDate(ts),
+              'type': eventType,
+              'description': (n['content'] ?? 'Announcement').toString(),
+              'dateTime': nDate,
+            });
+          }
+        }
+      } catch (_) {}
+
+      // Deduplicate by text + short_date
       final deduped = <String, Map<String, dynamic>>{};
       for (final item in items) {
-        final key =
-            '${item['text']?.toString().toLowerCase()}|${item['date']?.toString()}';
+        final key = '${item['text']?.toString().toLowerCase()}|${item['short_date']?.toString()}';
         deduped[key] = item;
       }
 
-      return deduped.values.take(limit).toList();
+      final list = deduped.values.toList();
+      // Sort chronologically by date
+      list.sort((a, b) {
+        final da = a['dateTime'] as DateTime?;
+        final db = b['dateTime'] as DateTime?;
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da.compareTo(db);
+      });
+
+      return list.take(limit).toList();
     } catch (_) {
       return [];
     }

@@ -68,3 +68,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.grade_attempt(INT, TEXT) TO authenticated, anon, service_role;
+

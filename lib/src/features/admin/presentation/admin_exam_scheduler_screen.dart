@@ -38,6 +38,7 @@ class _AdminExamSchedulerScreenState
   String _assignmentType = 'student';
   DateTime? _startAt;
   DateTime? _publishAt;
+  DateTime? _endAt;
   bool _negativeMarking = false;
   bool _loading = false;
 
@@ -367,7 +368,7 @@ class _AdminExamSchedulerScreenState
     super.dispose();
   }
 
-  Future<void> _pickDateTime({required bool isStart}) async {
+  Future<void> _pickDateTime({required int field}) async {
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -392,10 +393,12 @@ class _AdminExamSchedulerScreenState
     );
 
     setState(() {
-      if (isStart) {
+      if (field == 0) {
         _startAt = dt;
-      } else {
+      } else if (field == 1) {
         _publishAt = dt;
+      } else {
+        _endAt = dt;
       }
     });
   }
@@ -422,6 +425,14 @@ class _AdminExamSchedulerScreenState
       );
       return;
     }
+    if (_endAt != null && _startAt != null && _endAt!.isBefore(_startAt!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('End time must be after start time'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -434,6 +445,7 @@ class _AdminExamSchedulerScreenState
         durationMinutes: int.parse(_durationController.text.trim()),
         startAt: _startAt!,
         publishAt: _publishAt,
+        endAt: _endAt,
         assignmentType: _assignmentType,
         assignmentValue: assignmentRaw,
         maxAttempts: int.parse(_maxAttemptsController.text.trim()),
@@ -463,6 +475,7 @@ class _AdminExamSchedulerScreenState
         _selectedAssignmentLabel = null;
         _startAt = null;
         _publishAt = null;
+        _endAt = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -602,9 +615,9 @@ class _AdminExamSchedulerScreenState
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickDateTime(isStart: true),
+                        onPressed: () => _pickDateTime(field: 0),
                         icon: const Icon(Icons.schedule),
-                        label: Text(_formatDateTime(_startAt, 'Pick Start At')),
+                        label: Text(_formatDateTime(_startAt, 'Pick Start At (Required)')),
                       ),
                     ),
                   ],
@@ -614,7 +627,25 @@ class _AdminExamSchedulerScreenState
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickDateTime(isStart: false),
+                        onPressed: () => _pickDateTime(field: 2),
+                        icon: const Icon(Icons.event_busy_outlined),
+                        label: Text(_formatDateTime(_endAt, 'Pick End At (Optional Deadline)')),
+                      ),
+                    ),
+                    if (_endAt != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        tooltip: 'Clear End Date',
+                        onPressed: () => setState(() => _endAt = null),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickDateTime(field: 1),
                         icon: const Icon(Icons.publish),
                         label: Text(
                           _formatDateTime(
@@ -624,6 +655,12 @@ class _AdminExamSchedulerScreenState
                         ),
                       ),
                     ),
+                    if (_publishAt != null)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        tooltip: 'Clear Publish Date',
+                        onPressed: () => setState(() => _publishAt = null),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),

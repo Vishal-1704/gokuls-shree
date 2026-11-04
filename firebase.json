@@ -4,9 +4,16 @@
     "public": "build/web",
     "ignore": ["firebase.json", "**/node_modules/**"],
     "rewrites": [
-      { "source": "**", "destination": "/index.html" }
+      { "source": "!/.well-known/**", "destination": "/index.html" }
     ],
     "headers": [
+      {
+        "source": "/.well-known/**",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Access-Control-Allow-Origin", "value": "*" }
+        ]
+      },
       {
         "source": "**/*.@(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|json)",
         "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
