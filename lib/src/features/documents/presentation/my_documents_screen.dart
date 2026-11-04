@@ -1,3 +1,4 @@
+import '../../student/presentation/student_admit_card_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
@@ -64,9 +65,9 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
           children: [
             _buildHeaderCard(),
             const SizedBox(height: 24),
-            _buildSectionTitle('Admit Cards', 0),
+            _buildSectionTitle('Admit Cards', 1),
             const SizedBox(height: 12),
-            _buildEmptyState('No admit cards available yet'),
+            _buildAdmitCardTile(),
             
             const SizedBox(height: 32),
             _buildSectionTitle('Academic Marksheets', _marksheets.length),
@@ -197,5 +198,40 @@ class _MyDocumentsBodyState extends ConsumerState<MyDocumentsBody> {
         ),
       );
     }
+  }
+
+  Widget _buildAdmitCardTile() {
+    return Card(
+      color: AppColors.inkNavy800,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppColors.divider10),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.teal.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.badge_rounded,
+            color: Colors.teal,
+          ),
+        ),
+        title: const Text('Examination Admit Card', style: AppTypography.headingSm),
+        subtitle: Text('Active Session 2025-2026', style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+        onTap: () {
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute(
+              builder: (_) => const StudentAdmitCardScreen(),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

@@ -200,11 +200,33 @@ class _SuperAdminBranchesScreenState extends ConsumerState<SuperAdminBranchesScr
                                 onSelected: (val) {
                                   if (val == 'edit') _addOrEditBranch(branch: branch);
                                   if (val == 'toggle') _toggleStatus(branch);
-                                  if (val == 'delete') {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Feature coming soon'), backgroundColor: Colors.orange),
-                                    );
-                                  }
+                                   if (val == 'delete') {
+                                     showDialog(
+                                       context: context,
+                                       builder: (ctx) => AlertDialog(
+                                         backgroundColor: AppColors.inkNavy800,
+                                         title: const Text('Branch Deletion', style: TextStyle(color: AppColors.textPrimary)),
+                                         content: const Text(
+                                           'Branches with registered students, staff, and transaction records cannot be deleted to preserve academic history. Please deactivate the branch instead to suspend operations.',
+                                           style: TextStyle(color: AppColors.textSecondary),
+                                         ),
+                                         actions: [
+                                           TextButton(
+                                             onPressed: () => Navigator.pop(ctx),
+                                             child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+                                           ),
+                                           ElevatedButton(
+                                             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                             onPressed: () {
+                                               Navigator.pop(ctx);
+                                               _toggleStatus(branch);
+                                             },
+                                             child: Text(isActive ? 'Deactivate Branch' : 'Branch Already Inactive'),
+                                           ),
+                                         ],
+                                       ),
+                                     );
+                                   }
                                 },
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: AppColors.textPrimary))),

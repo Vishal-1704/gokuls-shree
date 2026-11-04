@@ -1,3 +1,5 @@
+import 'marksheet_viewer_screen.dart';
+import 'certificate_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
@@ -152,7 +154,21 @@ class _AdminDocumentApprovalScreenState extends ConsumerState<AdminDocumentAppro
                     children: [
                       TextButton(
                         onPressed: () {
-                          // TODO: Show preview of the document
+                          if (type == 'marksheet') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MarksheetViewerScreen(marksheet: item),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CertificateViewerScreen(certificate: item),
+                              ),
+                            );
+                          }
                         },
                         child: const Text('View Preview'),
                       ),

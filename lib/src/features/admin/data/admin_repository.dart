@@ -1220,17 +1220,79 @@ class AdminRepository {
     };
   }
 
-  Future<Map<String, dynamic>> verifyAdmitCard(String qrCode) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    // Mock logic: Valid if starts with 'ADM'
-    final isValid = qrCode.startsWith('ADM');
-    return {
-      'is_valid': isValid,
-      'student_name': isValid ? 'Verified Student' : null,
-      'exam_date': isValid ? '2025-03-15' : null,
-      'message': isValid ? 'Entry Allowed' : 'Invalid Admit Card QR',
-    };
+  Future<Map<String, dynamic>> verifyStudentQr(String qrCode) async {
+    try {
+      String cleanCode = qrCode.trim();
+      if (cleanCode.startsWith('ADM:')) {
+        final parts = cleanCode.split(':');
+        if (parts.length >= 2) {
+          cleanCode = parts[1].trim();
+        }
+      } else if (cleanCode.contains('/')) {
+        cleanCode = cleanCode.split('/').last.replaceAll('.pdf', '').trim();
+      }
+
+      final results = await supabase
+          .from('students')
+          .select('*, courses(name, short_name), branches(name)')
+          .or('reg_no.eq.' + cleanCode + ',roll_no.eq.' + cleanCode);
+
+      if (results != null && (results as List).isNotEmpty) {
+        final student = results.first as Map<String, dynamic>;
+        final courseName = (student['courses'] as Map?)?['name'] ?? student['class_section'] ?? 'Registered Course';
+        final branchName = (student['branches'] as Map?)?['name'] ?? 'Main Branch';
+        return {
+          'is_valid': true,
+          'student': student,
+          'student_name': student['name'] ?? 'Verified Student',
+          'reg_no': student['reg_no'] ?? cleanCode,
+          'roll_no': student['roll_no']?.toString(),
+          'course': courseName,
+          'branch': branchName,
+          'photo_url': student['photo_url'],
+          'status': student['status'] == 1 ? 'Active' : 'Inactive',
+          'message': 'Student Verified',
+        };
+      }
+
+      final parsedId = int.tryParse(cleanCode);
+      if (parsedId != null) {
+        final byId = await supabase
+            .from('students')
+            .select('*, courses(name, short_name), branches(name)')
+            .eq('id', parsedId)
+            .maybeSingle();
+        if (byId != null) {
+          final courseName = (byId['courses'] as Map?)?['name'] ?? byId['class_section'] ?? 'Registered Course';
+          final branchName = (byId['branches'] as Map?)?['name'] ?? 'Main Branch';
+          return {
+            'is_valid': true,
+            'student': byId,
+            'student_name': byId['name'] ?? 'Verified Student',
+            'reg_no': byId['reg_no'] ?? cleanCode,
+            'roll_no': byId['roll_no']?.toString(),
+            'course': courseName,
+            'branch': branchName,
+            'photo_url': byId['photo_url'],
+            'status': byId['status'] == 1 ? 'Active' : 'Inactive',
+            'message': 'Student Verified',
+          };
+        }
+      }
+
+      return {
+        'is_valid': false,
+        'message': 'No student found for: $cleanCode',
+      };
+    } catch (e) {
+      return {
+        'is_valid': false,
+        'message': 'Verification error: $e',
+      };
+    }
   }
+
+  Future<Map<String, dynamic>> verifyAdmitCard(String qrCode) => verifyStudentQr(qrCode);
 
   // ===========================================
   // STAFF CRUD

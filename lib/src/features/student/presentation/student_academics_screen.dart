@@ -1,3 +1,4 @@
+import 'student_admit_card_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../admin/data/admin_repository.dart';
@@ -149,8 +150,14 @@ class StudentAcademicsScreen extends ConsumerWidget {
                     icon: Icons.badge_rounded,
                     color: Colors.teal,
                     label: 'Admit Card',
-                    count: 0, // no admit-card feature exists yet — always 0
-                    onTap: () => _openTab(context, 4),
+                    count: profileAsync.maybeWhen(data: (_) => 1, orElse: () => 0),
+                    onTap: () {
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (_) => const StudentAdmitCardScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 10),
