@@ -36,17 +36,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             
+            <!-- GitHub Pages deep links -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="gokul-shree.web.app" />
+                <data android:scheme="https" android:host="vishal-1704.github.io" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="gokul-shree.web.app" />
+                <data android:scheme="http" android:host="vishal-1704.github.io" />
             </intent-filter>
             <!-- Add custom scheme support -->
             <intent-filter>
