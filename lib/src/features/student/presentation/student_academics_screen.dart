@@ -488,44 +488,15 @@ class _EnrolledCourseCard extends StatelessWidget {
           const Divider(height: 1, color: AppColors.divider10),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.badge_outlined, size: 14, color: AppColors.goldCta),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Reg. No: $regNo',
-                    style: AppTypography.bodySm.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.info.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3), width: 0.8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.verified_rounded, size: 12, color: AppColors.info),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Verified Student',
-                      style: AppTypography.labelSm.copyWith(
-                        color: AppColors.info,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+              const Icon(Icons.badge_outlined, size: 14, color: AppColors.goldCta),
+              const SizedBox(width: 6),
+              Text(
+                'Reg. No: $regNo',
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ],
