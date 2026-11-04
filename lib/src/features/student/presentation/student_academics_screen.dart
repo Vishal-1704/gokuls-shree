@@ -1,3 +1,6 @@
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../admin/data/admin_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
@@ -23,6 +26,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
     final marksheetsAsync = ref.watch(studentMarksheetsProvider);
     final certificatesAsync = ref.watch(studentCertificatesProvider);
     final profileAsync = ref.watch(studentProfileProvider);
+    final studyMaterialsAsync = ref.watch(studyMaterialsProvider);
 
     int countByType(AsyncValue<List<Map<String, dynamic>>> async, String type) {
       return async.maybeWhen(
@@ -127,7 +131,10 @@ class StudentAcademicsScreen extends ConsumerWidget {
                   icon: Icons.menu_book_rounded,
                   color: AppColors.warning,
                   title: 'Study Material',
-                  subtitle: '0 files',
+                  subtitle: studyMaterialsAsync.maybeWhen(
+                    data: (list) => '${list.length} ${list.length == 1 ? "file" : "files"}',
+                    orElse: () => '0 files',
+                  ),
                   onTap: () => _openTab(context, 3),
                 ),
               ],
@@ -302,7 +309,7 @@ class _AcademicsSectionScreen extends StatelessWidget {
       case 2:
         return const StudentExamReportGrid();
       case 3:
-        return const _StudyMaterialEmptyState();
+        return const StudentStudyMaterialList();
       case 4:
       default:
         return const MyDocumentsBody();
@@ -502,6 +509,151 @@ class _EnrolledCourseCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+class StudentStudyMaterialList extends ConsumerWidget {
+  const StudentStudyMaterialList({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final materialsAsync = ref.watch(studyMaterialsProvider);
+
+    return materialsAsync.when(
+      data: (materials) {
+        if (materials.isEmpty) {
+          return const _StudyMaterialEmptyState();
+        }
+
+        return RefreshIndicator(
+          color: AppColors.goldCta,
+          onRefresh: () async => ref.refresh(studyMaterialsProvider),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: materials.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final item = materials[index];
+              final title = (item['title'] ?? 'Study Material').toString();
+              final subject = (item['subject'] ?? item['program'] ?? 'General').toString();
+              final desc = (item['description'] ?? '').toString();
+              final url = (item['url'] ?? item['file_url'] ?? '').toString();
+              final createdAt = item['created_at'] != null
+                  ? DateFormat('dd MMM yyyy').format(DateTime.tryParse(item['created_at'].toString()) ?? DateTime.now())
+                  : null;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppColors.inkNavy800,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.divider.withValues(alpha: 0.2)),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.description_rounded, color: AppColors.warning, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  subject,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (desc.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        desc,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (createdAt != null)
+                          Text(
+                            createdAt,
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          )
+                        else
+                          const SizedBox.shrink(),
+                        if (url.isNotEmpty)
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.goldCta,
+                              foregroundColor: AppColors.inkNavy900,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                            label: const Text('Open / View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            onPressed: () async {
+                              final uri = Uri.tryParse(url);
+                              if (uri != null && await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Could not open file link')),
+                                );
+                              }
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.goldCta)),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('Error loading materials: $e', style: const TextStyle(color: AppColors.danger)),
+        ),
       ),
     );
   }

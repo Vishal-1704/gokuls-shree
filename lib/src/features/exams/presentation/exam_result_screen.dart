@@ -234,7 +234,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: () => context.go('/student-dashboard'),
+                onPressed: () => context.go('/student'),
                 icon: const Icon(Icons.home_rounded),
                 label: const Text(
                   'Back to Dashboard',
@@ -254,7 +254,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
               width: double.infinity,
               height: 50,
               child: OutlinedButton.icon(
-                onPressed: () => context.go('/exams'),
+                onPressed: () => context.go('/student/academics'),
                 icon: const Icon(Icons.list_alt),
                 label: const Text(
                   'View All Exams',

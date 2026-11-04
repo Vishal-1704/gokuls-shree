@@ -1,3 +1,4 @@
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:gokul_shree_app/src/core/config/env_config.dart';
 
@@ -653,7 +654,7 @@ class AdmitCardWidget extends StatelessWidget {
                     ),
                     child: Center(
                       child: data.qrData != null
-                          ? _QrPlaceholder(size: _AC.qrSize - 4)
+                          ? QrImageView(data: data.qrData!, version: QrVersions.auto, size: _AC.qrSize - 4, padding: EdgeInsets.zero)
                           : const Icon(Icons.qr_code,
                               size: 36, color: Color(0xFF888888)),
                     ),
@@ -685,43 +686,4 @@ class AdmitCardWidget extends StatelessWidget {
   // ── UTILITY ───────────────────────────────────
   Widget _buildDivider() =>
       Container(height: 1, color: _AC.border);
-}
-
-// ── QR placeholder (replace with qr_flutter when available) ──
-class _QrPlaceholder extends StatelessWidget {
-  final double size;
-  const _QrPlaceholder({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _QrGridPainter(),
-    );
-  }
-}
-
-class _QrGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF333333)
-      ..style = PaintingStyle.fill;
-
-    const cells = 8;
-    final cell = size.width / cells;
-    for (int r = 0; r < cells; r++) {
-      for (int c = 0; c < cells; c++) {
-        if ((r + c) % 2 == 0 || (r == 0 || r == cells - 1) ||
-            (c == 0 || c == cells - 1)) {
-          canvas.drawRect(
-              Rect.fromLTWH(c * cell, r * cell, cell - 0.5, cell - 0.5),
-              paint);
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }

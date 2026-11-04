@@ -121,12 +121,15 @@ class _AdminStaffDirectoryScreenState
           _isLoading = false;
         });
       } catch (e) {
-        // Mock delete
-        setState(() {
-          _staffList.removeWhere((s) => s['id'] == id);
-          _filteredStaff.removeWhere((s) => s['id'] == id);
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete staff: $e'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
       }
     }
   }
