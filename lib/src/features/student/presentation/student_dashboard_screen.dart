@@ -175,7 +175,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           subtitle: lastResultSubtitle,
           icon: Icons.emoji_events_rounded,
           color: AppColors.success,
-          onTap: () => context.push('/student/academics'),
+          onTap: () => context.push('/results'),
         ),
         _buildActionCard(
           title: 'Calendar',

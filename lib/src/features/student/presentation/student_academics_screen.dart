@@ -105,7 +105,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.15,
               children: [
                 _HubCard(
                   icon: Icons.edit_note_rounded,
@@ -219,7 +219,7 @@ class _HubCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.inkNavy800,
           borderRadius: BorderRadius.circular(16),
@@ -233,10 +233,10 @@ class _HubCard extends StatelessWidget {
               decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 22),
             ),
-            const Spacer(),
-            Text(title, style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            Text(title, style: AppTypography.bodyLg.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
-            Text(subtitle, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary)),
+            Text(subtitle, style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -372,7 +372,7 @@ class _EnrolledCourseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.inkNavy800,
         borderRadius: BorderRadius.circular(16),

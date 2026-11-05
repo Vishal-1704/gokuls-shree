@@ -208,11 +208,12 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Quick info & download CTA bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.inkNavy800,
                     borderRadius: BorderRadius.circular(12),
@@ -221,7 +222,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   child: Row(
                     children: [
                       const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,24 +238,29 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                           ],
                         ),
                       ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.goldCta,
-                          foregroundColor: AppColors.inkNavy900,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 38,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.goldCta,
+                            foregroundColor: AppColors.inkNavy900,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: _isExporting ? null : () => _exportPdf(cardData),
                         ),
-                        icon: const Icon(Icons.download_rounded, size: 16),
-                        label: const Text('PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        onPressed: _isExporting ? null : () => _exportPdf(cardData),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Native Admit Card Widget
+                // Native Admit Card Widget with responsive scaling to fit phone widths
                 Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -268,7 +274,14 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: AdmitCardWidget(data: cardData),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        width: 595,
+                        child: AdmitCardWidget(data: cardData),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

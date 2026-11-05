@@ -127,33 +127,29 @@ class AdmitCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        child: Container(
-          width: _AC.cardWidth,
-          decoration: BoxDecoration(
-            color: _AC.bodyBg,
-            border: Border.all(color: _AC.headerDark, width: 2.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              _buildTitleBand(),
-              _buildReferenceRow(),
-              _buildDivider(),
-              _buildStudentSection(),
-              _buildDivider(),
-              _buildExamSchedule(),
-              _buildDivider(),
-              _buildCentreInfo(),
-              _buildDivider(),
-              _buildInstructions(),
-              _buildDivider(),
-              _buildFooter(),
-            ],
-          ),
-        ),
+    return Container(
+      width: _AC.cardWidth,
+      decoration: BoxDecoration(
+        color: _AC.bodyBg,
+        border: Border.all(color: _AC.headerDark, width: 2.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          _buildTitleBand(),
+          _buildReferenceRow(),
+          _buildDivider(),
+          _buildStudentSection(),
+          _buildDivider(),
+          _buildExamSchedule(),
+          _buildDivider(),
+          _buildCentreInfo(),
+          _buildDivider(),
+          _buildInstructions(),
+          _buildDivider(),
+          _buildFooter(),
+        ],
       ),
     );
   }
