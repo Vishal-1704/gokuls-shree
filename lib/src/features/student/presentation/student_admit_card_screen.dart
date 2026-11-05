@@ -84,7 +84,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                           ),
                         ),
                         pw.Text(
-                          'Academic Session ${data.session} • Varanasi, Uttar Pradesh',
+                          'Academic Session ${data.session} | Varanasi, Uttar Pradesh',
                           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                         ),
                       ],
@@ -237,7 +237,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (ctx) => Scaffold(
-          backgroundColor: const Color(0xFF141414),
+          backgroundColor: const Color(0xFF1E222B),
           appBar: AppBar(
             backgroundColor: AppColors.inkNavy800,
             iconTheme: const IconThemeData(color: AppColors.textPrimary),
@@ -260,20 +260,21 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
           ),
           body: InteractiveViewer(
             constrained: false,
-            minScale: 0.4,
+            minScale: 0.35,
             maxScale: 3.5,
-            boundaryMargin: const EdgeInsets.all(40),
+            boundaryMargin: const EdgeInsets.all(48),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(2),
+                  border: Border.all(color: const Color(0xFF222222), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withValues(alpha: 0.55),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
@@ -400,7 +401,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
   }
 
   // ─────────────────────────────────────────────
-  // TAB 1: MODERN DIGITAL PASS (Mobile-First UX)
+  // TAB 1: CLEAN DIGITAL PASS (Institutional & Elegant)
   // ─────────────────────────────────────────────
   Widget _buildDigitalPassTab(AdmitCardData data) {
     return SingleChildScrollView(
@@ -408,38 +409,35 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Digital Hall Pass Card
+          // 1. Digital Hall Pass Card (Clean, soft institutional navy)
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E2837), Color(0xFF161F2C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.goldCta.withValues(alpha: 0.3), width: 1.2),
+              color: AppColors.inkNavy800,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.divider.withValues(alpha: 0.18), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top institute banner
+                // Top header bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                    color: AppColors.inkNavy900.withValues(alpha: 0.5),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: 34,
+                        height: 34,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
@@ -449,7 +447,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                           child: Image.asset(
                             EnvConfig.logoAssetPath,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 20, color: Colors.black87),
+                            errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 18, color: Colors.black87),
                           ),
                         ),
                       ),
@@ -460,19 +458,20 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                           children: [
                             Text(
                               EnvConfig.shortName.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                letterSpacing: 0.8,
+                                letterSpacing: 0.5,
                               ),
                             ),
                             Text(
                               'Hall Ticket • Session ${data.session}',
                               style: const TextStyle(
-                                color: AppColors.goldCta,
+                                color: AppColors.textSecondary,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -481,18 +480,18 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
+                          color: const Color(0xFF163E27),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                          border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_circle_rounded, color: Colors.green, size: 12),
+                            Icon(Icons.check_circle_rounded, color: Color(0xFF4ADE80), size: 12),
                             SizedBox(width: 4),
                             Text(
                               'VERIFIED',
-                              style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: Color(0xFF4ADE80), fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -501,82 +500,186 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   ),
                 ),
 
-                // Candidate Details Row
+                // Student Identity Section
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
                     children: [
-                      // Photo
-                      Container(
-                        width: 76,
-                        height: 94,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.divider, width: 1),
-                          color: AppColors.inkNavy800,
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7),
-                          child: data.photoUrl != null && data.photoUrl!.isNotEmpty
-                              ? Image.network(
-                                  data.photoUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 40, color: Colors.white54),
-                                )
-                              : const Icon(Icons.person, size: 40, color: Colors.white54),
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Photo
+                          Container(
+                            width: 68,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.divider.withValues(alpha: 0.25), width: 1),
+                              color: AppColors.inkNavy900,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(7),
+                              child: data.photoUrl != null && data.photoUrl!.isNotEmpty
+                                  ? Image.network(
+                                      data.photoUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 36, color: Colors.white54),
+                                    )
+                                  : const Icon(Icons.person, size: 36, color: Colors.white54),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Name and Course
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  data.studentName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  data.courseName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'Centre: ${data.examCentreCode}',
+                                    style: const TextStyle(
+                                      color: AppColors.goldCta,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 14),
-                      // Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data.studentName,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                      const SizedBox(height: 12),
+
+                      // Two-column Roll Number & Registration No badges (safe from overflow)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.inkNavy900.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.divider.withValues(alpha: 0.15)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'ROLL NUMBER',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    data.rollNo,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data.courseName,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.inkNavy900.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.divider.withValues(alpha: 0.15)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'REGISTRATION NO',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    data.registrationNo,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            _badgeField('Roll Number', data.rollNo, Icons.numbers_rounded),
-                            const SizedBox(height: 4),
-                            _badgeField('Registration', data.registrationNo, Icons.badge_outlined),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
 
-                // QR Code Barcode verification row
+                // QR Code Verification Row
                 Container(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
                       if (data.qrData != null && data.qrData!.isNotEmpty)
-                        QrImageView(
-                          data: data.qrData!,
-                          version: QrVersions.auto,
-                          size: 64,
-                          padding: EdgeInsets.zero,
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: QrImageView(
+                            data: data.qrData!,
+                            version: QrVersions.auto,
+                            size: 60,
+                            padding: EdgeInsets.zero,
+                          ),
                         ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -584,19 +687,20 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Official Digital Gate Pass',
+                              'Gate Verification Pass',
                               style: TextStyle(
-                                color: Colors.black87,
+                                color: Color(0xFF0F172A),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Present this QR at ${data.centreName} gate for fast attendance scan.',
-                              style: const TextStyle(
-                                color: Colors.black54,
+                              'Present this official QR code at the examination centre entrance for instant identity verification.',
+                              style: TextStyle(
+                                color: const Color(0xFF475569).withValues(alpha: 0.9),
                                 fontSize: 11,
+                                height: 1.25,
                               ),
                             ),
                           ],
@@ -608,7 +712,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // 2. Action buttons (Print / Save & Share)
           Row(
@@ -618,7 +722,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.goldCta,
                     foregroundColor: AppColors.inkNavy900,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   icon: _isProcessing
@@ -641,7 +745,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.goldCta,
                     side: const BorderSide(color: AppColors.goldCta),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   icon: const Icon(Icons.share_rounded, size: 18),
@@ -654,7 +758,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           // 3. Examination Centre Card
           Container(
@@ -670,10 +774,10 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.15),
+                    color: Colors.blue.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.location_on_rounded, color: Colors.blueAccent, size: 22),
+                  child: const Icon(Icons.location_on_outlined, color: Colors.blueAccent, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -682,16 +786,20 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                     children: [
                       Row(
                         children: [
-                          const Text(
-                            'EXAMINATION CENTRE',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          const Expanded(
+                            child: Text(
+                              'EXAMINATION CENTRE',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -728,16 +836,21 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           // 4. Scheduled Papers Section
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Examination Schedule',
-                style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
+              Expanded(
+                child: Text(
+                  'Examination Schedule',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.headingSm.copyWith(color: AppColors.textPrimary),
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -773,8 +886,8 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 26,
-                          height: 26,
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
@@ -785,7 +898,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                               style: const TextStyle(
                                 color: AppColors.goldCta,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ),
@@ -809,18 +922,22 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: Colors.amber.withValues(alpha: 0.15),
+                                      color: Colors.white.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       subject.examType,
-                                      style: const TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'Max: ${subject.maxMarks} marks',
-                                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                  Expanded(
+                                    child: Text(
+                                      'Max: ${subject.maxMarks} marks',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -829,30 +946,40 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     const Divider(height: 1, color: AppColors.divider10),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         const Icon(Icons.event_rounded, size: 14, color: AppColors.goldCta),
                         const SizedBox(width: 6),
-                        Text(
-                          subject.examDate,
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                        Expanded(
+                          flex: 5,
+                          child: Text(
+                            subject.examDate,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         const Icon(Icons.schedule_rounded, size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 6),
-                        Text(
-                          subject.examTime,
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        Expanded(
+                          flex: 6,
+                          child: Text(
+                            subject.examTime,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               )),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // 5. Exam Day Instructions Checklist
           Container(
@@ -869,12 +996,16 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                   children: [
                     Icon(Icons.info_outline_rounded, color: AppColors.goldCta, size: 18),
                     SizedBox(width: 8),
-                    Text(
-                      'Exam Hall Mandatory Checklist',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                    Expanded(
+                      child: Text(
+                        'Exam Hall Mandatory Checklist',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -893,30 +1024,13 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
     );
   }
 
-  Widget _badgeField(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: AppColors.goldCta),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-        ),
-        Text(
-          value,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
   Widget _checklistRow(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.green),
+          const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF4ADE80)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -930,11 +1044,11 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
   }
 
   // ─────────────────────────────────────────────
-  // TAB 2: OFFICIAL A4 PAPER (Authentic Document)
+  // TAB 2: OFFICIAL A4 PAPER (Authentic Document with Margins & Border)
   // ─────────────────────────────────────────────
   Widget _buildOfficialPaperTab(AdmitCardData data) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -952,7 +1066,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
                 const SizedBox(width: 10),
                 const Expanded(
                   child: Text(
-                    'Tap document preview to open fullscreen interactive zoom (up to 400%).',
+                    'Tap document to open fullscreen zoom (up to 400%).',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                 ),
@@ -965,23 +1079,25 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
           ),
           const SizedBox(height: 16),
 
-          // The formal document preview
+          // The formal document preview with generous margins and distinct paper border
           GestureDetector(
             onTap: () => _openFullScreenViewer(context, data),
             child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF222222), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(3),
                 child: Stack(
                   children: [
                     FittedBox(
@@ -1019,7 +1135,7 @@ class _StudentAdmitCardScreenState extends ConsumerState<StudentAdmitCardScreen>
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           // Actions
           Row(
