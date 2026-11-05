@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:gokul_shree_app/src/core/theme/app_colors.dart';
 import 'package:gokul_shree_app/src/core/theme/app_theme.dart';
-import 'package:gokul_shree_app/src/core/widgets/app_image.dart';
+import 'package:gokul_shree_app/src/core/utils/image_utils.dart';
 import 'package:gokul_shree_app/src/features/admin/data/admin_repository.dart';
 
 class AdminQRScannerScreen extends ConsumerStatefulWidget {
