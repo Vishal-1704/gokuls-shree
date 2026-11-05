@@ -52,7 +52,7 @@ class AdmitCardData {
   // Optional
   final String? qrData;
 
-  const AdmitCardData({
+  AdmitCardData({
     required this.cardNo,
     required this.rollNo,
     required this.examCentreCode,
@@ -649,8 +649,18 @@ class AdmitCardWidget extends StatelessWidget {
                       color: _AC.instrBg,
                     ),
                     child: Center(
-                      child: data.qrData != null
-                          ? QrImageView(data: data.qrData!, version: QrVersions.auto, size: _AC.qrSize - 4, padding: EdgeInsets.zero)
+                      child: data.qrData != null && data.qrData!.isNotEmpty
+                          ? QrImageView(
+                              data: data.qrData!,
+                              version: QrVersions.auto,
+                              size: _AC.qrSize - 4,
+                              padding: EdgeInsets.zero,
+                              errorStateBuilder: (cxt, err) => const Icon(
+                                Icons.qr_code,
+                                size: 36,
+                                color: Color(0xFF888888),
+                              ),
+                            )
                           : const Icon(Icons.qr_code,
                               size: 36, color: Color(0xFF888888)),
                     ),

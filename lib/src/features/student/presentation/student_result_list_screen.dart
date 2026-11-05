@@ -16,7 +16,7 @@ class StudentResultListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.inkNavy900,
-      extendBodyBehindAppBar: true,
+
       appBar: AppBar(
         title: Text(
           'My Results',
@@ -28,8 +28,9 @@ class StudentResultListScreen extends ConsumerWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      body: resultsAsync.when(
-        data: (results) {
+      body: SafeArea(
+        child: resultsAsync.when(
+          data: (results) {
           if (results.isEmpty) {
             return Center(
               child: Column(
@@ -60,7 +61,7 @@ class StudentResultListScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.screenPadding),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
             itemCount: results.length,
             itemBuilder: (context, index) {
               final result = results[index];
@@ -210,8 +211,9 @@ class StudentResultListScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _downloadMarksheet(
     BuildContext context,

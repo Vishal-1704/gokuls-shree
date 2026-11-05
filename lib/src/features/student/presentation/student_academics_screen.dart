@@ -124,7 +124,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
                 _HubCard(
                   icon: Icons.history_edu_rounded,
                   color: AppColors.success,
-                  title: 'Test & Exam History',
+                  title: 'Exam History',
                   subtitle: bestResultLabel(resultsAsync),
                   onTap: () => _openTab(context, 2),
                 ),
@@ -189,7 +189,7 @@ class StudentAcademicsScreen extends ConsumerWidget {
   }
 
   void _openTab(BuildContext context, int index) {
-    const titles = ['Online Tests', 'Exams', 'Test & Exam History', 'Study Material', 'Documents'];
+    const titles = ['Online Tests', 'Exams', 'Exam History', 'Study Material', 'Documents'];
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => _AcademicsSectionScreen(title: titles[index], index: index),
