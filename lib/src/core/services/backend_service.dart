@@ -81,10 +81,10 @@ class BackendService {
 
     final normalized = <String>[];
     for (final value in rawCandidates) {
-      final cleaned = value
-          .replaceAll(RegExp(r'(?<!:)//+'), '/')
-          .replaceAll('http:/', 'http://')
-          .replaceAll('https:/', 'https://');
+      final uri = Uri.tryParse(value.trim());
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) continue;
+      final cleanedPath = uri.path.replaceAll(RegExp(r'/+'), '/');
+      final cleaned = uri.replace(path: cleanedPath).toString();
       if (!normalized.contains(cleaned)) {
         normalized.add(cleaned);
       }

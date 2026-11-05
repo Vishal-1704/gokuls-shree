@@ -161,16 +161,23 @@ class AdmitCardWidget extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo placeholder
+          // Official Institute Logo
           Container(
-            width: 50,
-            height: 50,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: _AC.border, width: 1),
-              color: _AC.instrBg,
+              border: Border.all(color: _AC.border, width: 0.8),
+              color: Colors.white,
             ),
-            child: const Icon(Icons.school, size: 26, color: Color(0xFF444444)),
+            padding: const EdgeInsets.all(2),
+            child: ClipOval(
+              child: Image.asset(
+                EnvConfig.logoAssetPath,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.school, size: 26, color: Color(0xFF444444)),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           // Institution name block
@@ -204,13 +211,13 @@ class AdmitCardWidget extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          // Accreditation logos placeholder (ISO, MSME)
+          const SizedBox(width: 8),
+          // Accreditation logos (ISO, MSME)
           Column(
             children: [
-              _miniLogo('ISO'),
+              _miniAssetLogo('assets/images/iso-logo.png', 'ISO'),
               const SizedBox(height: 4),
-              _miniLogo('MSME'),
+              _miniAssetLogo('assets/images/msme_logo.png', 'MSME'),
             ],
           ),
         ],
@@ -218,18 +225,25 @@ class AdmitCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _miniLogo(String label) {
+  Widget _miniAssetLogo(String assetPath, String fallbackLabel) {
     return Container(
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 22,
       decoration: BoxDecoration(
-        border: Border.all(color: _AC.border),
+        border: Border.all(color: _AC.border, width: 0.5),
         borderRadius: BorderRadius.circular(3),
-        color: _AC.instrBg,
+        color: Colors.white,
       ),
+      padding: const EdgeInsets.all(1.5),
       child: Center(
-        child: Text(label,
-            style: const TextStyle(fontSize: 6.0, fontWeight: FontWeight.bold)),
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Text(
+            fallbackLabel,
+            style: const TextStyle(fontSize: 6.0, fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }
@@ -241,20 +255,31 @@ class AdmitCardWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
-            'EXAMINATION ADMIT CARD',
-            style: TextStyle(
-              color: _AC.textWhite,
-              fontSize: _AC.f12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
+          const Expanded(
+            child: Text(
+              'EXAMINATION ADMIT CARD',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _AC.textWhite,
+                fontSize: _AC.f12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
-            'Academic Session: ${data.session}',
+            'Session: ${data.session}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-                color: _AC.textWhite, fontSize: _AC.f9),
+              color: _AC.textWhite,
+              fontSize: _AC.f9,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
